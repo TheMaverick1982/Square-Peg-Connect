@@ -1,8 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Mail, Lock } from "lucide-react";
 import { useAuth } from "react-oidc-context";
 import { Navigate } from "react-router-dom";
 
@@ -42,38 +39,6 @@ export default function Login() {
           >
             {isLoading ? "Connecting to Vendesta..." : "Sign in with Vendesta SSO"}
           </Button>
-          
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-border"></div>
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-card px-2 text-muted-foreground font-medium">Or continue with email</span>
-            </div>
-          </div>
-
-          <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); handleVendestaSSO(); }}>
-            <div className="space-y-2">
-              <Label htmlFor="email">Work Email</Label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input id="email" type="email" placeholder="manager@squarepeg.com" className="pl-9 bg-muted/50" />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="password">Password</Label>
-                <a href="#" className="text-xs text-primary hover:underline font-medium">Forgot password?</a>
-              </div>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input id="password" type="password" className="pl-9 bg-muted/50" />
-              </div>
-            </div>
-            <Button variant="outline" className="w-full" type="button" onClick={handleVendestaSSO}>
-              Sign In
-            </Button>
-          </form>
         </div>
       </div>
       
