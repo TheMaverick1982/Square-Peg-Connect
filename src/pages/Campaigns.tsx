@@ -29,7 +29,7 @@ export default function Campaigns() {
                   <Users className="w-6 h-6" />
                 </div>
                 <div>
-                  <div className="font-semibold">Square Peg CRM</div>
+                  <div className="font-semibold">Square Peg Connect</div>
                   <div className="text-xs text-muted-foreground">Source of Truth</div>
                 </div>
               </div>

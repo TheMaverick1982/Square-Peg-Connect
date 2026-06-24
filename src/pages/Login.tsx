@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ShieldCheck, Mail, Lock } from "lucide-react";
+import { Mail, Lock } from "lucide-react";
 import { useAuth } from "react-oidc-context";
 import { Navigate } from "react-router-dom";
 
@@ -27,10 +27,13 @@ export default function Login() {
       
       <div className="w-full max-w-md bg-card border shadow-xl rounded-2xl p-8 relative z-10">
         <div className="flex flex-col items-center text-center mb-8">
-          <div className="w-16 h-16 bg-primary/10 flex items-center justify-center rounded-xl mb-4">
-            <ShieldCheck className="w-8 h-8 text-primary" />
+          <div className="h-16 mb-4 flex items-center justify-center">
+            <img src="/logo.png" alt="Square Peg Connect Logo" className="max-h-full w-auto object-contain" onError={(e) => {
+              // Fallback if logo.png isn't present yet
+              (e.target as HTMLImageElement).style.display = 'none';
+            }} />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight">Square Peg CRM</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Square Peg Connect</h1>
           <p className="text-sm text-muted-foreground mt-1">Sign in to manage catering, contacts, and events.</p>
         </div>
 
@@ -41,11 +44,6 @@ export default function Login() {
             disabled={isLoading}
           >
             {isLoading ? "Connecting to Vendesta..." : "Sign in with Vendesta SSO"}
-            {!isLoading && (
-              <div className="absolute right-4 w-6 h-6 bg-white/20 rounded-full flex items-center justify-center">
-                <ShieldCheck className="w-3 h-3 text-white" />
-              </div>
-            )}
           </Button>
           
           <div className="relative">
