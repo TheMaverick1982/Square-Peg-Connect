@@ -1,6 +1,9 @@
 import { AppLayout } from "./components/layout/AppLayout";
 import Dashboard from "./pages/Dashboard";
 import CateringPipeline from "./pages/CateringPipeline";
+import Campaigns from "./pages/Campaigns";
+import Login from "./pages/Login";
+import PublicCateringForm from "./pages/PublicCateringForm";
 import PlaceholderPage from "./components/layout/PlaceholderPage";
 
 // Automations placeholder containing the requested workflows
@@ -57,6 +60,14 @@ function FundraisersPlaceholder() {
 
 export const routes = [
   {
+    path: "/public/catering",
+    element: <PublicCateringForm />
+  },
+  {
+    path: "/login",
+    element: <Login />
+  },
+  {
     path: "/",
     element: <AppLayout />,
     children: [
@@ -65,7 +76,7 @@ export const routes = [
       { path: "catering", element: <CateringPipeline /> },
       { path: "events", element: <PlaceholderPage title="Events" description="Calendar view of upcoming events across locations." /> },
       { path: "tuesday-fundraisers", element: <FundraisersPlaceholder /> },
-      { path: "campaigns", element: <PlaceholderPage title="Campaigns" description="Manage email and SMS campaigns." /> },
+      { path: "campaigns", element: <Campaigns /> },
       { path: "automations", element: <AutomationsPlaceholder /> },
       { path: "ai-personalize", element: <PlaceholderPage title="AI Personalize" description="AI website scraping for custom messaging." /> },
       { path: "reminders", element: <PlaceholderPage title="Reminders" description="Call reminders and auto-workflow triggers." /> },

@@ -1,21 +1,98 @@
 import { useState } from "react";
 import { useLocationContext } from "@/lib/LocationContext";
-import { mockCateringOrders, type CateringStatus } from "@/lib/data";
+import { mockCateringOrders, locations, type CateringStatus, type CateringOrder } from "@/lib/data";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { 
+  Sheet, 
+  SheetContent, 
+  SheetDescription, 
+  SheetHeader, 
+  SheetTitle, 
+  SheetTrigger,
+  SheetFooter,
+  SheetClose
+} from "@/components/ui/sheet";
+import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { Search, Filter, Plus, Calendar as CalendarIcon, Users, Building2, MapPin, UtensilsCrossed } from "lucide-react";
+import { Search, Filter, Plus, Calendar as CalendarIcon, Users, Building2, MapPin, UtensilsCrossed, Link as LinkIcon } from "lucide-react";
 
 type TabState = "all" | "upcoming" | "unopened" | "past";
 
 export default function CateringPipeline() {
   const { selectedLocationId } = useLocationContext();
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<TabState>("all");
+  const [orders, setOrders] = useState<CateringOrder[]>(mockCateringOrders);
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
   
+  // Form state
+  const [formData, setFormData] = useState({
+    contactName: "",
+    email: "",
+    phone: "",
+    eventName: "",
+    eventDate: "",
+    guestCount: "",
+    locationId: "",
+    notes: ""
+  });
+
+  const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleLocationChange = (val: string) => {
+    setFormData({ ...formData, locationId: val });
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Create new order
+    const newOrder: CateringOrder = {
+      id: `co-${Date.now()}`,
+      contactId: `c-${Date.now()}`,
+      contactName: formData.contactName,
+      locationId: formData.locationId,
+      eventName: formData.eventName,
+      eventDate: new Date(formData.eventDate).toISOString(),
+      guestCount: parseInt(formData.guestCount) || 0,
+      totalAmount: 0, // Pending calculation
+      status: "Waiting on Customer",
+      createdAt: new Date().toISOString(),
+    };
+
+    setOrders([newOrder, ...orders]);
+    setIsSheetOpen(false);
+    
+    // Reset form
+    setFormData({
+      contactName: "",
+      email: "",
+      phone: "",
+      eventName: "",
+      eventDate: "",
+      guestCount: "",
+      locationId: "",
+      notes: ""
+    });
+
+    const locationName = locations.find(l => l.id === formData.locationId)?.name || "Location";
+
+    toast({
+      title: "Catering Request Added",
+      description: `Assigned to ${locationName}. The manager has been notified.`,
+    });
+  };
+
   // Filter by location first
   const locationOrders = selectedLocationId 
-    ? mockCateringOrders.filter(o => o.locationId === selectedLocationId)
-    : mockCateringOrders;
+    ? orders.filter(o => o.locationId === selectedLocationId)
+    : orders;
 
   // Then filter by tab
   const filteredOrders = locationOrders.filter(order => {
@@ -35,6 +112,15 @@ export default function CateringPipeline() {
     }
   };
 
+  const handleCopyLink = () => {
+    const url = `${window.location.origin}/public/catering`;
+    navigator.clipboard.writeText(url);
+    toast({
+      title: "Link Copied",
+      description: "Public catering form link copied to clipboard.",
+    });
+  };
+
   return (
     <div className="flex flex-col h-full space-y-6">
       <div className="flex items-center justify-between">
@@ -42,10 +128,87 @@ export default function CateringPipeline() {
           <h1 className="text-3xl font-bold tracking-tight">Catering Pipeline</h1>
           <p className="text-muted-foreground mt-1">Manage catering leads and confirmed orders.</p>
         </div>
-        <Button className="gap-2 shadow-sm">
-          <Plus className="w-4 h-4" />
-          New Request
-        </Button>
+        
+        <div className="flex items-center gap-2">
+          <Button variant="outline" className="gap-2 shadow-sm" onClick={handleCopyLink}>
+            <LinkIcon className="w-4 h-4" />
+            Copy Public Link
+          </Button>
+          <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+            <SheetTrigger asChild>
+              <Button className="gap-2 shadow-sm">
+                <Plus className="w-4 h-4" />
+                New Request
+              </Button>
+            </SheetTrigger>
+            <SheetContent className="w-full sm:max-w-md overflow-y-auto">
+              <SheetHeader>
+                <SheetTitle>Catering Intake Form</SheetTitle>
+                <SheetDescription>
+                  Log a new catering request. The location manager will be notified automatically.
+                </SheetDescription>
+              </SheetHeader>
+              <form onSubmit={handleSubmit} className="space-y-6 mt-6">
+                <div className="space-y-4">
+                  <h3 className="text-sm font-medium border-b pb-2">Contact Details</h3>
+                  <div className="grid gap-2">
+                    <Label htmlFor="contactName">Full Name</Label>
+                    <Input id="contactName" name="contactName" value={formData.contactName} onChange={handleFormChange} required />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input id="email" type="email" name="email" value={formData.email} onChange={handleFormChange} required />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="phone">Phone Number</Label>
+                    <Input id="phone" type="tel" name="phone" value={formData.phone} onChange={handleFormChange} required />
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <h3 className="text-sm font-medium border-b pb-2">Event Details</h3>
+                  <div className="grid gap-2">
+                    <Label htmlFor="locationId">Assigned Location</Label>
+                    <Select value={formData.locationId} onValueChange={handleLocationChange} required>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a location..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {locations.map(loc => (
+                          <SelectItem key={loc.id} value={loc.id}>{loc.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="eventName">Event Name / Type</Label>
+                    <Input id="eventName" name="eventName" placeholder="e.g. Corporate Lunch" value={formData.eventName} onChange={handleFormChange} required />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="eventDate">Event Date</Label>
+                      <Input id="eventDate" type="date" name="eventDate" value={formData.eventDate} onChange={handleFormChange} required />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="guestCount">Guest Count</Label>
+                      <Input id="guestCount" type="number" name="guestCount" placeholder="e.g. 50" value={formData.guestCount} onChange={handleFormChange} required />
+                    </div>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="notes">Order Details / Notes</Label>
+                    <Textarea id="notes" name="notes" placeholder="Dietary restrictions, delivery instructions, etc." value={formData.notes} onChange={handleFormChange} rows={4} />
+                  </div>
+                </div>
+                <SheetFooter className="mt-6">
+                  <SheetClose asChild>
+                    <Button variant="outline" type="button">Cancel</Button>
+                  </SheetClose>
+                  <Button type="submit">Save & Notify</Button>
+                </SheetFooter>
+              </form>
+            </SheetContent>
+          </Sheet>
+        </div>
       </div>
 
       <div className="flex items-center justify-between border-b pb-4">
@@ -120,10 +283,7 @@ export default function CateringPipeline() {
 
                 <div className="col-span-2 flex items-center gap-2 text-sm text-muted-foreground">
                   <MapPin className="w-4 h-4 shrink-0" />
-                  <span>{mockCateringOrders.find(o => o.id === order.id)?.locationId === "loc-1" ? "Storrs" : 
-                         mockCateringOrders.find(o => o.id === order.id)?.locationId === "loc-2" ? "Vernon" : 
-                         mockCateringOrders.find(o => o.id === order.id)?.locationId === "loc-3" ? "Shelton" : 
-                         mockCateringOrders.find(o => o.id === order.id)?.locationId === "loc-5" ? "Glastonbury" : "Location"}</span>
+                  <span>{locations.find(l => l.id === order.locationId)?.name || "Location"}</span>
                 </div>
 
                 <div className="col-span-2 flex flex-col gap-1">
@@ -136,7 +296,6 @@ export default function CateringPipeline() {
 
                 <div className="col-span-3 flex items-center justify-between">
                   <div className={getStatusPillClass(order.status)}>
-                    {/* Status dot indicator */}
                     <div className={`w-1.5 h-1.5 rounded-full ${
                       order.status === 'Waiting on Customer' ? 'bg-[hsl(var(--status-waiting))]' :
                       order.status === 'Follow-up Needed' ? 'bg-[hsl(var(--status-followup))]' :
