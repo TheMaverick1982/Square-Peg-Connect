@@ -187,10 +187,7 @@ export default function CateringPipeline() {
     });
   };
 
-  const handleOpenVendastaInbox = () => {
-    // A reliable generic deep link for Vendasta Business App Inbox.
-    window.open("https://businessapp.b2bstore.io/inbox", "_blank");
-  };
+
 
   return (
     <div className="flex flex-col h-full space-y-6">
@@ -410,16 +407,18 @@ export default function CateringPipeline() {
               </SheetHeader>
 
               <div className="space-y-8">
-                {/* CTA */}
-                <div className="bg-primary/5 rounded-xl p-4 border border-primary/10">
-                  <h4 className="font-semibold text-sm mb-2 text-primary">Need to reply?</h4>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    Reply directly to this customer via SMS or Email using your official Vendasta Business App Inbox.
-                  </p>
-                  <Button onClick={handleOpenVendastaInbox} className="w-full gap-2">
-                    <MessageSquare className="w-4 h-4" />
-                    Message Lead in Vendasta
-                  </Button>
+                {/* Embedded Inbox */}
+                <div className="bg-muted/10 rounded-xl overflow-hidden border">
+                  <div className="bg-muted/50 px-4 py-2 border-b flex items-center gap-2">
+                    <MessageSquare className="w-4 h-4 text-primary" />
+                    <h4 className="font-semibold text-sm">Conversations</h4>
+                  </div>
+                  <iframe 
+                    src="https://businessapp.b2bstore.io/inbox" 
+                    className="w-full h-[500px] border-0"
+                    title="Vendasta Inbox"
+                    sandbox="allow-same-origin allow-scripts allow-forms allow-popups"
+                  />
                 </div>
 
                 {/* Status & Location */}
