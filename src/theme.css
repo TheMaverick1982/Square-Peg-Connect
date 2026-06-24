@@ -1,0 +1,5 @@
+/* theme.css holds the CSS variables that drive the standard 13 design
+   tokens (--background, --foreground, --primary, etc.). System-managed:
+   the set_theme tool writes this file. Don't edit it directly — for
+   extra palette tokens, gradients, fonts, and custom layers, use
+   design.css instead. */

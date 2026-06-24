@@ -1,0 +1,10 @@
+/* design.css is the single place to add custom CSS:
+   - font @import url(...)
+   - extended palette CSS variables (e.g., --primary-glow)
+   - @layer base { ... } for global tweaks
+   - @layer components { ... } for @apply'd utility classes (.glass, .liquid-border)
+   - @keyframes and animation classes
+
+   This file is @import'ed by index.css so it shares the same Tailwind
+   PostCSS pass — do NOT add @tailwind base/components/utilities here.
+   They live in index.css only. */

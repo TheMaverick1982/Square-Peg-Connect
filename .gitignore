@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.pnpm-store/
+.npm/
+.vite/
+.vibe/
+.cache/
+.local/
+.vibe-archive.tar.gz
