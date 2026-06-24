@@ -24,10 +24,14 @@ export default function PublicCateringForm() {
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col items-center py-12 px-4 sm:px-6 lg:px-8">
       {/* Brand Header */}
-      <div className="mb-8 text-center">
-        <h1 className="text-4xl font-extrabold tracking-tight text-primary font-serif italic mb-2">
-          Square Peg
-        </h1>
+      <div className="mb-8 text-center flex flex-col items-center">
+        <div className="h-24 md:h-32 mb-4 w-full flex justify-center">
+          <img 
+            src="https://media-api-prod.apigateway.co/files/v3/AG-D5HZKZ2TNH/FileID-2859e6a7-48eb-46ed-83a6-9d6ebb5d5850/uploaded-1782298633843015700.png" 
+            alt="Square Peg Connect Logo" 
+            className="h-full w-auto object-contain" 
+          />
+        </div>
         <p className="text-muted-foreground tracking-widest uppercase text-sm font-semibold">Catering Request</p>
       </div>
 
