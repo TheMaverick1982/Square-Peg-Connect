@@ -8,3 +8,79 @@
    This file is @import'ed by index.css so it shares the same Tailwind
    PostCSS pass — do NOT add @tailwind base/components/utilities here.
    They live in index.css only. */
+
+@layer base {
+  :root {
+    --sidebar-bg: 0 0% 9%; /* Zinc 950 */
+    --sidebar-text: 0 0% 80%; /* Zinc 300 */
+    --sidebar-active-bg: 0 0% 15%; /* Zinc 900 */
+    --sidebar-active-text: 0 0% 98%; /* Zinc 50 */
+    --sidebar-hover-bg: 0 0% 12%; /* Zinc 900 */
+    
+    /* Catering Status Colors */
+    --status-waiting: 38 92% 50%; /* Orange */
+    --status-followup: 3 84% 45%; /* Red */
+    --status-confirmed: 142 71% 45%; /* Green */
+    --status-complete: 217 91% 60%; /* Blue */
+  }
+}
+
+@layer components {
+  /* Layout */
+  .layout-container {
+    @apply flex h-screen w-full bg-background overflow-hidden;
+  }
+  
+  .sidebar {
+    @apply w-64 flex-shrink-0 bg-[hsl(var(--sidebar-bg))] text-[hsl(var(--sidebar-text))] flex flex-col border-r border-zinc-800;
+  }
+  
+  .sidebar-link {
+    @apply flex items-center gap-3 px-3 py-2 rounded-md transition-colors text-sm font-medium;
+  }
+  
+  .sidebar-link:hover {
+    @apply bg-[hsl(var(--sidebar-hover-bg))] text-[hsl(var(--sidebar-active-text))];
+  }
+  
+  .sidebar-link.active {
+    @apply bg-[hsl(var(--sidebar-active-bg))] text-[hsl(var(--sidebar-active-text))] shadow-sm;
+  }
+
+  .sidebar-group-title {
+    @apply text-xs font-semibold text-zinc-500 uppercase tracking-wider px-3 mb-2 mt-6;
+  }
+  
+  .main-content {
+    @apply flex-1 flex flex-col min-w-0 overflow-hidden bg-muted/20;
+  }
+  
+  .header {
+    @apply h-16 flex-shrink-0 border-b border-border bg-card px-6 flex items-center justify-between z-10;
+  }
+  
+  .page-scroll-area {
+    @apply flex-1 overflow-auto p-6;
+  }
+
+  /* Status Pills */
+  .status-pill {
+    @apply px-2.5 py-0.5 rounded-full text-xs font-medium border flex items-center gap-1.5 w-fit;
+  }
+  
+  .status-pill.waiting {
+    @apply bg-[hsl(var(--status-waiting)/0.1)] text-[hsl(var(--status-waiting))] border-[hsl(var(--status-waiting)/0.2)];
+  }
+  
+  .status-pill.followup {
+    @apply bg-[hsl(var(--status-followup)/0.1)] text-[hsl(var(--status-followup))] border-[hsl(var(--status-followup)/0.2)];
+  }
+  
+  .status-pill.confirmed {
+    @apply bg-[hsl(var(--status-confirmed)/0.1)] text-[hsl(var(--status-confirmed))] border-[hsl(var(--status-confirmed)/0.2)];
+  }
+
+  .status-pill.complete {
+    @apply bg-[hsl(var(--status-complete)/0.1)] text-[hsl(var(--status-complete))] border-[hsl(var(--status-complete)/0.2)];
+  }
+}
