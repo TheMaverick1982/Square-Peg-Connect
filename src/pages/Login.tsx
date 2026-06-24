@@ -1,28 +1,23 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ShieldCheck, Mail, Lock } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "react-oidc-context";
+import { Navigate } from "react-router-dom";
 
 export default function Login() {
-  const navigate = useNavigate();
-  const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const auth = useAuth();
 
   const handleVendestaSSO = () => {
     setIsLoading(true);
-    // Simulate SSO redirect and callback
-    setTimeout(() => {
-      setIsLoading(false);
-      toast({
-        title: "Successfully authenticated",
-        description: "Logged in via Vendesta SSO.",
-      });
-      navigate("/");
-    }, 1500);
+    auth.signinRedirect();
   };
+
+  if (auth.isAuthenticated) {
+    return <Navigate to="/" replace />;
+  }
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4 relative overflow-hidden">

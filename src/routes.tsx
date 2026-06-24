@@ -5,6 +5,8 @@ import Campaigns from "./pages/Campaigns";
 import Login from "./pages/Login";
 import PublicCateringForm from "./pages/PublicCateringForm";
 import PlaceholderPage from "./components/layout/PlaceholderPage";
+import { AuthCallback } from "./pages/AuthCallback";
+import { ProtectedRoute } from "./components/ProtectedRoute";
 
 // Automations placeholder containing the requested workflows
 function AutomationsPlaceholder() {
@@ -64,12 +66,16 @@ export const routes = [
     element: <PublicCateringForm />
   },
   {
+    path: "/auth/callback",
+    element: <AuthCallback />
+  },
+  {
     path: "/login",
     element: <Login />
   },
   {
     path: "/",
-    element: <AppLayout />,
+    element: <ProtectedRoute><AppLayout /></ProtectedRoute>,
     children: [
       { index: true, element: <Dashboard /> },
       { path: "contacts", element: <PlaceholderPage title="Contacts" description="Global and location-specific contact directory." /> },

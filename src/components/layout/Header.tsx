@@ -1,7 +1,16 @@
-import { MapPin, Plus, Search, Bell } from "lucide-react";
+import { MapPin, Plus, Search, Bell, LogOut, User } from "lucide-react";
 import { useLocationContext } from "@/lib/LocationContext";
 import { locations } from "@/lib/data";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "react-oidc-context";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Select,
   SelectContent,
@@ -12,6 +21,7 @@ import {
 
 export function Header() {
   const { selectedLocationId, setSelectedLocationId } = useLocationContext();
+  const auth = useAuth();
 
   return (
     <div className="header">
@@ -53,9 +63,38 @@ export function Header() {
           <Plus className="w-4 h-4" />
           New Intake
         </Button>
-        <div className="w-8 h-8 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-primary font-bold text-sm">
-          SP
-        </div>
+        
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className="w-8 h-8 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-primary font-bold text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
+              {auth.user?.profile?.name?.charAt(0).toUpperCase() || "SP"}
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuLabel>
+              <div className="flex flex-col space-y-1">
+                <p className="text-sm font-medium leading-none">{auth.user?.profile?.name || "Square Peg User"}</p>
+                <p className="text-xs leading-none text-muted-foreground">{auth.user?.profile?.email || "user@squarepeg.com"}</p>
+              </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem>
+              <User className="mr-2 h-4 w-4" />
+              <span>Profile</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem 
+              onClick={() => {
+                auth.signoutRedirect({
+                  extraQueryParams: { namespace: 'RZG9' },
+                });
+              }}
+              className="text-destructive focus:bg-destructive focus:text-destructive-foreground"
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              <span>Sign out</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   );
