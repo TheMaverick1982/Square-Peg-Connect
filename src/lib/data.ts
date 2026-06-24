@@ -32,6 +32,9 @@ export interface CateringOrder {
   id: string;
   contactId: string;
   contactName: string; // denormalized for easy display
+  email?: string;
+  phone?: string;
+  notes?: string;
   locationId: string;
   eventName: string;
   eventDate: string;

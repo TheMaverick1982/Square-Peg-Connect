@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/sheet";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { Search, Filter, Plus, Calendar as CalendarIcon, Users, Building2, MapPin, UtensilsCrossed, Link as LinkIcon } from "lucide-react";
+import { Search, Filter, Plus, Calendar as CalendarIcon, Users, MapPin, UtensilsCrossed, Link as LinkIcon, MessageSquare, Phone, Mail, FileText } from "lucide-react";
 
 type TabState = "all" | "upcoming" | "unopened" | "past";
 
@@ -29,7 +29,10 @@ export default function CateringPipeline() {
   const [activeTab, setActiveTab] = useState<TabState>("all");
   const [orders, setOrders] = useState<CateringOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isSheetOpen, setIsSheetOpen] = useState(false);
+  
+  // Sheet states
+  const [isNewSheetOpen, setIsNewSheetOpen] = useState(false);
+  const [viewingOrder, setViewingOrder] = useState<CateringOrder | null>(null);
   
   // Form state
   const [formData, setFormData] = useState({
@@ -66,6 +69,9 @@ export default function CateringPipeline() {
         id: row.id,
         contactId: `db-${row.id}`,
         contactName: row.name,
+        email: row.email,
+        phone: row.phone,
+        notes: row.notes,
         locationId: row.location,
         eventName: row.company || 'Unknown Event',
         eventDate: row.event_date,
@@ -92,7 +98,7 @@ export default function CateringPipeline() {
         name: formData.contactName,
         email: formData.email,
         phone: formData.phone,
-        company: formData.eventName, // Storing eventName in the company column
+        company: formData.eventName,
         event_date: formData.eventDate,
         guest_count: parseInt(formData.guestCount, 10),
         location: formData.locationId,
@@ -113,6 +119,9 @@ export default function CateringPipeline() {
         id: row.id,
         contactId: `db-${row.id}`,
         contactName: row.name,
+        email: row.email,
+        phone: row.phone,
+        notes: row.notes,
         locationId: row.location,
         eventName: row.company || 'Unknown Event',
         eventDate: row.event_date,
@@ -124,7 +133,7 @@ export default function CateringPipeline() {
       setOrders([newOrder, ...orders]);
     }
     
-    setIsSheetOpen(false);
+    setIsNewSheetOpen(false);
     
     // Reset form
     setFormData({
@@ -178,6 +187,11 @@ export default function CateringPipeline() {
     });
   };
 
+  const handleOpenVendastaInbox = () => {
+    // A reliable generic deep link for Vendasta Business App Inbox.
+    window.open("https://businessapp.b2bstore.io/inbox", "_blank");
+  };
+
   return (
     <div className="flex flex-col h-full space-y-6">
       <div className="flex items-center justify-between">
@@ -191,7 +205,7 @@ export default function CateringPipeline() {
             <LinkIcon className="w-4 h-4" />
             Copy Public Link
           </Button>
-          <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+          <Sheet open={isNewSheetOpen} onOpenChange={setIsNewSheetOpen}>
             <SheetTrigger asChild>
               <Button className="gap-2 shadow-sm">
                 <Plus className="w-4 h-4" />
@@ -332,7 +346,11 @@ export default function CateringPipeline() {
             </div>
           ) : (
             filteredOrders.map(order => (
-              <div key={order.id} className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-muted/10 transition-colors cursor-pointer group">
+              <div 
+                key={order.id} 
+                onClick={() => setViewingOrder(order)}
+                className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-muted/10 transition-colors cursor-pointer group"
+              >
                 <div className="col-span-3">
                   <div className="font-semibold text-sm text-foreground group-hover:text-primary transition-colors">{order.contactName}</div>
                   <div className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{order.eventName}</div>
@@ -374,6 +392,119 @@ export default function CateringPipeline() {
           )}
         </div>
       </div>
+
+      {/* Details View Sheet */}
+      <Sheet open={viewingOrder !== null} onOpenChange={(open) => !open && setViewingOrder(null)}>
+        <SheetContent className="w-full sm:max-w-md overflow-y-auto">
+          {viewingOrder && (
+            <>
+              <SheetHeader className="mb-6">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <SheetTitle className="text-2xl">{viewingOrder.eventName}</SheetTitle>
+                    <SheetDescription className="mt-1">
+                      Submitted on {format(new Date(viewingOrder.createdAt), "MMMM d, yyyy")}
+                    </SheetDescription>
+                  </div>
+                </div>
+              </SheetHeader>
+
+              <div className="space-y-8">
+                {/* CTA */}
+                <div className="bg-primary/5 rounded-xl p-4 border border-primary/10">
+                  <h4 className="font-semibold text-sm mb-2 text-primary">Need to reply?</h4>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Reply directly to this customer via SMS or Email using your official Vendasta Business App Inbox.
+                  </p>
+                  <Button onClick={handleOpenVendastaInbox} className="w-full gap-2">
+                    <MessageSquare className="w-4 h-4" />
+                    Message Lead in Vendasta
+                  </Button>
+                </div>
+
+                {/* Status & Location */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">Status</Label>
+                    <div className="flex">
+                      <div className={getStatusPillClass(viewingOrder.status)}>
+                        {viewingOrder.status}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">Location</Label>
+                    <div className="flex items-center gap-2 text-sm font-medium">
+                      <MapPin className="w-4 h-4 text-muted-foreground" />
+                      {locations.find(l => l.id === viewingOrder.locationId)?.name || "Unknown"}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Contact Info */}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-semibold border-b pb-2 flex items-center gap-2">
+                    <Users className="w-4 h-4 text-muted-foreground" />
+                    Contact Information
+                  </h3>
+                  <div className="grid gap-3">
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center shrink-0">
+                        <span className="text-xs font-semibold">{viewingOrder.contactName.charAt(0)}</span>
+                      </div>
+                      <div>
+                        <div className="font-medium">{viewingOrder.contactName}</div>
+                        <div className="flex flex-col gap-1 mt-1">
+                          {viewingOrder.email && (
+                            <a href={`mailto:${viewingOrder.email}`} className="text-sm text-muted-foreground hover:text-primary flex items-center gap-2 transition-colors">
+                              <Mail className="w-3.5 h-3.5" /> {viewingOrder.email}
+                            </a>
+                          )}
+                          {viewingOrder.phone && (
+                            <a href={`tel:${viewingOrder.phone}`} className="text-sm text-muted-foreground hover:text-primary flex items-center gap-2 transition-colors">
+                              <Phone className="w-3.5 h-3.5" /> {viewingOrder.phone}
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Event Info */}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-semibold border-b pb-2 flex items-center gap-2">
+                    <CalendarIcon className="w-4 h-4 text-muted-foreground" />
+                    Event Details
+                  </h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-muted/30 p-3 rounded-lg border text-center">
+                      <div className="text-xs text-muted-foreground mb-1">Event Date</div>
+                      <div className="font-semibold">{format(new Date(viewingOrder.eventDate), "MMM d, yyyy")}</div>
+                    </div>
+                    <div className="bg-muted/30 p-3 rounded-lg border text-center">
+                      <div className="text-xs text-muted-foreground mb-1">Guest Count</div>
+                      <div className="font-semibold">{viewingOrder.guestCount} People</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Notes */}
+                <div className="space-y-3">
+                  <h3 className="text-sm font-semibold border-b pb-2 flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-muted-foreground" />
+                    Order Notes / Details
+                  </h3>
+                  <div className="bg-muted/30 p-4 rounded-lg border text-sm text-foreground whitespace-pre-wrap leading-relaxed">
+                    {viewingOrder.notes ? viewingOrder.notes : <span className="text-muted-foreground italic">No additional notes provided.</span>}
+                  </div>
+                </div>
+
+              </div>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
