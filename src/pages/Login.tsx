@@ -27,11 +27,8 @@ export default function Login() {
       
       <div className="w-full max-w-md bg-card border shadow-xl rounded-2xl p-8 relative z-10">
         <div className="flex flex-col items-center text-center mb-8">
-          <div className="h-16 mb-4 flex items-center justify-center">
-            <img src="/logo.png" alt="Square Peg Connect Logo" className="max-h-full w-auto object-contain" onError={(e) => {
-              // Fallback if logo.png isn't present yet
-              (e.target as HTMLImageElement).style.display = 'none';
-            }} />
+          <div className="h-20 mb-4 flex items-center justify-center">
+            <img src="https://media-api-prod.apigateway.co/files/v3/AG-D5HZKZ2TNH/FileID-2859e6a7-48eb-46ed-83a6-9d6ebb5d5850/uploaded-1782298633843015700.png" alt="Square Peg Connect Logo" className="max-h-full w-auto object-contain" />
           </div>
           <h1 className="text-2xl font-bold tracking-tight">Square Peg Connect</h1>
           <p className="text-sm text-muted-foreground mt-1">Sign in to manage catering, contacts, and events.</p>
