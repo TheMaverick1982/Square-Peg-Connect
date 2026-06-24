@@ -1,0 +1,22 @@
+/* design.css carries all custom CSS the agent authors — extra @layer
+   components, keyframes, font @imports, etc. Pulled in here so it
+   shares this file's Tailwind/PostCSS pass. CSS spec requires @import
+   to precede every non-@import statement, so it sits at the very top. */
+@import './design.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* CSS variables are owned by theme.css (system-managed via set_theme).
+   Don't add :root variables here. */
+
+@layer base {
+  * {
+    border-color: hsl(var(--border));
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
