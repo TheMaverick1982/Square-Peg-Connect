@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { locations } from "@/lib/data";
+import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,9 +29,29 @@ export default function PublicCateringForm() {
     setFormData({ ...formData, locationId: val });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // In production, this would POST to the backend API which feeds into the CRM.
+    
+    const { error } = await supabase.from('catering_requests').insert([
+      {
+        name: formData.contactName,
+        email: formData.email,
+        phone: formData.phone,
+        company: formData.eventName, // Storing eventName in the company column
+        event_date: formData.eventDate,
+        guest_count: parseInt(formData.guestCount, 10),
+        location: formData.locationId,
+        notes: formData.notes,
+        status: 'Waiting on Customer'
+      }
+    ]);
+
+    if (error) {
+      console.error("Supabase insert error:", error);
+      alert("Failed to submit request. Please try again.");
+      return;
+    }
+
     setIsSubmitted(true);
   };
 

@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocationContext } from "@/lib/LocationContext";
-import { mockCateringOrders, locations, type CateringStatus, type CateringOrder } from "@/lib/data";
+import { locations, type CateringStatus, type CateringOrder } from "@/lib/data";
+import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,7 +27,8 @@ export default function CateringPipeline() {
   const { selectedLocationId } = useLocationContext();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<TabState>("all");
-  const [orders, setOrders] = useState<CateringOrder[]>(mockCateringOrders);
+  const [orders, setOrders] = useState<CateringOrder[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   
   // Form state
@@ -49,24 +51,79 @@ export default function CateringPipeline() {
     setFormData({ ...formData, locationId: val });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const fetchOrders = async () => {
+    setIsLoading(true);
+    const { data, error } = await supabase
+      .from('catering_requests')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error("Error fetching orders:", error);
+      toast({ title: "Error", description: "Could not load catering requests.", variant: "destructive" });
+    } else if (data) {
+      const mappedOrders: CateringOrder[] = data.map((row: any) => ({
+        id: row.id,
+        contactId: `db-${row.id}`,
+        contactName: row.name,
+        locationId: row.location,
+        eventName: row.company || 'Unknown Event',
+        eventDate: row.event_date,
+        guestCount: row.guest_count,
+        totalAmount: 0,
+        status: row.status as CateringStatus,
+        createdAt: row.created_at
+      }));
+      setOrders(mappedOrders);
+    }
+    setIsLoading(false);
+  };
+
+  useEffect(() => {
+    fetchOrders();
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Create new order
-    const newOrder: CateringOrder = {
-      id: `co-${Date.now()}`,
-      contactId: `c-${Date.now()}`,
-      contactName: formData.contactName,
-      locationId: formData.locationId,
-      eventName: formData.eventName,
-      eventDate: new Date(formData.eventDate).toISOString(),
-      guestCount: parseInt(formData.guestCount) || 0,
-      totalAmount: 0, // Pending calculation
-      status: "Waiting on Customer",
-      createdAt: new Date().toISOString(),
-    };
+    // Insert into Supabase
+    const { data, error } = await supabase.from('catering_requests').insert([
+      {
+        name: formData.contactName,
+        email: formData.email,
+        phone: formData.phone,
+        company: formData.eventName, // Storing eventName in the company column
+        event_date: formData.eventDate,
+        guest_count: parseInt(formData.guestCount, 10),
+        location: formData.locationId,
+        notes: formData.notes,
+        status: 'Waiting on Customer'
+      }
+    ]).select();
 
-    setOrders([newOrder, ...orders]);
+    if (error) {
+      console.error("Error creating request:", error);
+      toast({ title: "Error", description: "Could not save the request.", variant: "destructive" });
+      return;
+    }
+
+    if (data && data.length > 0) {
+      const row = data[0];
+      const newOrder: CateringOrder = {
+        id: row.id,
+        contactId: `db-${row.id}`,
+        contactName: row.name,
+        locationId: row.location,
+        eventName: row.company || 'Unknown Event',
+        eventDate: row.event_date,
+        guestCount: row.guest_count,
+        totalAmount: 0,
+        status: row.status as CateringStatus,
+        createdAt: row.created_at
+      };
+      setOrders([newOrder, ...orders]);
+    }
+    
     setIsSheetOpen(false);
     
     // Reset form
@@ -263,7 +320,12 @@ export default function CateringPipeline() {
         </div>
 
         <div className="divide-y overflow-auto h-[calc(100%-49px)]">
-          {filteredOrders.length === 0 ? (
+          {isLoading ? (
+            <div className="p-8 text-center text-muted-foreground flex flex-col items-center justify-center h-48">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-3"></div>
+              <p>Loading catering requests...</p>
+            </div>
+          ) : filteredOrders.length === 0 ? (
             <div className="p-8 text-center text-muted-foreground flex flex-col items-center justify-center h-48">
               <UtensilsCrossed className="w-8 h-8 mb-3 opacity-20" />
               <p>No catering orders found for this view.</p>
