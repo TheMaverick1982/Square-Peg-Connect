@@ -420,7 +420,7 @@ export default function CateringPipeline() {
                   </div>
                   <Button 
                     className="w-full sm:w-auto gap-2" 
-                    onClick={() => window.open('https://businessapp.b2bstore.io/inbox', '_blank', 'noopener,noreferrer')}
+                    onClick={() => window.open('https://the-maverick-ai.smblogin.com/account/location/AG-D5HZKZ2TNH/inbox', '_blank', 'noopener,noreferrer')}
                   >
                     Open in Vendasta Inbox
                     <LinkIcon className="w-4 h-4 ml-1 opacity-70" />
