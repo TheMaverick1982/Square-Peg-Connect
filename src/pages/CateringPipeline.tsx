@@ -407,18 +407,24 @@ export default function CateringPipeline() {
               </SheetHeader>
 
               <div className="space-y-8">
-                {/* Embedded Inbox */}
-                <div className="bg-muted/10 rounded-xl overflow-hidden border">
-                  <div className="bg-muted/50 px-4 py-2 border-b flex items-center gap-2">
-                    <MessageSquare className="w-4 h-4 text-primary" />
-                    <h4 className="font-semibold text-sm">Conversations</h4>
+                {/* Inbox Integration */}
+                <div className="bg-muted/10 rounded-xl p-5 border flex flex-col items-center text-center gap-3">
+                  <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                    <MessageSquare className="w-6 h-6 text-primary" />
                   </div>
-                  <iframe 
-                    src="https://businessapp.b2bstore.io/inbox" 
-                    className="w-full h-[500px] border-0"
-                    title="Vendasta Inbox"
-                    sandbox="allow-same-origin allow-scripts allow-forms allow-popups"
-                  />
+                  <div>
+                    <h4 className="font-semibold">Message Lead</h4>
+                    <p className="text-sm text-muted-foreground mt-1 mb-4">
+                      Continue the conversation securely through the Vendasta Business App Inbox.
+                    </p>
+                  </div>
+                  <Button 
+                    className="w-full sm:w-auto gap-2" 
+                    onClick={() => window.open('https://businessapp.b2bstore.io/inbox', '_blank', 'noopener,noreferrer')}
+                  >
+                    Open in Vendasta Inbox
+                    <LinkIcon className="w-4 h-4 ml-1 opacity-70" />
+                  </Button>
                 </div>
 
                 {/* Status & Location */}
