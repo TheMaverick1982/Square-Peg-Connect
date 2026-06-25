@@ -103,9 +103,9 @@ export default function FundraisersPipeline() {
   }, []);
 
   const handleCopyLink = () => {
-    // In preview environments, BASE_URL holds the sandbox path. We must include it so the proxy routes correctly.
-    // In production on a custom domain, BASE_URL will be '/' and the path will just be origin/public/fundraisers.
-    const basePath = import.meta.env.BASE_URL === '/' ? '' : import.meta.env.BASE_URL.replace(/\/$/, "");
+    // Dynamically extract the base path from the current URL to ensure it works
+    // correctly through the Vibe proxy sandbox without stripping the UUIDs.
+    const basePath = window.location.pathname.replace(/\/tuesday-fundraisers$/, '');
     const url = `${window.location.origin}${basePath}/public/fundraisers`;
     navigator.clipboard.writeText(url);
     toast({
@@ -472,7 +472,7 @@ export default function FundraisersPipeline() {
       <div className="bg-card border rounded-lg overflow-hidden flex-1 flex flex-col min-h-0">
         <div className="grid grid-cols-12 gap-4 p-4 border-b bg-muted/30 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
           <div className="col-span-3">Organization</div>
-          <div className="col-span-3">Preferred Date & Location</div>
+          <div className="col-span-3">Preferred Event Date & Location</div>
           <div className="col-span-3">Financials</div>
           <div className="col-span-3">Status</div>
         </div>
