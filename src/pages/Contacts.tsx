@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Search, Mail, Phone, Users, Calendar, MapPin, Building, Activity, UtensilsCrossed, PartyPopper, Handshake, UserCheck } from "lucide-react";
+import { Search, Mail, Phone, Users, Calendar as CalendarIcon, MapPin, Building, UtensilsCrossed, PartyPopper, Handshake, UserCheck, Plus, CheckCircle2, Circle, Clock } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useLocationContext } from "@/lib/LocationContext";
 import { locations } from "@/lib/data";
@@ -10,90 +10,96 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ScrollArea } from "@/components/ui/scroll-area";
-
-type SourceTag = "B2B" | "Guest Bounce Back" | "Catering" | "Fundraiser";
-
-interface UnifiedContact {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  organization: string;
-  sources: SourceTag[];
-  location_id: string;
-  
-  b2bRecord: any | null;
-  guestBounceBackRecord: any | null;
-  cateringRecords: any[];
-  fundraiserRecords: any[];
-}
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
+import { useUnifiedContacts } from "@/hooks/useUnifiedContacts";
+import type { UnifiedContact, SourceTag } from "@/hooks/useUnifiedContacts";
 
 export default function Contacts() {
   const { selectedLocationId } = useLocationContext();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedContact, setSelectedContact] = useState<UnifiedContact | null>(null);
 
-  const { data: contacts = [], isLoading } = useQuery({
-    queryKey: ["unified_contacts", selectedLocationId],
+  const { data: contacts = [], isLoading } = useUnifiedContacts(selectedLocationId);
+
+  // Reminders for selected contact
+  const { data: contactReminders = [] } = useQuery({
+    queryKey: ["reminders", selectedContact?.id],
+    enabled: !!selectedContact,
     queryFn: async () => {
-      // Fetch all sources concurrently
-      const [b2bReq, bounceReq, cateringReq, fundsReq] = await Promise.all([
-        supabase.from("b2b_contacts").select("*"),
-        supabase.from("guest_bounce_backs").select("*"),
-        supabase.from("catering_requests").select("*"),
-        supabase.from("fundraisers").select("*")
-      ]);
+      if (!selectedContact) return [];
+      
+      const orConditions = [];
+      if (selectedContact.b2bRecord?.id) orConditions.push(`b2b_contact_id.eq.${selectedContact.b2bRecord.id}`);
+      if (selectedContact.guestBounceBackRecord?.id) orConditions.push(`guest_bounce_back_id.eq.${selectedContact.guestBounceBackRecord.id}`);
+      if (selectedContact.cateringRecords?.length > 0) {
+        selectedContact.cateringRecords.forEach(c => orConditions.push(`catering_request_id.eq.${c.id}`));
+      }
+      if (selectedContact.fundraiserRecords?.length > 0) {
+        selectedContact.fundraiserRecords.forEach(f => orConditions.push(`fundraiser_id.eq.${f.id}`));
+      }
+      
+      if (orConditions.length === 0) return [];
 
-      // Filter by location locally to avoid complex DB OR logic
-      const locFilter = selectedLocationId && selectedLocationId !== "all" ? selectedLocationId : null;
+      const { data, error } = await supabase
+        .from("reminders")
+        .select("*")
+        .or(orConditions.join(","));
 
-      const map = new Map<string, UnifiedContact>();
+      if (error) throw error;
+      return data;
+    }
+  });
 
-      const merge = (email: string, name: string, phone: string, org: string, source: SourceTag, locId: string, record: any) => {
-        if (locFilter && locId !== locFilter) return;
-        
-        const key = email ? email.toLowerCase().trim() : name?.toLowerCase().trim();
-        if (!key) return; // skip if no ident
+  // Reminder form state
+  const [isCreatingReminder, setIsCreatingReminder] = useState(false);
+  const [reminderTitle, setReminderTitle] = useState("");
+  const [reminderDesc, setReminderDesc] = useState("");
+  const [reminderDueDate, setReminderDueDate] = useState<Date | undefined>(new Date());
 
-        if (!map.has(key)) {
-          map.set(key, {
-            id: key,
-            name: name || "Unknown",
-            email: email || "",
-            phone: phone || "",
-            organization: org || "",
-            sources: [],
-            location_id: locId,
-            b2bRecord: null,
-            guestBounceBackRecord: null,
-            cateringRecords: [],
-            fundraiserRecords: []
-          });
-        }
-
-        const contact = map.get(key)!;
-        if (!contact.sources.includes(source)) {
-          contact.sources.push(source);
-        }
-        
-        if (phone && !contact.phone) contact.phone = phone;
-        if (org && !contact.organization) contact.organization = org;
-        if (name && contact.name === "Unknown") contact.name = name;
-
-        if (source === "B2B") contact.b2bRecord = record;
-        if (source === "Guest Bounce Back") contact.guestBounceBackRecord = record;
-        if (source === "Catering") contact.cateringRecords.push(record);
-        if (source === "Fundraiser") contact.fundraiserRecords.push(record);
+  const saveReminderMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedContact) throw new Error("No contact selected");
+      
+      const payload = {
+        title: reminderTitle,
+        description: reminderDesc,
+        due_date: reminderDueDate ? format(reminderDueDate, 'yyyy-MM-dd') : null,
+        location_id: selectedContact.location_id,
+        b2b_contact_id: selectedContact.b2bRecord?.id || null,
+        guest_bounce_back_id: selectedContact.guestBounceBackRecord?.id || null,
+        // If multiple exist, we just link the first one for simplicity, or ideally the user chooses.
+        catering_request_id: selectedContact.cateringRecords?.[0]?.id || null,
+        fundraiser_id: selectedContact.fundraiserRecords?.[0]?.id || null,
       };
 
-      b2bReq.data?.forEach(r => merge(r.email, r.contact_name, r.phone, r.organization_name, "B2B", r.location_id, r));
-      bounceReq.data?.forEach(r => merge(r.email, r.name, r.phone, "", "Guest Bounce Back", r.location_id, r));
-      cateringReq.data?.forEach(r => merge(r.email, r.name, r.phone, r.company, "Catering", r.location, r));
-      fundsReq.data?.forEach(r => merge(r.email, r.name, r.phone, r.organization, "Fundraiser", r.location, r));
+      const { error } = await supabase.from("reminders").insert([payload]);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({ title: "Reminder created" });
+      queryClient.invalidateQueries({ queryKey: ["reminders", selectedContact?.id] });
+      setIsCreatingReminder(false);
+      setReminderTitle("");
+      setReminderDesc("");
+      setReminderDueDate(new Date());
+    },
+    onError: (error) => toast({ title: "Error", description: error.message, variant: "destructive" })
+  });
 
-      return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
-    }
+  const toggleStatusMutation = useMutation({
+    mutationFn: async ({ id, is_completed }: { id: string, is_completed: boolean }) => {
+      const { error } = await supabase.from("reminders").update({ is_completed }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["reminders", selectedContact?.id] })
   });
 
   const filteredContacts = contacts.filter(c => 
@@ -253,6 +259,9 @@ export default function Contacts() {
                           {getSourceIcon(src)} {src}
                         </TabsTrigger>
                       ))}
+                      <TabsTrigger value="Tasks" className="text-xs data-[state=active]:bg-background">
+                        <CheckCircle2 className="w-3 h-3 mr-1" /> Tasks
+                      </TabsTrigger>
                     </TabsList>
 
                     {selectedContact.sources.includes("B2B") && (
@@ -344,6 +353,77 @@ export default function Contacts() {
                         ))}
                       </TabsContent>
                     )}
+
+                    <TabsContent value="Tasks" className="mt-4 space-y-4">
+                      {isCreatingReminder ? (
+                        <Card className="border-primary/50 shadow-sm">
+                          <CardContent className="p-4 space-y-4">
+                            <h4 className="font-medium text-sm">New Task for {selectedContact.name}</h4>
+                            <div className="space-y-3">
+                              <div className="space-y-1.5">
+                                <Label className="text-xs">Task Title</Label>
+                                <Input value={reminderTitle} onChange={e => setReminderTitle(e.target.value)} placeholder="e.g., Follow up about event" className="h-8 text-sm" />
+                              </div>
+                              <div className="space-y-1.5">
+                                <Label className="text-xs">Due Date</Label>
+                                <Popover>
+                                  <PopoverTrigger asChild>
+                                    <Button variant="outline" className={cn("w-full h-8 justify-start text-left font-normal text-sm", !reminderDueDate && "text-muted-foreground")}>
+                                      <CalendarIcon className="mr-2 h-3 w-3" />
+                                      {reminderDueDate ? format(reminderDueDate, "PPP") : <span>Pick a date</span>}
+                                    </Button>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-auto p-0">
+                                    <Calendar mode="single" selected={reminderDueDate} onSelect={setReminderDueDate} initialFocus />
+                                  </PopoverContent>
+                                </Popover>
+                              </div>
+                              <div className="space-y-1.5">
+                                <Label className="text-xs">Notes (Optional)</Label>
+                                <Textarea value={reminderDesc} onChange={e => setReminderDesc(e.target.value)} className="min-h-[60px] text-sm" />
+                              </div>
+                              <div className="flex justify-end gap-2 pt-2">
+                                <Button variant="ghost" size="sm" onClick={() => setIsCreatingReminder(false)}>Cancel</Button>
+                                <Button size="sm" disabled={!reminderTitle || saveReminderMutation.isPending} onClick={() => saveReminderMutation.mutate()}>
+                                  Save Task
+                                </Button>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ) : (
+                        <Button variant="outline" className="w-full border-dashed" onClick={() => setIsCreatingReminder(true)}>
+                          <Plus className="w-4 h-4 mr-2" /> Add Task
+                        </Button>
+                      )}
+
+                      <div className="space-y-2 mt-4">
+                        {contactReminders.length === 0 && !isCreatingReminder ? (
+                          <div className="text-center py-6 text-muted-foreground text-sm">No tasks found for this contact.</div>
+                        ) : (
+                          contactReminders.map((reminder: any) => (
+                            <Card key={reminder.id} className={cn("transition-colors", reminder.is_completed && "opacity-60 bg-muted/50")}>
+                              <CardContent className="p-3 flex gap-3">
+                                <button onClick={() => toggleStatusMutation.mutate({ id: reminder.id, is_completed: !reminder.is_completed })} className="mt-0.5 flex-shrink-0 text-muted-foreground hover:text-primary transition-colors">
+                                  {reminder.is_completed ? <CheckCircle2 className="h-5 w-5 text-green-500" /> : <Circle className="h-5 w-5" />}
+                                </button>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex justify-between items-start gap-2">
+                                    <h4 className={cn("font-medium text-sm truncate", reminder.is_completed && "line-through text-muted-foreground")}>{reminder.title}</h4>
+                                    {reminder.due_date && (
+                                      <Badge variant="secondary" className="font-normal text-[10px] px-1.5 py-0">
+                                        {format(new Date(reminder.due_date), "MMM d")}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  {reminder.description && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{reminder.description}</p>}
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ))
+                        )}
+                      </div>
+                    </TabsContent>
 
                   </Tabs>
                 </div>
