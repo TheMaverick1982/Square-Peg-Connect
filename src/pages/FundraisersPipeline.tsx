@@ -13,9 +13,12 @@ import {
   SheetHeader, 
   SheetTitle,
 } from "@/components/ui/sheet";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { useToast } from "@/hooks/use-toast";
-import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, isToday } from "date-fns";
+import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, isToday, isTuesday } from "date-fns";
 import { Search, Filter, Calendar as CalendarIcon, MapPin, Link as LinkIcon, DollarSign, Building, Phone, Mail, FileText, Plus, ChevronLeft, ChevronRight, LayoutList, CalendarDays } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export interface FundraiserOrder {
   id: string;
@@ -32,6 +35,14 @@ export interface FundraiserOrder {
   createdAt: string;
 }
 
+// Safely parse YYYY-MM-DD strings from the DB into local dates
+const parseSafeDate = (dateString: string) => {
+  if (!dateString) return new Date();
+  if (dateString.includes('T')) return new Date(dateString); // Handle ISO strings
+  const [year, month, day] = dateString.split('-');
+  return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+};
+
 export default function FundraisersPipeline() {
   const { selectedLocationId } = useLocationContext();
   const { toast } = useToast();
@@ -47,9 +58,11 @@ export default function FundraisersPipeline() {
   const [viewingOrder, setViewingOrder] = useState<FundraiserOrder | null>(null);
   const [isAddSheetOpen, setIsAddSheetOpen] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
+  
   const [addFormData, setAddFormData] = useState({
-    name: "", email: "", phone: "", address: "", organization: "", locationId: "", eventDate: ""
+    name: "", email: "", phone: "", address: "", organization: "", locationId: ""
   });
+  const [addFormDate, setAddFormDate] = useState<Date | undefined>(undefined);
 
   // Edit state for sales/donated
   const [salesInput, setSalesInput] = useState("");
@@ -90,7 +103,8 @@ export default function FundraisersPipeline() {
   }, []);
 
   const handleCopyLink = () => {
-    const url = `${window.location.origin}/public/fundraisers`;
+    const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
+    const url = `${window.location.origin}${basePath}/public/fundraisers`;
     navigator.clipboard.writeText(url);
     toast({
       title: "Link Copied",
@@ -146,9 +160,16 @@ export default function FundraisersPipeline() {
 
   const handleAddFundraiser = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!addFormDate) {
+      toast({ title: "Date required", description: "Please select a preferred event date." });
+      return;
+    }
+
     setIsAdding(true);
     
     const loc = addFormData.locationId || selectedLocationId || locations[0].id;
+    const formattedDate = format(addFormDate, 'yyyy-MM-dd');
+
     const { data, error } = await supabase.from('fundraisers').insert([{
       name: addFormData.name,
       email: addFormData.email,
@@ -156,7 +177,7 @@ export default function FundraisersPipeline() {
       address: addFormData.address,
       organization: addFormData.organization,
       location: loc,
-      event_date: addFormData.eventDate,
+      event_date: formattedDate,
       status: 'Confirmed'
     }]).select().single();
 
@@ -179,9 +200,10 @@ export default function FundraisersPipeline() {
         totalSales: 0,
         totalDonated: 0,
         createdAt: data.created_at,
-      }].sort((a, b) => new Date(a.eventDate).getTime() - new Date(b.eventDate).getTime()));
+      }].sort((a, b) => parseSafeDate(a.eventDate).getTime() - parseSafeDate(b.eventDate).getTime()));
       setIsAddSheetOpen(false);
-      setAddFormData({ name: "", email: "", phone: "", address: "", organization: "", locationId: "", eventDate: "" });
+      setAddFormData({ name: "", email: "", phone: "", address: "", organization: "", locationId: "" });
+      setAddFormDate(undefined);
     }
   };
 
@@ -272,8 +294,8 @@ export default function FundraisersPipeline() {
 
         <div className="grid grid-cols-7 flex-1 auto-rows-fr">
           {days.map((day, idx) => {
-            const isTuesday = day.getDay() === 2;
-            const dayOrders = calendarFilteredOrders.filter(o => isSameDay(new Date(o.eventDate), day));
+            const dayIsTuesday = day.getDay() === 2;
+            const dayOrders = calendarFilteredOrders.filter(o => isSameDay(parseSafeDate(o.eventDate), day));
             const isCurrentMonth = isSameMonth(day, monthStart);
             
             // If viewing a specific location, a Tuesday is either booked by 1 order or available
@@ -287,7 +309,7 @@ export default function FundraisersPipeline() {
 
             // Apply "Booked Only" / "Available Only" filters at the cell level for visual clarity
             let cellOpacity = "opacity-100";
-            if (isTuesday) {
+            if (dayIsTuesday) {
                if (filterStatus === "booked" && dayOrders.length === 0) cellOpacity = "opacity-30 grayscale";
                if (filterStatus === "available" && filterLocation !== "all" && specificLocationBooked) cellOpacity = "opacity-30 grayscale";
                if (filterStatus === "available" && filterLocation === "all" && availableCount === 0) cellOpacity = "opacity-30 grayscale";
@@ -300,7 +322,7 @@ export default function FundraisersPipeline() {
                   min-h-[120px] p-2 border-r border-b relative
                   ${!isCurrentMonth ? "bg-muted/10 text-muted-foreground/50" : ""}
                   ${isToday(day) ? "bg-primary/5" : ""}
-                  ${isTuesday && isCurrentMonth ? "bg-blue-50/30" : ""}
+                  ${dayIsTuesday && isCurrentMonth ? "bg-blue-50/30" : ""}
                   ${cellOpacity}
                 `}
               >
@@ -310,7 +332,7 @@ export default function FundraisersPipeline() {
                   </span>
                 </div>
 
-                {isTuesday && isCurrentMonth && (
+                {dayIsTuesday && isCurrentMonth && (
                   <div className="flex flex-col gap-1.5 mt-1">
                     {filterLocation !== "all" ? (
                       // Single Location View
@@ -330,7 +352,8 @@ export default function FundraisersPipeline() {
                         <div 
                           className="text-xs p-1.5 bg-green-500/10 text-green-700 border border-green-500/20 rounded cursor-pointer hover:bg-green-500/20 transition-colors font-medium text-center border-dashed"
                           onClick={() => {
-                            setAddFormData({...addFormData, eventDate: format(day, 'yyyy-MM-dd'), locationId: filterLocation});
+                            setAddFormData({...addFormData, locationId: filterLocation});
+                            setAddFormDate(day);
                             setIsAddSheetOpen(true);
                           }}
                         >
@@ -368,7 +391,8 @@ export default function FundraisersPipeline() {
                           <div 
                             className="text-xs font-medium text-green-600 bg-green-500/10 px-1.5 py-1 rounded border border-green-500/20 border-dashed cursor-pointer hover:bg-green-500/20 mt-1"
                             onClick={() => {
-                              setAddFormData({...addFormData, eventDate: format(day, 'yyyy-MM-dd'), locationId: ""});
+                              setAddFormData({...addFormData, locationId: ""});
+                              setAddFormDate(day);
                               setIsAddSheetOpen(true);
                             }}
                           >
@@ -481,7 +505,7 @@ export default function FundraisersPipeline() {
                 <div className="col-span-3 flex flex-col gap-1">
                   <div className="flex items-center gap-2 text-sm">
                     <CalendarIcon className="w-4 h-4 text-muted-foreground shrink-0" />
-                    <span>{format(new Date(order.eventDate), "MMM d, yyyy")}</span>
+                    <span>{format(parseSafeDate(order.eventDate), "MMM d, yyyy")}</span>
                   </div>
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <MapPin className="w-3.5 h-3.5 shrink-0" />
@@ -541,7 +565,7 @@ export default function FundraisersPipeline() {
                   <div>
                     <SheetTitle className="text-2xl">{viewingOrder.organization}</SheetTitle>
                     <SheetDescription className="mt-1">
-                      Event Date: <strong className="text-foreground">{format(new Date(viewingOrder.eventDate), "MMMM d, yyyy")}</strong>
+                      Preferred Event Date: <strong className="text-foreground">{format(parseSafeDate(viewingOrder.eventDate), "MMMM d, yyyy")}</strong>
                     </SheetDescription>
                   </div>
                 </div>
@@ -577,7 +601,7 @@ export default function FundraisersPipeline() {
 
                 {viewingOrder.status === "Requested" && (
                   <div className="bg-primary/5 border border-primary/20 rounded-md p-4 text-sm text-primary">
-                    Updating this to <strong>Confirmed</strong> will permanently lock {format(new Date(viewingOrder.eventDate), "MMMM d")} on the public booking calendar for this location.
+                    Updating this to <strong>Confirmed</strong> will permanently lock {format(parseSafeDate(viewingOrder.eventDate), "MMMM d")} on the public booking calendar for this location.
                   </div>
                 )}
 
@@ -691,7 +715,7 @@ export default function FundraisersPipeline() {
               <Input required value={addFormData.address} onChange={(e) => setAddFormData({...addFormData, address: e.target.value})} />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-4">
               <div className="space-y-2">
                 <Label>Location</Label>
                 <Select value={addFormData.locationId || selectedLocationId || locations[0].id} onValueChange={(val) => setAddFormData({...addFormData, locationId: val})}>
@@ -705,9 +729,31 @@ export default function FundraisersPipeline() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
-                <Label>Event Date</Label>
-                <Input type="date" required value={addFormData.eventDate} onChange={(e) => setAddFormData({...addFormData, eventDate: e.target.value})} />
+              <div className="space-y-2 flex flex-col">
+                <Label>Preferred Event Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant={"outline"}
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !addFormDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {addFormDate ? format(addFormDate, "PPP") : <span>Pick a Tuesday</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={addFormDate}
+                      onSelect={setAddFormDate}
+                      disabled={(date) => !isTuesday(date)}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
             </div>
 

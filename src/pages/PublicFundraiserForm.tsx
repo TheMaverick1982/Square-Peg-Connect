@@ -132,13 +132,13 @@ export default function PublicFundraiserForm() {
           <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
             <span className={step >= 1 ? "text-primary font-medium" : ""}>1. Location</span>
             <span>&rarr;</span>
-            <span className={step >= 2 ? "text-primary font-medium" : ""}>2. Date</span>
+            <span className={step >= 2 ? "text-primary font-medium" : ""}>2. Preferred Date</span>
             <span>&rarr;</span>
             <span className={step >= 3 ? "text-primary font-medium" : ""}>3. Details</span>
           </div>
           <CardTitle>
             {step === 1 && "Choose a Location"}
-            {step === 2 && "Pick a Tuesday"}
+            {step === 2 && "Preferred Event Date"}
             {step === 3 && "Your Details"}
           </CardTitle>
           <CardDescription>
