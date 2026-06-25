@@ -7,6 +7,7 @@ import Campaigns from "./pages/Campaigns";
 import Login from "./pages/Login";
 import PublicCateringForm from "./pages/PublicCateringForm";
 import PublicFundraiserForm from "./pages/PublicFundraiserForm";
+import AIPersonalize from "./pages/AIPersonalize";
 import Settings from "./pages/Settings";
 import PlaceholderPage from "./components/layout/PlaceholderPage";
 import { AuthCallback } from "./pages/AuthCallback";
@@ -94,7 +95,7 @@ export const routes = [
       { path: "campaigns", element: <Campaigns /> },
       { path: "team", element: <PlaceholderPage title="Team Management" description="Redirects to Settings > Team Access" /> },
       { path: "automations", element: <AutomationsPlaceholder /> },
-      { path: "ai-personalize", element: <PlaceholderPage title="AI Personalize" description="AI website scraping for custom messaging." /> },
+      { path: "ai-personalize", element: <AIPersonalize /> },
       { path: "reminders", element: <PlaceholderPage title="Reminders" description="Call reminders and auto-workflow triggers." /> },
       { path: "tasks", element: <PlaceholderPage title="Tasks" description="Internal team task management." /> },
       { path: "reports", element: <PlaceholderPage title="Reports" description="Revenue, turnout, and pipeline analytics." /> },

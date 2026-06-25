@@ -51,6 +51,7 @@ type B2BContact = {
   address: string | null;
   category: string;
   subcategory: string;
+  website: string | null;
   created_at: string;
 };
 
@@ -87,6 +88,7 @@ export default function B2BPartnerships() {
     organization_name: "",
     contact_name: "",
     email: "",
+    website: "",
     phone: "",
     address: "",
     category: "",
@@ -139,7 +141,7 @@ export default function B2BPartnerships() {
       queryClient.invalidateQueries({ queryKey: ['b2b_contacts'] });
       setIsContactSheetOpen(false);
       setContactForm({
-        organization_name: "", contact_name: "", email: "", phone: "", address: "", category: "", subcategory: ""
+        organization_name: "", contact_name: "", email: "", website: "", phone: "", address: "", category: "", subcategory: ""
       });
       toast({ title: "Contact Added", description: "The B2B contact has been saved." });
     },
@@ -469,6 +471,10 @@ export default function B2BPartnerships() {
                   <div className="grid gap-2">
                     <Label>Email</Label>
                     <Input type="email" value={contactForm.email} onChange={(e) => setContactForm({ ...contactForm, email: e.target.value })} />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label>Website</Label>
+                    <Input type="url" placeholder="https://" value={contactForm.website} onChange={(e) => setContactForm({ ...contactForm, website: e.target.value })} />
                   </div>
                   <div className="grid gap-2">
                     <Label>Phone</Label>
