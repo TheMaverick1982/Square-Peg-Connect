@@ -7,6 +7,7 @@ import Campaigns from "./pages/Campaigns";
 import Login from "./pages/Login";
 import PublicCateringForm from "./pages/PublicCateringForm";
 import PublicFundraiserForm from "./pages/PublicFundraiserForm";
+import TeamManagement from "./pages/TeamManagement";
 import PlaceholderPage from "./components/layout/PlaceholderPage";
 import { AuthCallback } from "./pages/AuthCallback";
 import { ProtectedRoute } from "./components/ProtectedRoute";
@@ -91,6 +92,7 @@ export const routes = [
       { path: "tuesday-fundraisers", element: <FundraisersPipeline /> },
       { path: "b2b-partnerships", element: <B2BPartnerships /> },
       { path: "campaigns", element: <Campaigns /> },
+      { path: "team", element: <TeamManagement /> },
       { path: "automations", element: <AutomationsPlaceholder /> },
       { path: "ai-personalize", element: <PlaceholderPage title="AI Personalize" description="AI website scraping for custom messaging." /> },
       { path: "reminders", element: <PlaceholderPage title="Reminders" description="Call reminders and auto-workflow triggers." /> },

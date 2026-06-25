@@ -1,5 +1,6 @@
 import { MapPin, Plus, Search, Bell, LogOut, User } from "lucide-react";
 import { useLocationContext } from "@/lib/LocationContext";
+import { useEmployee } from "@/lib/EmployeeContext";
 import { locations } from "@/lib/data";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "react-oidc-context";
@@ -21,7 +22,10 @@ import {
 
 export function Header() {
   const { selectedLocationId, setSelectedLocationId } = useLocationContext();
+  const { profile } = useEmployee();
   const auth = useAuth();
+  
+  const isLocked = profile?.role !== "admin" && !!profile?.assigned_location;
 
   return (
     <div className="header">
@@ -30,13 +34,14 @@ export function Header() {
           <MapPin className="w-4 h-4 mr-2 text-primary" />
           <Select 
             value={selectedLocationId || "all"} 
-            onValueChange={(val) => setSelectedLocationId(val === "all" ? null : val)}
+            onValueChange={(val) => !isLocked && setSelectedLocationId(val === "all" ? null : val)}
+            disabled={isLocked}
           >
-            <SelectTrigger className="w-[180px] border-0 bg-transparent p-0 h-auto focus:ring-0 shadow-none text-foreground font-semibold">
+            <SelectTrigger className="w-[180px] border-0 bg-transparent p-0 h-auto focus:ring-0 shadow-none text-foreground font-semibold disabled:opacity-100">
               <SelectValue placeholder="All Locations" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Locations</SelectItem>
+              {!isLocked && <SelectItem value="all">All Locations</SelectItem>}
               {locations.map(loc => (
                 <SelectItem key={loc.id} value={loc.id}>
                   {loc.name}

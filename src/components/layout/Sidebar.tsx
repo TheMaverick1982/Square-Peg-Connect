@@ -12,10 +12,15 @@ import {
   Bell,
   CheckSquare,
   BarChart3,
-  Settings
+  Settings,
+  ShieldCheck
 } from "lucide-react";
+import { useEmployee } from "@/lib/EmployeeContext";
 
 export function Sidebar() {
+  const { profile } = useEmployee();
+  const isAdmin = profile?.role === "admin";
+
   return (
     <div className="sidebar py-4">
       <div className="px-6 mb-8 flex flex-col gap-2">
@@ -54,6 +59,16 @@ export function Sidebar() {
           <Handshake className="w-4 h-4" />
           B2B Partnerships
         </NavLink>
+
+        {isAdmin && (
+          <>
+            <div className="sidebar-group-title">Administration</div>
+            <NavLink to="/team" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
+              <ShieldCheck className="w-4 h-4" />
+              Team Management
+            </NavLink>
+          </>
+        )}
 
         <div className="sidebar-group-title">Marketing</div>
         <NavLink to="/campaigns" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>

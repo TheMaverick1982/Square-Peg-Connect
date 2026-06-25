@@ -1,5 +1,6 @@
-import { createContext, useContext, useState, type ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
 import { locations, type Location } from "./data";
+import { useEmployee } from "./EmployeeContext";
 
 interface LocationContextType {
   selectedLocationId: string | null; // null means 'All Locations'
@@ -10,17 +11,36 @@ interface LocationContextType {
 const LocationContext = createContext<LocationContextType | undefined>(undefined);
 
 export function LocationProvider({ children }: { children: ReactNode }) {
+  const { profile, isLoading } = useEmployee();
   const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
+
+  // Auto-lock the location if the employee is assigned to a specific one
+  useEffect(() => {
+    if (!isLoading && profile) {
+      if (profile.role !== "admin" && profile.assigned_location) {
+        setSelectedLocationId(profile.assigned_location);
+      }
+    }
+  }, [profile, isLoading]);
 
   const selectedLocation = selectedLocationId 
     ? locations.find((l) => l.id === selectedLocationId) 
     : undefined;
 
+  // Intercept setter to prevent managers from viewing other locations
+  const handleSetLocation = (id: string | null) => {
+    if (profile?.role !== "admin" && profile?.assigned_location) {
+      // Ignore attempts to change location if locked
+      return;
+    }
+    setSelectedLocationId(id);
+  };
+
   return (
     <LocationContext.Provider 
       value={{ 
         selectedLocationId, 
-        setSelectedLocationId, 
+        setSelectedLocationId: handleSetLocation, 
         selectedLocation 
       }}
     >
