@@ -10,6 +10,7 @@ import PublicCateringForm from "./pages/PublicCateringForm";
 import PublicFundraiserForm from "./pages/PublicFundraiserForm";
 import AIPersonalize from "./pages/AIPersonalize";
 import Settings from "./pages/Settings";
+import Reports from "./pages/Reports";
 import Reminders from "./pages/Reminders";
 import Contacts from "./pages/Contacts";
 import PlaceholderPage from "./components/layout/PlaceholderPage";
@@ -84,7 +85,7 @@ export const routes = [
       { path: "automations", element: <AutomationsPlaceholder /> },
       { path: "ai-personalize", element: <AIPersonalize /> },
       { path: "reminders", element: <Reminders /> },
-      { path: "reports", element: <PlaceholderPage title="Reports" description="Revenue, turnout, and pipeline analytics." /> },
+      { path: "reports", element: <Reports /> },
       { path: "settings", element: <Settings /> },
     ]
   }
