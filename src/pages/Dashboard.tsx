@@ -1,20 +1,47 @@
 import { useLocationContext } from "@/lib/LocationContext";
-import { mockContacts, mockCateringOrders, mockFundraisers } from "@/lib/data";
+import { mockContacts, mockCateringOrders } from "@/lib/data";
+import { supabase } from "@/lib/supabase";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, DollarSign, CalendarDays, PartyPopper, UtensilsCrossed, ArrowUpRight } from "lucide-react";
 import { format } from "date-fns";
+import { useState, useEffect } from "react";
+import type { FundraiserOrder } from "./FundraisersPipeline";
 
 export default function Dashboard() {
   const { selectedLocationId, selectedLocation } = useLocationContext();
+  const [fundraisers, setFundraisers] = useState<FundraiserOrder[]>([]);
 
-  // Filter mock data by selected location if one is set
+  useEffect(() => {
+    const fetchFundraisers = async () => {
+      const { data } = await supabase.from('fundraisers').select('*').order('event_date', { ascending: true });
+      if (data) {
+        setFundraisers(data.map(row => ({
+          id: row.id,
+          name: row.name,
+          email: row.email,
+          phone: row.phone,
+          address: row.address,
+          organization: row.organization,
+          locationId: row.location,
+          eventDate: row.event_date,
+          status: row.status,
+          totalSales: parseFloat(row.total_sales || 0),
+          totalDonated: parseFloat(row.total_donated || 0),
+          createdAt: row.created_at,
+        })));
+      }
+    };
+    fetchFundraisers();
+  }, []);
+
+  // Filter data by selected location if one is set
   const contacts = selectedLocationId ? mockContacts.filter(c => c.locationId === selectedLocationId) : mockContacts;
   const catering = selectedLocationId ? mockCateringOrders.filter(c => c.locationId === selectedLocationId) : mockCateringOrders;
-  const fundraisers = selectedLocationId ? mockFundraisers.filter(c => c.locationId === selectedLocationId) : mockFundraisers;
+  const filteredFundraisers = selectedLocationId ? fundraisers.filter(c => c.locationId === selectedLocationId) : fundraisers;
 
   const totalCateringRev = catering.reduce((sum, order) => sum + order.totalAmount, 0);
-  const activeFollowups = catering.filter(c => c.status === "Follow-up Needed").length;
-  const upcomingEvents = catering.filter(c => new Date(c.eventDate) > new Date()).length + fundraisers.filter(f => new Date(f.eventDate) > new Date()).length;
+  const activeFollowups = catering.filter(c => c.status === "Follow-up Needed" as any).length;
+  const upcomingEvents = catering.filter(c => new Date(c.eventDate) > new Date()).length + filteredFundraisers.filter(f => new Date(f.eventDate) > new Date()).length;
 
   return (
     <div className="space-y-6">
@@ -93,8 +120,8 @@ export default function Dashboard() {
                     <span className="text-xs text-muted-foreground">{format(new Date(order.eventDate), "MMM d, yyyy")} • ${order.totalAmount}</span>
                   </div>
                   <div className={`status-pill ${
-                    order.status === 'Waiting on Customer' ? 'waiting' :
-                    order.status === 'Follow-up Needed' ? 'followup' :
+                    order.status === 'Waiting on the customer' ? 'waiting' :
+                    order.status === 'Waiting on you' ? 'followup' :
                     order.status === 'Confirmed' ? 'confirmed' : 'complete'
                   }`}>
                     {order.status}
@@ -117,21 +144,21 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {fundraisers.map(event => (
+              {filteredFundraisers.map(event => (
                 <div key={event.id} className="flex flex-col gap-2 p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors">
                   <div className="flex items-center justify-between">
-                    <span className="font-semibold">{event.eventName}</span>
+                    <span className="font-semibold">{event.organization}</span>
                     <span className="text-xs font-medium px-2 py-1 bg-primary/10 text-primary rounded-md">
                       {format(new Date(event.eventDate), "MMM d")}
                     </span>
                   </div>
                   <div className="flex items-center gap-4 text-xs text-muted-foreground mt-1">
-                    <span className="flex items-center gap-1"><Users className="w-3 h-3" /> {event.customersAttended} Attended</span>
-                    <span className="flex items-center gap-1"><DollarSign className="w-3 h-3" /> ${event.revenueGenerated} Raised</span>
+                    <span className="flex items-center gap-1"><DollarSign className="w-3 h-3" /> ${event.totalSales} Sales</span>
+                    <span className="flex items-center gap-1"><DollarSign className="w-3 h-3" /> ${event.totalDonated} Donated</span>
                   </div>
                 </div>
               ))}
-              {fundraisers.length === 0 && (
+              {filteredFundraisers.length === 0 && (
                 <p className="text-sm text-muted-foreground">No fundraisers scheduled for this location.</p>
               )}
             </div>

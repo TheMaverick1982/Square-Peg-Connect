@@ -1,9 +1,11 @@
 import { AppLayout } from "./components/layout/AppLayout";
 import Dashboard from "./pages/Dashboard";
 import CateringPipeline from "./pages/CateringPipeline";
+import FundraisersPipeline from "./pages/FundraisersPipeline";
 import Campaigns from "./pages/Campaigns";
 import Login from "./pages/Login";
 import PublicCateringForm from "./pages/PublicCateringForm";
+import PublicFundraiserForm from "./pages/PublicFundraiserForm";
 import PlaceholderPage from "./components/layout/PlaceholderPage";
 import { AuthCallback } from "./pages/AuthCallback";
 import { ProtectedRoute } from "./components/ProtectedRoute";
@@ -66,6 +68,10 @@ export const routes = [
     element: <PublicCateringForm />
   },
   {
+    path: "/public/fundraisers",
+    element: <PublicFundraiserForm />
+  },
+  {
     path: "/auth/callback",
     element: <AuthCallback />
   },
@@ -81,7 +87,7 @@ export const routes = [
       { path: "contacts", element: <PlaceholderPage title="Contacts" description="Global and location-specific contact directory." /> },
       { path: "catering", element: <CateringPipeline /> },
       { path: "events", element: <PlaceholderPage title="Events" description="Calendar view of upcoming events across locations." /> },
-      { path: "tuesday-fundraisers", element: <FundraisersPlaceholder /> },
+      { path: "tuesday-fundraisers", element: <FundraisersPipeline /> },
       { path: "campaigns", element: <Campaigns /> },
       { path: "automations", element: <AutomationsPlaceholder /> },
       { path: "ai-personalize", element: <PlaceholderPage title="AI Personalize" description="AI website scraping for custom messaging." /> },
