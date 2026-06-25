@@ -206,7 +206,7 @@ export default function CateringPipeline() {
       case "Waiting on the customer": return "status-pill waiting";
       case "Waiting on you": return "status-pill followup";
       case "Confirmed": return "status-pill confirmed";
-      case "Completed": return "status-pill confirmed ring-1 ring-green-600 bg-green-500/10 text-green-700";
+      case "Completed": return "status-pill complete";
       default: return "status-pill followup";
     }
   };

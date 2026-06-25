@@ -229,10 +229,10 @@ export default function FundraisersPipeline() {
 
   const getStatusPillClass = (status: string) => {
     switch (status) {
-      case "Requested": return "status-pill followup";
+      case "Requested": return "status-pill waiting";
       case "Confirmed": return "status-pill confirmed";
-      case "Completed": return "status-pill confirmed ring-1 ring-green-600 bg-green-500/10 text-green-700";
-      default: return "status-pill followup";
+      case "Completed": return "status-pill complete";
+      default: return "status-pill waiting";
     }
   };
 
