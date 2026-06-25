@@ -11,9 +11,11 @@ import PublicFundraiserForm from "./pages/PublicFundraiserForm";
 import AIPersonalize from "./pages/AIPersonalize";
 import Settings from "./pages/Settings";
 import Reminders from "./pages/Reminders";
+import Contacts from "./pages/Contacts";
 import PlaceholderPage from "./components/layout/PlaceholderPage";
 import { AuthCallback } from "./pages/AuthCallback";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import EventsDashboard from "./pages/EventsDashboard";
 
 // Automations placeholder containing the requested workflows
 function AutomationsPlaceholder() {
@@ -49,24 +51,6 @@ function AutomationsPlaceholder() {
   );
 }
 
-import EventsDashboard from "./pages/EventsDashboard";
-function FundraisersPlaceholder() {
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Tuesday Fundraisers</h1>
-          <p className="text-muted-foreground mt-1">Track turnout, revenue, and contact details for all fundraiser events.</p>
-        </div>
-        <button className="bg-primary text-primary-foreground px-4 py-2 rounded-md text-sm font-medium">Log New Fundraiser</button>
-      </div>
-      <div className="border rounded-lg bg-card p-12 text-center text-muted-foreground">
-        <p>Fundraiser tracker view goes here. This will display a list of all events, tied to their specific B2B contact, showing "Customers Attended" and "Revenue Generated".</p>
-      </div>
-    </div>
-  );
-}
-
 export const routes = [
   {
     path: "/public/catering",
@@ -89,7 +73,7 @@ export const routes = [
     element: <ProtectedRoute><AppLayout /></ProtectedRoute>,
     children: [
       { index: true, element: <Dashboard /> },
-      { path: "contacts", element: <PlaceholderPage title="Contacts" description="Global and location-specific contact directory." /> },
+      { path: "contacts", element: <Contacts /> },
       { path: "catering", element: <CateringPipeline /> },
       { path: "events", element: <EventsDashboard /> },
       { path: "tuesday-fundraisers", element: <FundraisersPipeline /> },
@@ -99,7 +83,7 @@ export const routes = [
       { path: "team", element: <PlaceholderPage title="Team Management" description="Redirects to Settings > Team Access" /> },
       { path: "automations", element: <AutomationsPlaceholder /> },
       { path: "ai-personalize", element: <AIPersonalize /> },
-      { path: "reminders", element: <PlaceholderPage title="Reminders" description="Call reminders and auto-workflow triggers." /> },
+      { path: "reminders", element: <Reminders /> },
       { path: "tasks", element: <PlaceholderPage title="Tasks" description="Internal team task management." /> },
       { path: "reports", element: <PlaceholderPage title="Reports" description="Revenue, turnout, and pipeline analytics." /> },
       { path: "settings", element: <Settings /> },

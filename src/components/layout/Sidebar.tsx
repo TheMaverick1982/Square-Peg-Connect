@@ -24,13 +24,13 @@ export function Sidebar() {
 
   return (
     <div className="sidebar py-4">
-      <div className="px-6 mb-8 flex flex-col gap-2">
+      <div className="px-6 mb-8 flex flex-col items-center gap-2">
         <img 
           src="https://media-api-prod.apigateway.co/files/v3/AG-D5HZKZ2TNH/FileID-2859e6a7-48eb-46ed-83a6-9d6ebb5d5850/uploaded-1782298633843015700.png" 
           alt="Square Peg Pizzeria Logo" 
-          className="h-12 w-auto object-contain object-left"
+          className="h-12 w-auto object-contain"
         />
-        <span className="font-bold text-xs text-white/70 uppercase tracking-widest pl-1">Connect</span>
+        <span className="font-bold text-xs text-white/70 uppercase tracking-widest">Connect</span>
       </div>
 
       <div className="flex-1 overflow-y-auto px-3 space-y-1">
