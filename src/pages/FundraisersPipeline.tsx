@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/sheet";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { Search, Filter, Calendar as CalendarIcon, MapPin, Link as LinkIcon, DollarSign, Building, Phone, Mail, FileText } from "lucide-react";
+import { Search, Filter, Calendar as CalendarIcon, MapPin, Link as LinkIcon, DollarSign, Building, Phone, Mail, FileText, Plus } from "lucide-react";
 
 export interface FundraiserOrder {
   id: string;
@@ -40,6 +40,11 @@ export default function FundraisersPipeline() {
   
   // Sheet state
   const [viewingOrder, setViewingOrder] = useState<FundraiserOrder | null>(null);
+  const [isAddSheetOpen, setIsAddSheetOpen] = useState(false);
+  const [isAdding, setIsAdding] = useState(false);
+  const [addFormData, setAddFormData] = useState({
+    name: "", email: "", phone: "", address: "", organization: "", locationId: "", eventDate: ""
+  });
 
   // Edit state for sales/donated
   const [salesInput, setSalesInput] = useState("");
@@ -134,6 +139,47 @@ export default function FundraisersPipeline() {
     toast({ title: "Saved", description: "Financials updated successfully." });
   };
 
+  const handleAddFundraiser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsAdding(true);
+    
+    const loc = addFormData.locationId || selectedLocationId || locations[0].id;
+    const { data, error } = await supabase.from('fundraisers').insert([{
+      name: addFormData.name,
+      email: addFormData.email,
+      phone: addFormData.phone,
+      address: addFormData.address,
+      organization: addFormData.organization,
+      location: loc,
+      event_date: addFormData.eventDate,
+      status: 'Confirmed'
+    }]).select().single();
+
+    setIsAdding(false);
+
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } else if (data) {
+      toast({ title: "Success", description: "Fundraiser manually added." });
+      setOrders([...orders, {
+        id: data.id,
+        name: data.name,
+        email: data.email,
+        phone: data.phone,
+        address: data.address,
+        organization: data.organization,
+        locationId: data.location,
+        eventDate: data.event_date,
+        status: data.status,
+        totalSales: 0,
+        totalDonated: 0,
+        createdAt: data.created_at,
+      }].sort((a, b) => new Date(a.eventDate).getTime() - new Date(b.eventDate).getTime()));
+      setIsAddSheetOpen(false);
+      setAddFormData({ name: "", email: "", phone: "", address: "", organization: "", locationId: "", eventDate: "" });
+    }
+  };
+
   // Filter by location 
   const filteredOrders = selectedLocationId 
     ? orders.filter(o => o.locationId === selectedLocationId)
@@ -156,10 +202,16 @@ export default function FundraisersPipeline() {
           <p className="text-muted-foreground mt-1">Manage fundraiser requests, approvals, and performance tracking.</p>
         </div>
         
-        <Button variant="outline" className="gap-2 shadow-sm" onClick={handleCopyLink}>
-          <LinkIcon className="w-4 h-4" />
-          Copy Booking Link
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" className="gap-2 shadow-sm" onClick={handleCopyLink}>
+            <LinkIcon className="w-4 h-4" />
+            Copy Booking Link
+          </Button>
+          <Button className="gap-2 shadow-sm" onClick={() => setIsAddSheetOpen(true)}>
+            <Plus className="w-4 h-4" />
+            New Fundraiser
+          </Button>
+        </div>
       </div>
 
       <div className="flex items-center justify-between border-b pb-4">
@@ -384,6 +436,70 @@ export default function FundraisersPipeline() {
               </div>
             </>
           )}
+        </SheetContent>
+      </Sheet>
+
+      {/* Add New Fundraiser Sheet */}
+      <Sheet open={isAddSheetOpen} onOpenChange={setIsAddSheetOpen}>
+        <SheetContent className="w-full sm:max-w-md overflow-y-auto">
+          <SheetHeader className="mb-6">
+            <SheetTitle className="text-2xl">New Fundraiser</SheetTitle>
+            <SheetDescription>Manually add a fundraiser to the schedule.</SheetDescription>
+          </SheetHeader>
+
+          <form onSubmit={handleAddFundraiser} className="space-y-4">
+            <div className="space-y-2">
+              <Label>Organization Name</Label>
+              <Input required value={addFormData.organization} onChange={(e) => setAddFormData({...addFormData, organization: e.target.value})} />
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Contact Name</Label>
+              <Input required value={addFormData.name} onChange={(e) => setAddFormData({...addFormData, name: e.target.value})} />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Email</Label>
+                <Input type="email" required value={addFormData.email} onChange={(e) => setAddFormData({...addFormData, email: e.target.value})} />
+              </div>
+              <div className="space-y-2">
+                <Label>Phone</Label>
+                <Input type="tel" required value={addFormData.phone} onChange={(e) => setAddFormData({...addFormData, phone: e.target.value})} />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Mailing Address</Label>
+              <Input required value={addFormData.address} onChange={(e) => setAddFormData({...addFormData, address: e.target.value})} />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Location</Label>
+                <Select value={addFormData.locationId || selectedLocationId || locations[0].id} onValueChange={(val) => setAddFormData({...addFormData, locationId: val})}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {locations.map(loc => (
+                      <SelectItem key={loc.id} value={loc.id}>{loc.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Event Date</Label>
+                <Input type="date" required value={addFormData.eventDate} onChange={(e) => setAddFormData({...addFormData, eventDate: e.target.value})} />
+              </div>
+            </div>
+
+            <div className="pt-6 border-t mt-6">
+              <Button type="submit" className="w-full" disabled={isAdding}>
+                {isAdding ? "Adding..." : "Add Fundraiser"}
+              </Button>
+            </div>
+          </form>
         </SheetContent>
       </Sheet>
     </div>
