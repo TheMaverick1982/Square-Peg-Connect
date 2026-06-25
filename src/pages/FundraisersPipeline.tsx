@@ -14,8 +14,8 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { useToast } from "@/hooks/use-toast";
-import { format } from "date-fns";
-import { Search, Filter, Calendar as CalendarIcon, MapPin, Link as LinkIcon, DollarSign, Building, Phone, Mail, FileText, Plus } from "lucide-react";
+import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, isToday } from "date-fns";
+import { Search, Filter, Calendar as CalendarIcon, MapPin, Link as LinkIcon, DollarSign, Building, Phone, Mail, FileText, Plus, ChevronLeft, ChevronRight, LayoutList, CalendarDays } from "lucide-react";
 
 export interface FundraiserOrder {
   id: string;
@@ -38,6 +38,11 @@ export default function FundraisersPipeline() {
   const [orders, setOrders] = useState<FundraiserOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
+  const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [filterLocation, setFilterLocation] = useState<string>("all");
+  const [filterStatus, setFilterStatus] = useState<string>("all");
+
   // Sheet state
   const [viewingOrder, setViewingOrder] = useState<FundraiserOrder | null>(null);
   const [isAddSheetOpen, setIsAddSheetOpen] = useState(false);
@@ -194,6 +199,194 @@ export default function FundraisersPipeline() {
     }
   };
 
+  const renderCalendarView = () => {
+    const monthStart = startOfMonth(currentMonth);
+    const monthEnd = endOfMonth(monthStart);
+    const startDate = startOfWeek(monthStart);
+    const endDate = endOfWeek(monthEnd);
+    const dateFormat = "d";
+    
+    const days = eachDayOfInterval({ start: startDate, end: endDate });
+
+    const handlePrevMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
+    const handleNextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
+
+    // Calendar specific filtering
+    const calendarFilteredOrders = filteredOrders.filter(order => {
+      if (filterLocation !== "all" && order.locationId !== filterLocation) return false;
+      if (filterStatus !== "all") {
+        if (filterStatus === "booked" && !order) return false;
+        if (filterStatus === "available" && order) return false; 
+      }
+      return true;
+    });
+
+    return (
+      <div className="flex flex-col h-full bg-card border rounded-lg overflow-hidden flex-1">
+        <div className="flex items-center justify-between p-4 border-b">
+          <div className="flex items-center gap-4">
+            <h2 className="text-xl font-semibold w-48">{format(currentMonth, "MMMM yyyy")}</h2>
+            <div className="flex items-center gap-1">
+              <Button variant="outline" size="icon" onClick={handlePrevMonth} className="h-8 w-8">
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Button variant="outline" size="icon" onClick={handleNextMonth} className="h-8 w-8">
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-3">
+            <Select value={filterLocation} onValueChange={setFilterLocation}>
+              <SelectTrigger className="w-[180px] h-9">
+                <SelectValue placeholder="All Locations" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Locations</SelectItem>
+                {locations.map(loc => (
+                  <SelectItem key={loc.id} value={loc.id}>{loc.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={filterStatus} onValueChange={setFilterStatus}>
+              <SelectTrigger className="w-[150px] h-9">
+                <SelectValue placeholder="All Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="booked">Booked Only</SelectItem>
+                <SelectItem value="available">Available Only</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-7 border-b bg-muted/30">
+          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(day => (
+            <div key={day} className="py-2 text-center text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+              {day}
+            </div>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-7 flex-1 auto-rows-fr">
+          {days.map((day, idx) => {
+            const isTuesday = day.getDay() === 2;
+            const dayOrders = calendarFilteredOrders.filter(o => isSameDay(new Date(o.eventDate), day));
+            const isCurrentMonth = isSameMonth(day, monthStart);
+            
+            // If viewing a specific location, a Tuesday is either booked by 1 order or available
+            const specificLocationBooked = filterLocation !== "all" && dayOrders.length > 0;
+            const specificLocationAvailable = filterLocation !== "all" && dayOrders.length === 0;
+
+            // For "All locations", we count how many are booked vs available total
+            const totalLocations = locations.length;
+            const bookedCount = dayOrders.length;
+            const availableCount = totalLocations - bookedCount;
+
+            // Apply "Booked Only" / "Available Only" filters at the cell level for visual clarity
+            let cellOpacity = "opacity-100";
+            if (isTuesday) {
+               if (filterStatus === "booked" && dayOrders.length === 0) cellOpacity = "opacity-30 grayscale";
+               if (filterStatus === "available" && filterLocation !== "all" && specificLocationBooked) cellOpacity = "opacity-30 grayscale";
+               if (filterStatus === "available" && filterLocation === "all" && availableCount === 0) cellOpacity = "opacity-30 grayscale";
+            }
+
+            return (
+              <div 
+                key={day.toString()} 
+                className={`
+                  min-h-[120px] p-2 border-r border-b relative
+                  ${!isCurrentMonth ? "bg-muted/10 text-muted-foreground/50" : ""}
+                  ${isToday(day) ? "bg-primary/5" : ""}
+                  ${isTuesday && isCurrentMonth ? "bg-blue-50/30" : ""}
+                  ${cellOpacity}
+                `}
+              >
+                <div className="flex justify-between items-start mb-2">
+                  <span className={`text-sm font-medium ${isToday(day) ? "bg-primary text-primary-foreground w-6 h-6 rounded-full flex items-center justify-center -mt-1 -ml-1" : ""}`}>
+                    {format(day, dateFormat)}
+                  </span>
+                </div>
+
+                {isTuesday && isCurrentMonth && (
+                  <div className="flex flex-col gap-1.5 mt-1">
+                    {filterLocation !== "all" ? (
+                      // Single Location View
+                      specificLocationBooked ? (
+                        <div 
+                          className="text-xs p-1.5 bg-primary/10 text-primary border border-primary/20 rounded cursor-pointer hover:bg-primary/20 transition-colors font-medium truncate"
+                          onClick={() => {
+                            setViewingOrder(dayOrders[0]);
+                            setSalesInput(dayOrders[0].totalSales.toString());
+                            setDonatedInput(dayOrders[0].totalDonated.toString());
+                          }}
+                          title={dayOrders[0].organization}
+                        >
+                          {dayOrders[0].organization}
+                        </div>
+                      ) : (
+                        <div 
+                          className="text-xs p-1.5 bg-green-500/10 text-green-700 border border-green-500/20 rounded cursor-pointer hover:bg-green-500/20 transition-colors font-medium text-center border-dashed"
+                          onClick={() => {
+                            setAddFormData({...addFormData, eventDate: format(day, 'yyyy-MM-dd'), locationId: filterLocation});
+                            setIsAddSheetOpen(true);
+                          }}
+                        >
+                          Available
+                        </div>
+                      )
+                    ) : (
+                      // All Locations View
+                      <div className="space-y-1">
+                        {bookedCount > 0 && (
+                          <div className="text-xs font-medium text-primary">
+                            {bookedCount} Booked
+                            <div className="flex flex-col gap-1 mt-1">
+                              {dayOrders.slice(0, 2).map(o => (
+                                <div 
+                                  key={o.id} 
+                                  className="truncate bg-primary/10 px-1.5 py-1 rounded border border-primary/10 cursor-pointer hover:bg-primary/20"
+                                  onClick={() => {
+                                    setViewingOrder(o);
+                                    setSalesInput(o.totalSales.toString());
+                                    setDonatedInput(o.totalDonated.toString());
+                                  }}
+                                  title={`${locations.find(l => l.id === o.locationId)?.name}: ${o.organization}`}
+                                >
+                                  <span className="font-semibold">{locations.find(l => l.id === o.locationId)?.name?.substring(0, 3)}:</span> {o.organization}
+                                </div>
+                              ))}
+                              {dayOrders.length > 2 && (
+                                <div className="text-[10px] text-muted-foreground px-1">+{dayOrders.length - 2} more</div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                        {availableCount > 0 && (
+                          <div 
+                            className="text-xs font-medium text-green-600 bg-green-500/10 px-1.5 py-1 rounded border border-green-500/20 border-dashed cursor-pointer hover:bg-green-500/20 mt-1"
+                            onClick={() => {
+                              setAddFormData({...addFormData, eventDate: format(day, 'yyyy-MM-dd'), locationId: ""});
+                              setIsAddSheetOpen(true);
+                            }}
+                          >
+                            {availableCount} Available
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="flex flex-col h-full space-y-6">
       <div className="flex items-center justify-between">
@@ -227,9 +420,30 @@ export default function FundraisersPipeline() {
             <Filter className="w-4 h-4" />
           </Button>
         </div>
+        <div className="flex items-center gap-1 bg-muted p-1 rounded-lg">
+          <Button 
+            variant={viewMode === "list" ? "secondary" : "ghost"} 
+            size="sm" 
+            className="gap-2 h-8"
+            onClick={() => setViewMode("list")}
+          >
+            <LayoutList className="w-4 h-4" />
+            List
+          </Button>
+          <Button 
+            variant={viewMode === "calendar" ? "secondary" : "ghost"} 
+            size="sm" 
+            className="gap-2 h-8"
+            onClick={() => setViewMode("calendar")}
+          >
+            <CalendarDays className="w-4 h-4" />
+            Calendar
+          </Button>
+        </div>
       </div>
 
-      <div className="bg-card border rounded-lg overflow-hidden flex-1">
+      {viewMode === "list" ? (
+      <div className="bg-card border rounded-lg overflow-hidden flex-1 flex flex-col min-h-0">
         <div className="grid grid-cols-12 gap-4 p-4 border-b bg-muted/30 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
           <div className="col-span-3">Organization</div>
           <div className="col-span-3">Date & Location</div>
@@ -313,6 +527,9 @@ export default function FundraisersPipeline() {
           )}
         </div>
       </div>
+      ) : (
+        renderCalendarView()
+      )}
 
       {/* Details View Sheet */}
       <Sheet open={viewingOrder !== null} onOpenChange={(open) => !open && setViewingOrder(null)}>
