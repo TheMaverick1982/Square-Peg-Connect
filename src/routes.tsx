@@ -17,6 +17,7 @@ import PlaceholderPage from "./components/layout/PlaceholderPage";
 import { AuthCallback } from "./pages/AuthCallback";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import EventsDashboard from "./pages/EventsDashboard";
+import { Navigate } from "react-router-dom";
 
 // Automations placeholder containing the requested workflows
 function AutomationsPlaceholder() {
@@ -81,7 +82,8 @@ export const routes = [
       { path: "b2b-partnerships", element: <B2BPartnerships /> },
       { path: "guest-bounce-back", element: <GuestBounceBack /> },
       { path: "campaigns", element: <Campaigns /> },
-      { path: "team", element: <PlaceholderPage title="Team Management" description="Redirects to Settings > Team Access" /> },
+      { path: "team", element: <Navigate to="/settings" replace /> },
+      { path: "tasks", element: <Navigate to="/reminders" replace /> },
       { path: "automations", element: <AutomationsPlaceholder /> },
       { path: "ai-personalize", element: <AIPersonalize /> },
       { path: "reminders", element: <Reminders /> },
