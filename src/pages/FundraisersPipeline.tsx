@@ -53,6 +53,7 @@ export default function FundraisersPipeline() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [filterLocation, setFilterLocation] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Sheet state
   const [viewingOrder, setViewingOrder] = useState<FundraiserOrder | null>(null);
@@ -209,10 +210,22 @@ export default function FundraisersPipeline() {
     }
   };
 
-  // Filter by location 
-  const filteredOrders = selectedLocationId 
-    ? orders.filter(o => o.locationId === selectedLocationId)
-    : orders;
+  // Filter by location and search
+  const filteredOrders = orders.filter(order => {
+    if (selectedLocationId && order.locationId !== selectedLocationId) return false;
+    if (filterLocation !== "all" && order.locationId !== filterLocation) return false;
+    
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      if (!order.organization.toLowerCase().includes(q) &&
+          !order.name.toLowerCase().includes(q) &&
+          !order.email.toLowerCase().includes(q)) {
+        return false;
+      }
+    }
+    
+    return true;
+  });
 
   const getStatusPillClass = (status: string) => {
     switch (status) {
@@ -261,18 +274,6 @@ export default function FundraisersPipeline() {
           </div>
           
           <div className="flex items-center gap-3">
-            <Select value={filterLocation} onValueChange={setFilterLocation}>
-              <SelectTrigger className="w-[180px] h-9">
-                <SelectValue placeholder="All Locations" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Locations</SelectItem>
-                {locations.map(loc => (
-                  <SelectItem key={loc.id} value={loc.id}>{loc.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
             <Select value={filterStatus} onValueChange={setFilterStatus}>
               <SelectTrigger className="w-[150px] h-9">
                 <SelectValue placeholder="All Status" />
@@ -440,11 +441,25 @@ export default function FundraisersPipeline() {
             <Input 
               placeholder="Search fundraisers..." 
               className="pl-9 w-64 bg-background"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          <Button variant="outline" size="icon">
-            <Filter className="w-4 h-4" />
-          </Button>
+          
+          <Select value={filterLocation} onValueChange={setFilterLocation}>
+            <SelectTrigger className="w-[180px] h-10 border-input bg-background shadow-sm">
+              <div className="flex items-center gap-2">
+                <Filter className="w-4 h-4 text-muted-foreground" />
+                <SelectValue placeholder="All Locations" />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Locations</SelectItem>
+              {locations.map(loc => (
+                <SelectItem key={loc.id} value={loc.id}>{loc.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div className="flex items-center gap-1 bg-muted p-1 rounded-lg">
           <Button 

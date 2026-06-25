@@ -30,6 +30,8 @@ export default function CateringPipeline() {
   const [activeTab, setActiveTab] = useState<TabState>("all");
   const [orders, setOrders] = useState<CateringOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterLocation, setFilterLocation] = useState<string>("all");
   
   // Sheet states
   const [isNewSheetOpen, setIsNewSheetOpen] = useState(false);
@@ -174,10 +176,21 @@ export default function CateringPipeline() {
     });
   };
 
-  // Filter by location first
-  const locationOrders = selectedLocationId 
-    ? orders.filter(o => o.locationId === selectedLocationId)
-    : orders;
+  // Filter by location first (global + local)
+  const locationOrders = orders.filter(order => {
+    if (selectedLocationId && order.locationId !== selectedLocationId) return false;
+    if (filterLocation !== "all" && order.locationId !== filterLocation) return false;
+    
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      if (!order.contactName.toLowerCase().includes(q) &&
+          !order.eventName.toLowerCase().includes(q) &&
+          !order.email?.toLowerCase().includes(q)) {
+        return false;
+      }
+    }
+    return true;
+  });
 
   // Then filter by tab
   const filteredOrders = locationOrders.filter(order => {
@@ -354,11 +367,25 @@ export default function CateringPipeline() {
             <Input 
               placeholder="Search orders..." 
               className="pl-9 w-64 bg-background"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          <Button variant="outline" size="icon">
-            <Filter className="w-4 h-4" />
-          </Button>
+          
+          <Select value={filterLocation} onValueChange={setFilterLocation}>
+            <SelectTrigger className="w-[180px] h-10 border-input bg-background shadow-sm">
+              <div className="flex items-center gap-2">
+                <Filter className="w-4 h-4 text-muted-foreground" />
+                <SelectValue placeholder="All Locations" />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Locations</SelectItem>
+              {locations.map(loc => (
+                <SelectItem key={loc.id} value={loc.id}>{loc.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
