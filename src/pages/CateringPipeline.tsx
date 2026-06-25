@@ -103,7 +103,7 @@ export default function CateringPipeline() {
         guest_count: parseInt(formData.guestCount, 10),
         location: formData.locationId,
         notes: formData.notes,
-        status: 'Waiting on Customer'
+        status: 'Waiting on you'
       }
     ]).select();
 
@@ -165,16 +165,15 @@ export default function CateringPipeline() {
     const isPast = new Date(order.eventDate) < new Date();
     if (activeTab === "upcoming") return !isPast;
     if (activeTab === "past") return isPast;
-    if (activeTab === "unopened") return order.status === "Waiting on Customer";
+    if (activeTab === "unopened") return order.status === "Waiting on you";
     return true;
   });
 
   const getStatusPillClass = (status: CateringStatus) => {
     switch (status) {
-      case "Waiting on Customer": return "status-pill waiting";
-      case "Follow-up Needed": return "status-pill followup";
+      case "Waiting on the customer": return "status-pill waiting";
+      case "Waiting on you": return "status-pill followup";
       case "Confirmed": return "status-pill confirmed";
-      case "Order Complete": return "status-pill complete";
     }
   };
 
@@ -188,6 +187,27 @@ export default function CateringPipeline() {
   };
 
 
+
+  const updateOrderStatus = async (orderId: string, newStatus: CateringStatus) => {
+    const { error } = await supabase
+      .from('catering_requests')
+      .update({ status: newStatus })
+      .eq('id', orderId);
+
+    if (error) {
+      console.error("Error updating status:", error);
+      toast({ title: "Error", description: "Could not update status.", variant: "destructive" });
+      return;
+    }
+
+    setOrders(orders.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
+    
+    if (viewingOrder && viewingOrder.id === orderId) {
+      setViewingOrder({ ...viewingOrder, status: newStatus });
+    }
+    
+    toast({ title: "Status Updated", description: `Order status changed to ${newStatus}.` });
+  };
 
   return (
     <div className="flex flex-col h-full space-y-6">
@@ -371,16 +391,21 @@ export default function CateringPipeline() {
                   <div className="text-sm font-medium">${order.totalAmount.toLocaleString()}</div>
                 </div>
 
-                <div className="col-span-3 flex items-center justify-between">
-                  <div className={getStatusPillClass(order.status)}>
-                    <div className={`w-1.5 h-1.5 rounded-full ${
-                      order.status === 'Waiting on Customer' ? 'bg-[hsl(var(--status-waiting))]' :
-                      order.status === 'Follow-up Needed' ? 'bg-[hsl(var(--status-followup))]' :
-                      order.status === 'Confirmed' ? 'bg-[hsl(var(--status-confirmed))]' : 'bg-[hsl(var(--status-complete))]'
-                    }`} />
-                    {order.status}
-                  </div>
-                  <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="col-span-3 flex items-center justify-between" onClick={(e) => e.stopPropagation()}>
+                  <Select 
+                    value={order.status} 
+                    onValueChange={(val) => updateOrderStatus(order.id, val as CateringStatus)}
+                  >
+                    <SelectTrigger className={`h-7 text-xs border-none focus:ring-0 ${getStatusPillClass(order.status)}`}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Waiting on you">Waiting on you</SelectItem>
+                      <SelectItem value="Waiting on the customer">Waiting on the customer</SelectItem>
+                      <SelectItem value="Confirmed">Confirmed</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => setViewingOrder(order)}>
                     View
                   </Button>
                 </div>
@@ -431,11 +456,19 @@ export default function CateringPipeline() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <Label className="text-xs text-muted-foreground uppercase tracking-wider">Status</Label>
-                    <div className="flex">
-                      <div className={getStatusPillClass(viewingOrder.status)}>
-                        {viewingOrder.status}
-                      </div>
-                    </div>
+                    <Select 
+                      value={viewingOrder.status} 
+                      onValueChange={(val) => updateOrderStatus(viewingOrder.id, val as CateringStatus)}
+                    >
+                      <SelectTrigger className={`h-8 border-none focus:ring-0 ${getStatusPillClass(viewingOrder.status)}`}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Waiting on you">Waiting on you</SelectItem>
+                        <SelectItem value="Waiting on the customer">Waiting on the customer</SelectItem>
+                        <SelectItem value="Confirmed">Confirmed</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs text-muted-foreground uppercase tracking-wider">Location</Label>

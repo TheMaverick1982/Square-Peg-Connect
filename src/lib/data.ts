@@ -16,7 +16,7 @@ export const locations: Location[] = [
   { id: "loc-9", name: "Berlin", vendestaId: "ven-berlin-009" },
 ];
 
-export type CateringStatus = "Waiting on Customer" | "Follow-up Needed" | "Confirmed" | "Order Complete";
+export type CateringStatus = "Waiting on you" | "Waiting on the customer" | "Confirmed";
 
 export interface Contact {
   id: string;
@@ -87,7 +87,7 @@ export const mockCateringOrders: CateringOrder[] = [
     eventDate: new Date(Date.now() + 86400000 * 12).toISOString(), // 12 days from now
     guestCount: 20,
     totalAmount: 320.00,
-    status: "Waiting on Customer",
+    status: "Waiting on the customer",
     createdAt: new Date(Date.now() - 86400000 * 1).toISOString(),
   },
   {
@@ -99,7 +99,7 @@ export const mockCateringOrders: CateringOrder[] = [
     eventDate: new Date(Date.now() + 86400000 * 3).toISOString(), // 3 days from now
     guestCount: 120,
     totalAmount: 2400.00,
-    status: "Follow-up Needed",
+    status: "Waiting on you",
     createdAt: new Date(Date.now() - 86400000 * 4).toISOString(),
   },
   {
@@ -111,7 +111,7 @@ export const mockCateringOrders: CateringOrder[] = [
     eventDate: new Date(Date.now() - 86400000 * 10).toISOString(), // 10 days ago
     guestCount: 60,
     totalAmount: 1100.00,
-    status: "Order Complete",
+    status: "Confirmed",
     createdAt: new Date(Date.now() - 86400000 * 30).toISOString(),
   }
 ];
