@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/sheet";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { Search, Filter, Plus, Calendar as CalendarIcon, Users, MapPin, UtensilsCrossed, Link as LinkIcon, MessageSquare, Phone, Mail, FileText } from "lucide-react";
+import { Search, Filter, Plus, Calendar as CalendarIcon, Users, MapPin, UtensilsCrossed, Link as LinkIcon, MessageSquare, Phone, Mail, FileText, ArrowDownUp } from "lucide-react";
 import { QuoteBuilder } from "@/components/QuoteBuilder";
 
 type TabState = "all" | "upcoming" | "unopened" | "past";
@@ -32,6 +32,7 @@ export default function CateringPipeline() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterLocation, setFilterLocation] = useState<string>("all");
+  const [sortOrder, setSortOrder] = useState<string>("newest");
   
   // Sheet states
   const [isNewSheetOpen, setIsNewSheetOpen] = useState(false);
@@ -199,6 +200,14 @@ export default function CateringPipeline() {
     if (activeTab === "past") return isPast;
     if (activeTab === "unopened") return order.status === "Waiting on you";
     return true;
+  });
+
+  const sortedOrders = [...filteredOrders].sort((a, b) => {
+    if (sortOrder === "newest") {
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    } else {
+      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+    }
   });
 
   const getStatusPillClass = (status: CateringStatus) => {
@@ -386,6 +395,19 @@ export default function CateringPipeline() {
               ))}
             </SelectContent>
           </Select>
+
+          <Select value={sortOrder} onValueChange={setSortOrder}>
+            <SelectTrigger className="w-[180px] h-10 border-input bg-background shadow-sm">
+              <div className="flex items-center gap-2">
+                <ArrowDownUp className="w-4 h-4 text-muted-foreground" />
+                <SelectValue placeholder="Sort By" />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="newest">Newest to Oldest</SelectItem>
+              <SelectItem value="oldest">Oldest to Newest</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
@@ -404,13 +426,13 @@ export default function CateringPipeline() {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-3"></div>
               <p>Loading catering requests...</p>
             </div>
-          ) : filteredOrders.length === 0 ? (
+          ) : sortedOrders.length === 0 ? (
             <div className="p-8 text-center text-muted-foreground flex flex-col items-center justify-center h-48">
               <UtensilsCrossed className="w-8 h-8 mb-3 opacity-20" />
               <p>No catering orders found for this view.</p>
             </div>
           ) : (
-            filteredOrders.map(order => (
+            sortedOrders.map(order => (
               <div 
                 key={order.id} 
                 onClick={() => setViewingOrder(order)}
