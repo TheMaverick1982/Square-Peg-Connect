@@ -173,11 +173,14 @@ export default function B2BPartnerships() {
     quarterEndDate.setHours(23, 59, 59, 999);
     const daysLeftInQuarter = Math.ceil((quarterEndDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 
-    // A contact counts as "Active" if it has complete details AND at least 1 activity
+    // A contact counts as "Active" if it has complete details AND at least 1 activity THIS YEAR
     const activeContacts = contacts.filter(contact => {
       const hasDetails = contact.organization_name && contact.contact_name && (contact.email || contact.phone);
-      const hasActivity = activities.some(act => act.contact_id === contact.id);
-      return hasDetails && hasActivity;
+      const hasActivityThisYear = activities.some(act => {
+        const actDate = new Date(act.activity_date);
+        return act.contact_id === contact.id && actDate.getFullYear() === currentYear;
+      });
+      return hasDetails && hasActivityThisYear;
     });
 
     // Monthly activities
