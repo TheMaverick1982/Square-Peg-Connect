@@ -20,6 +20,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { Search, Filter, Plus, Calendar as CalendarIcon, Users, MapPin, UtensilsCrossed, Link as LinkIcon, MessageSquare, Phone, Mail, FileText } from "lucide-react";
+import { QuoteBuilder } from "@/components/QuoteBuilder";
 
 type TabState = "all" | "upcoming" | "unopened" | "past";
 
@@ -76,9 +77,12 @@ export default function CateringPipeline() {
         eventName: row.company || 'Unknown Event',
         eventDate: row.event_date,
         guestCount: row.guest_count,
-        totalAmount: 0,
+        totalAmount: row.quote_total || 0,
         status: row.status as CateringStatus,
-        createdAt: row.created_at
+        createdAt: row.created_at,
+        quoteItems: row.quote_items || [],
+        quoteTotal: row.quote_total || 0,
+        paymentLink: row.payment_link
       }));
       setOrders(mappedOrders);
     }
@@ -128,7 +132,10 @@ export default function CateringPipeline() {
         guestCount: row.guest_count,
         totalAmount: 0,
         status: row.status as CateringStatus,
-        createdAt: row.created_at
+        createdAt: row.created_at,
+        quoteItems: [],
+        quoteTotal: 0,
+        paymentLink: ""
       };
       setOrders([newOrder, ...orders]);
     }
@@ -537,6 +544,16 @@ export default function CateringPipeline() {
                     {viewingOrder.notes ? viewingOrder.notes : <span className="text-muted-foreground italic">No additional notes provided.</span>}
                   </div>
                 </div>
+
+                {/* Quote Builder */}
+                <QuoteBuilder 
+                  key={viewingOrder.id}
+                  order={viewingOrder} 
+                  onUpdate={(updated) => {
+                    setViewingOrder(updated);
+                    setOrders(orders.map(o => o.id === updated.id ? updated : o));
+                  }} 
+                />
 
               </div>
             </>

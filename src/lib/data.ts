@@ -42,6 +42,9 @@ export interface CateringOrder {
   totalAmount: number;
   status: CateringStatus;
   createdAt: string;
+  quoteItems?: { description: string, amount: number, quantity: number }[];
+  quoteTotal?: number;
+  paymentLink?: string;
 }
 
 export interface FundraiserEvent {
