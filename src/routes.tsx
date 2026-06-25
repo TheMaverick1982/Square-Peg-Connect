@@ -7,7 +7,7 @@ import Campaigns from "./pages/Campaigns";
 import Login from "./pages/Login";
 import PublicCateringForm from "./pages/PublicCateringForm";
 import PublicFundraiserForm from "./pages/PublicFundraiserForm";
-import TeamManagement from "./pages/TeamManagement";
+import Settings from "./pages/Settings";
 import PlaceholderPage from "./components/layout/PlaceholderPage";
 import { AuthCallback } from "./pages/AuthCallback";
 import { ProtectedRoute } from "./components/ProtectedRoute";
@@ -46,7 +46,7 @@ function AutomationsPlaceholder() {
   );
 }
 
-// Tuesday Fundraisers placeholder 
+import EventsDashboard from "./pages/EventsDashboard";
 function FundraisersPlaceholder() {
   return (
     <div className="space-y-6">
@@ -88,17 +88,17 @@ export const routes = [
       { index: true, element: <Dashboard /> },
       { path: "contacts", element: <PlaceholderPage title="Contacts" description="Global and location-specific contact directory." /> },
       { path: "catering", element: <CateringPipeline /> },
-      { path: "events", element: <PlaceholderPage title="Events" description="Calendar view of upcoming events across locations." /> },
+      { path: "events", element: <EventsDashboard /> },
       { path: "tuesday-fundraisers", element: <FundraisersPipeline /> },
       { path: "b2b-partnerships", element: <B2BPartnerships /> },
       { path: "campaigns", element: <Campaigns /> },
-      { path: "team", element: <TeamManagement /> },
+      { path: "team", element: <PlaceholderPage title="Team Management" description="Redirects to Settings > Team Access" /> },
       { path: "automations", element: <AutomationsPlaceholder /> },
       { path: "ai-personalize", element: <PlaceholderPage title="AI Personalize" description="AI website scraping for custom messaging." /> },
       { path: "reminders", element: <PlaceholderPage title="Reminders" description="Call reminders and auto-workflow triggers." /> },
       { path: "tasks", element: <PlaceholderPage title="Tasks" description="Internal team task management." /> },
       { path: "reports", element: <PlaceholderPage title="Reports" description="Revenue, turnout, and pipeline analytics." /> },
-      { path: "settings", element: <PlaceholderPage title="Settings" description="Location mappings, Vendesta sync, and user roles." /> },
+      { path: "settings", element: <Settings /> },
     ]
   }
 ];
