@@ -2,6 +2,7 @@ import { AppLayout } from "./components/layout/AppLayout";
 import Dashboard from "./pages/Dashboard";
 import CateringPipeline from "./pages/CateringPipeline";
 import FundraisersPipeline from "./pages/FundraisersPipeline";
+import B2BPartnerships from "./pages/B2BPartnerships";
 import Campaigns from "./pages/Campaigns";
 import Login from "./pages/Login";
 import PublicCateringForm from "./pages/PublicCateringForm";
@@ -88,6 +89,7 @@ export const routes = [
       { path: "catering", element: <CateringPipeline /> },
       { path: "events", element: <PlaceholderPage title="Events" description="Calendar view of upcoming events across locations." /> },
       { path: "tuesday-fundraisers", element: <FundraisersPipeline /> },
+      { path: "b2b-partnerships", element: <B2BPartnerships /> },
       { path: "campaigns", element: <Campaigns /> },
       { path: "automations", element: <AutomationsPlaceholder /> },
       { path: "ai-personalize", element: <PlaceholderPage title="AI Personalize" description="AI website scraping for custom messaging." /> },

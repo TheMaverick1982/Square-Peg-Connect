@@ -5,6 +5,7 @@ import {
   UtensilsCrossed, 
   CalendarDays, 
   PartyPopper,
+  Handshake,
   Megaphone,
   Zap,
   Sparkles,
@@ -48,6 +49,10 @@ export function Sidebar() {
         <NavLink to="/tuesday-fundraisers" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
           <PartyPopper className="w-4 h-4" />
           Tuesday Fundraisers
+        </NavLink>
+        <NavLink to="/b2b-partnerships" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
+          <Handshake className="w-4 h-4" />
+          B2B Partnerships
         </NavLink>
 
         <div className="sidebar-group-title">Marketing</div>
