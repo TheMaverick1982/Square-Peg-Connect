@@ -84,7 +84,6 @@ export const routes = [
       { path: "automations", element: <AutomationsPlaceholder /> },
       { path: "ai-personalize", element: <AIPersonalize /> },
       { path: "reminders", element: <Reminders /> },
-      { path: "tasks", element: <PlaceholderPage title="Tasks" description="Internal team task management." /> },
       { path: "reports", element: <PlaceholderPage title="Reports" description="Revenue, turnout, and pipeline analytics." /> },
       { path: "settings", element: <Settings /> },
     ]

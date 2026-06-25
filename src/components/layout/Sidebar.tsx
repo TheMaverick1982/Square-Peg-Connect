@@ -88,15 +88,11 @@ export function Sidebar() {
           <Sparkles className="w-4 h-4" />
           AI Personalize
         </NavLink>
-        <NavLink to="/reminders" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
-          <Bell className="w-4 h-4" />
-          Reminders
-        </NavLink>
 
         <div className="sidebar-group-title">Operations</div>
-        <NavLink to="/tasks" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
+        <NavLink to="/reminders" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
           <CheckSquare className="w-4 h-4" />
-          Tasks
+          Tasks & Reminders
         </NavLink>
         <NavLink to="/reports" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
           <BarChart3 className="w-4 h-4" />
