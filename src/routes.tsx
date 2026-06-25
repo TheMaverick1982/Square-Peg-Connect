@@ -9,6 +9,7 @@ import PublicCateringForm from "./pages/PublicCateringForm";
 import PublicFundraiserForm from "./pages/PublicFundraiserForm";
 import AIPersonalize from "./pages/AIPersonalize";
 import Settings from "./pages/Settings";
+import Reminders from "./pages/Reminders";
 import PlaceholderPage from "./components/layout/PlaceholderPage";
 import { AuthCallback } from "./pages/AuthCallback";
 import { ProtectedRoute } from "./components/ProtectedRoute";
