@@ -90,7 +90,9 @@ export default function FundraisersPipeline() {
   }, []);
 
   const handleCopyLink = () => {
-    const url = `${window.location.origin}/public/fundraisers`;
+    const baseUrl = import.meta.env.BASE_URL;
+    const cleanBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    const url = `${window.location.origin}${cleanBase}/public/fundraisers`;
     navigator.clipboard.writeText(url);
     toast({
       title: "Link Copied",
