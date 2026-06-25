@@ -16,7 +16,7 @@ export const locations: Location[] = [
   { id: "loc-9", name: "Berlin", vendestaId: "ven-berlin-009" },
 ];
 
-export type CateringStatus = "Waiting on you" | "Waiting on the customer" | "Confirmed" | "Completed";
+export type CateringStatus = "Requested" | "Waiting on you" | "Waiting on the customer" | "Confirmed" | "Completed";
 
 export interface Contact {
   id: string;

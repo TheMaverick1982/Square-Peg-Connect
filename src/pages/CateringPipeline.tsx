@@ -122,7 +122,7 @@ export default function CateringPipeline() {
         guest_count: parseInt(formData.guestCount, 10),
         location: formData.locationId,
         notes: formData.notes,
-        status: 'Waiting on you'
+        status: 'Confirmed'
       }
     ]).select();
 
@@ -212,6 +212,7 @@ export default function CateringPipeline() {
 
   const getStatusPillClass = (status: CateringStatus) => {
     switch (status) {
+      case "Requested": return "status-pill waiting bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300";
       case "Waiting on the customer": return "status-pill waiting";
       case "Waiting on you": return "status-pill followup";
       case "Confirmed": return "status-pill confirmed";
@@ -470,6 +471,7 @@ export default function CateringPipeline() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="Requested">Requested</SelectItem>
                       <SelectItem value="Waiting on you">Waiting on you</SelectItem>
                       <SelectItem value="Waiting on the customer">Waiting on the customer</SelectItem>
                       <SelectItem value="Confirmed">Confirmed</SelectItem>
@@ -535,6 +537,7 @@ export default function CateringPipeline() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="Requested">Requested</SelectItem>
                         <SelectItem value="Waiting on you">Waiting on you</SelectItem>
                         <SelectItem value="Waiting on the customer">Waiting on the customer</SelectItem>
                         <SelectItem value="Confirmed">Confirmed</SelectItem>
