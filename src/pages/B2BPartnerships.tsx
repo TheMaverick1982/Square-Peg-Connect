@@ -13,7 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { Handshake, Plus, Activity, Search, MapPin, Building2, Phone, Mail, Calendar, Target, CheckCircle2 } from "lucide-react";
+import { Handshake, Plus, Activity, Search, MapPin, Building2, Phone, Mail, Calendar, Target, CheckCircle2, Eye, User } from "lucide-react";
 
 // --- Constants ---
 const CATEGORIES: Record<string, string[]> = {
@@ -72,6 +72,7 @@ export default function B2BPartnerships() {
   const [isContactSheetOpen, setIsContactSheetOpen] = useState(false);
   const [isActivitySheetOpen, setIsActivitySheetOpen] = useState(false);
   const [selectedContactForActivity, setSelectedContactForActivity] = useState<string>("");
+  const [viewingContactId, setViewingContactId] = useState<string | null>(null);
 
   // Contact Form State
   const [contactForm, setContactForm] = useState({
@@ -187,6 +188,9 @@ export default function B2BPartnerships() {
       monthlyFundraisers
     };
   }, [contacts, activities]);
+
+  const viewingContact = contacts.find(c => c.id === viewingContactId) || null;
+  const viewingContactActivities = activities.filter(a => a.contact_id === viewingContactId);
 
   // Filtering Contacts
   const filteredContacts = useMemo(() => {
@@ -424,10 +428,11 @@ export default function B2BPartnerships() {
       {/* Contacts List */}
       <div className="bg-card border rounded-lg overflow-hidden flex-1">
         <div className="grid grid-cols-12 gap-4 p-4 border-b bg-muted/30 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-          <div className="col-span-4">Organization & Contact</div>
+          <div className="col-span-3">Organization & Contact</div>
           <div className="col-span-3">Category</div>
           <div className="col-span-3">Contact Info</div>
           <div className="col-span-2">Last Activity</div>
+          <div className="col-span-1 text-right">Actions</div>
         </div>
 
         <div className="divide-y overflow-auto h-[calc(100%-49px)]">
@@ -455,7 +460,7 @@ export default function B2BPartnerships() {
 
               return (
                 <div key={contact.id} className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-muted/10 transition-colors">
-                  <div className="col-span-4">
+                  <div className="col-span-3">
                     <div className="font-semibold text-sm text-foreground">{contact.organization_name}</div>
                     <div className="text-xs text-muted-foreground mt-0.5">{contact.contact_name}</div>
                   </div>
@@ -493,12 +498,104 @@ export default function B2BPartnerships() {
                       <span className="text-xs italic opacity-60">No activity logged</span>
                     )}
                   </div>
+
+                  <div className="col-span-1 flex justify-end">
+                    <Button variant="ghost" size="icon" onClick={() => setViewingContactId(contact.id)}>
+                      <Eye className="w-4 h-4 text-muted-foreground hover:text-foreground" />
+                    </Button>
+                  </div>
                 </div>
               );
             })
           )}
         </div>
       </div>
+
+      {/* View Contact Sheet */}
+      <Sheet open={!!viewingContactId} onOpenChange={(open) => !open && setViewingContactId(null)}>
+        <SheetContent className="w-full sm:max-w-md overflow-y-auto">
+          {viewingContact && (
+            <>
+              <SheetHeader>
+                <SheetTitle>{viewingContact.organization_name}</SheetTitle>
+                <SheetDescription>{viewingContact.category} • {viewingContact.subcategory}</SheetDescription>
+              </SheetHeader>
+              
+              <div className="mt-8 space-y-8">
+                {/* Contact Details */}
+                <div>
+                  <h4 className="text-sm font-semibold mb-4 text-foreground">Contact Details</h4>
+                  <div className="space-y-4 text-sm">
+                    <div className="flex items-start gap-3">
+                      <User className="w-4 h-4 text-muted-foreground mt-0.5" />
+                      <div>
+                        <div className="font-medium text-foreground">{viewingContact.contact_name}</div>
+                        <div className="text-xs text-muted-foreground">Main Contact</div>
+                      </div>
+                    </div>
+                    {viewingContact.phone && (
+                      <div className="flex items-center gap-3">
+                        <Phone className="w-4 h-4 text-muted-foreground" />
+                        <a href={`tel:${viewingContact.phone}`} className="text-primary hover:underline">{viewingContact.phone}</a>
+                      </div>
+                    )}
+                    {viewingContact.email && (
+                      <div className="flex items-center gap-3">
+                        <Mail className="w-4 h-4 text-muted-foreground" />
+                        <a href={`mailto:${viewingContact.email}`} className="text-primary hover:underline">{viewingContact.email}</a>
+                      </div>
+                    )}
+                    {viewingContact.address && (
+                      <div className="flex items-start gap-3">
+                        <MapPin className="w-4 h-4 text-muted-foreground mt-0.5" />
+                        <span className="text-muted-foreground">{viewingContact.address}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Activity History */}
+                <div className="border-t pt-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <h4 className="text-sm font-semibold text-foreground">Activity History</h4>
+                    <Button size="sm" variant="outline" className="h-8" onClick={() => {
+                      setViewingContactId(null);
+                      setSelectedContactForActivity(viewingContact.id);
+                      setIsActivitySheetOpen(true);
+                    }}>
+                      <Plus className="w-3.5 h-3.5 mr-1" /> Log Activity
+                    </Button>
+                  </div>
+                  
+                  <div className="space-y-0">
+                    {viewingContactActivities.length === 0 ? (
+                      <div className="text-sm text-muted-foreground text-center py-6 italic border border-dashed rounded-lg bg-muted/10">
+                        No activities logged yet.
+                      </div>
+                    ) : (
+                      viewingContactActivities.map((act, index) => (
+                        <div key={act.id} className="relative pl-6 pb-6 last:pb-0 border-l border-muted-foreground/20 last:border-transparent">
+                          <div className="absolute w-2.5 h-2.5 bg-primary rounded-full left-[-5.5px] top-1.5 ring-4 ring-background" />
+                          <div className="text-sm font-medium text-foreground">{act.activity_type}</div>
+                          <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1.5">
+                            <Calendar className="w-3 h-3" />
+                            {format(new Date(act.activity_date), "MMM d, yyyy")}
+                          </div>
+                          {act.notes && (
+                            <div className="text-sm mt-2.5 bg-muted/30 p-3 rounded-md border border-border/50 text-muted-foreground leading-relaxed">
+                              {act.notes}
+                            </div>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
