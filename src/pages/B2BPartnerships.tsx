@@ -59,6 +59,7 @@ type B2BActivity = {
   activity_type: string;
   activity_date: string;
   notes: string | null;
+  revenue: number | null;
   created_at: string;
 };
 
@@ -89,6 +90,7 @@ export default function B2BPartnerships() {
   const [activityForm, setActivityForm] = useState({
     activity_type: "",
     activity_date: format(new Date(), "yyyy-MM-dd"),
+    revenue: "",
     notes: ""
   });
 
@@ -146,7 +148,7 @@ export default function B2BPartnerships() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['b2b_activities'] });
       setIsActivitySheetOpen(false);
-      setActivityForm({ activity_type: "", activity_date: format(new Date(), "yyyy-MM-dd"), notes: "" });
+      setActivityForm({ activity_type: "", activity_date: format(new Date(), "yyyy-MM-dd"), revenue: "", notes: "" });
       setSelectedContactForActivity("");
       toast({ title: "Activity Logged", description: "The activity has been successfully recorded." });
     },
@@ -188,6 +190,14 @@ export default function B2BPartnerships() {
       const actDate = new Date(act.activity_date);
       return actDate.getMonth() === currentMonth && actDate.getFullYear() === currentYear;
     });
+    
+    // Yearly activities
+    const currentYearActivities = activities.filter(act => {
+      const actDate = new Date(act.activity_date);
+      return actDate.getFullYear() === currentYear;
+    });
+
+    const yearlyRevenue = currentYearActivities.reduce((sum, act) => sum + (act.revenue || 0), 0);
 
     const monthlyFundraisers = currentMonthActivities.filter(act => act.activity_type === "Fundraiser").length;
     const monthlyEvents = currentMonthActivities.filter(act => act.activity_type !== "Fundraiser").length;
@@ -201,7 +211,8 @@ export default function B2BPartnerships() {
       connectionsRemaining,
       activeConnectionsCount: activeContacts.length,
       monthlyEvents,
-      monthlyFundraisers
+      monthlyFundraisers,
+      yearlyRevenue
     };
   }, [contacts, activities]);
 
@@ -253,7 +264,7 @@ export default function B2BPartnerships() {
       )}
 
       {/* KPI Dashboard */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Card className="bg-primary/5 border-primary/20">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center justify-between">
@@ -307,6 +318,25 @@ export default function B2BPartnerships() {
             <Progress value={Math.min((dashboardStats.monthlyFundraisers / 1) * 100, 100)} className="h-2" />
             <p className="text-xs text-muted-foreground mt-3">
               School, youth sports, or non-profit fundraisers.
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-green-50/50 dark:bg-green-950/10 border-green-200 dark:border-green-900/50">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center justify-between text-green-800 dark:text-green-400">
+              Total Revenue (This Year)
+              <span className="text-lg font-bold">💰</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-baseline gap-2 mb-2">
+              <span className="text-3xl font-bold text-green-900 dark:text-green-300">
+                ${dashboardStats.yearlyRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
+            </div>
+            <p className="text-xs text-green-700/80 dark:text-green-400/80 mt-5">
+              Total revenue generated from all logged B2B events this calendar year.
             </p>
           </CardContent>
         </Card>
@@ -440,6 +470,17 @@ export default function B2BPartnerships() {
                   <Input type="date" value={activityForm.activity_date} onChange={(e) => setActivityForm({ ...activityForm, activity_date: e.target.value })} />
                 </div>
                 <div className="grid gap-2">
+                  <Label>Revenue Generated ($) <span className="text-muted-foreground font-normal text-xs ml-1">(Optional)</span></Label>
+                  <Input 
+                    type="number" 
+                    step="0.01" 
+                    min="0"
+                    placeholder="0.00"
+                    value={activityForm.revenue} 
+                    onChange={(e) => setActivityForm({ ...activityForm, revenue: e.target.value })} 
+                  />
+                </div>
+                <div className="grid gap-2">
                   <Label>Notes / Details</Label>
                   <Textarea 
                     rows={4} 
@@ -454,6 +495,7 @@ export default function B2BPartnerships() {
                 <Button 
                   onClick={() => createActivity.mutate({
                     ...activityForm,
+                    revenue: activityForm.revenue ? parseFloat(activityForm.revenue) : null,
                     contact_id: selectedContactForActivity
                   })}
                   disabled={!selectedContactForActivity || !activityForm.activity_type}
@@ -617,10 +659,19 @@ export default function B2BPartnerships() {
                       viewingContactActivities.map((act, index) => (
                         <div key={act.id} className="relative pl-6 pb-6 last:pb-0 border-l border-muted-foreground/20 last:border-transparent">
                           <div className="absolute w-2.5 h-2.5 bg-primary rounded-full left-[-5.5px] top-1.5 ring-4 ring-background" />
-                          <div className="text-sm font-medium text-foreground">{act.activity_type}</div>
-                          <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1.5">
-                            <Calendar className="w-3 h-3" />
-                            {format(new Date(act.activity_date), "MMM d, yyyy")}
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <div className="text-sm font-medium text-foreground">{act.activity_type}</div>
+                              <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1.5">
+                                <Calendar className="w-3 h-3" />
+                                {format(new Date(act.activity_date), "MMM d, yyyy")}
+                              </div>
+                            </div>
+                            {act.revenue != null && act.revenue > 0 && (
+                              <div className="bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300 text-xs font-semibold px-2.5 py-1 rounded-full border border-green-200 dark:border-green-800/50 flex items-center gap-1">
+                                <span>+${act.revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                              </div>
+                            )}
                           </div>
                           {act.notes && (
                             <div className="text-sm mt-2.5 bg-muted/30 p-3 rounded-md border border-border/50 text-muted-foreground leading-relaxed">
