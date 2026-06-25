@@ -2,14 +2,28 @@ import { useLocationContext } from "@/lib/LocationContext";
 import { mockContacts, mockCateringOrders } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, DollarSign, CalendarDays, PartyPopper, UtensilsCrossed, ArrowUpRight } from "lucide-react";
+import { Users, DollarSign, CalendarDays, PartyPopper, UtensilsCrossed, ArrowUpRight, Building2 } from "lucide-react";
 import { format } from "date-fns";
 import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import type { FundraiserOrder } from "./FundraisersPipeline";
 
 export default function Dashboard() {
   const { selectedLocationId, selectedLocation } = useLocationContext();
   const [fundraisers, setFundraisers] = useState<FundraiserOrder[]>([]);
+
+  const { data: b2bContacts = [], isLoading: loadingB2b } = useQuery({
+    queryKey: ['b2b_contacts', selectedLocationId],
+    queryFn: async () => {
+      let query = supabase.from('b2b_contacts').select('*').order('created_at', { ascending: false }).limit(5);
+      if (selectedLocationId) {
+        query = query.eq('location_id', selectedLocationId);
+      }
+      const { data, error } = await query;
+      if (error) throw error;
+      return data;
+    }
+  });
 
   useEffect(() => {
     const fetchFundraisers = async () => {
@@ -103,7 +117,7 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <Card className="col-span-1">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -160,6 +174,39 @@ export default function Dashboard() {
               ))}
               {filteredFundraisers.length === 0 && (
                 <p className="text-sm text-muted-foreground">No fundraisers scheduled for this location.</p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="col-span-1">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Building2 className="w-5 h-5 text-primary" />
+              Recent B2B Contacts
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {loadingB2b ? (
+                <p className="text-sm text-muted-foreground">Loading...</p>
+              ) : b2bContacts.length > 0 ? (
+                b2bContacts.map((contact: any) => (
+                  <div key={contact.id} className="flex flex-col gap-1 p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-semibold text-sm truncate">{contact.organization_name}</span>
+                      <span className="text-xs font-medium px-2 py-1 bg-secondary text-secondary-foreground rounded-md whitespace-nowrap">
+                        {contact.category}
+                      </span>
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1 flex items-center justify-between">
+                      <span className="truncate">{contact.contact_name}</span>
+                      <span className="whitespace-nowrap">{format(new Date(contact.created_at), "MMM d, yyyy")}</span>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-muted-foreground">No recent B2B contacts found for this location.</p>
               )}
             </div>
           </CardContent>
