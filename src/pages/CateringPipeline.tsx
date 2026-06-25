@@ -91,6 +91,18 @@ export default function CateringPipeline() {
 
   useEffect(() => {
     fetchOrders();
+
+    const channel = supabase
+      .channel('public:catering_requests')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'catering_requests' }, payload => {
+        // Auto-refresh when webhook updates the status (e.g., to Completed)
+        fetchOrders();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -181,6 +193,8 @@ export default function CateringPipeline() {
       case "Waiting on the customer": return "status-pill waiting";
       case "Waiting on you": return "status-pill followup";
       case "Confirmed": return "status-pill confirmed";
+      case "Completed": return "status-pill confirmed ring-1 ring-green-600 bg-green-500/10 text-green-700";
+      default: return "status-pill followup";
     }
   };
 
@@ -410,6 +424,7 @@ export default function CateringPipeline() {
                       <SelectItem value="Waiting on you">Waiting on you</SelectItem>
                       <SelectItem value="Waiting on the customer">Waiting on the customer</SelectItem>
                       <SelectItem value="Confirmed">Confirmed</SelectItem>
+                      <SelectItem value="Completed">Completed</SelectItem>
                     </SelectContent>
                   </Select>
                   <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => setViewingOrder(order)}>
@@ -474,6 +489,7 @@ export default function CateringPipeline() {
                         <SelectItem value="Waiting on you">Waiting on you</SelectItem>
                         <SelectItem value="Waiting on the customer">Waiting on the customer</SelectItem>
                         <SelectItem value="Confirmed">Confirmed</SelectItem>
+                        <SelectItem value="Completed">Completed</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -486,62 +502,61 @@ export default function CateringPipeline() {
                   </div>
                 </div>
 
-                {/* Contact Info */}
+                {/* Form Submission Details */}
                 <div className="space-y-4">
-                  <h3 className="text-sm font-semibold border-b pb-2 flex items-center gap-2">
-                    <Users className="w-4 h-4 text-muted-foreground" />
-                    Contact Information
-                  </h3>
-                  <div className="grid gap-3">
-                    <div className="flex items-start gap-3">
-                      <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center shrink-0">
-                        <span className="text-xs font-semibold">{viewingOrder.contactName.charAt(0)}</span>
-                      </div>
-                      <div>
-                        <div className="font-medium">{viewingOrder.contactName}</div>
-                        <div className="flex flex-col gap-1 mt-1">
-                          {viewingOrder.email && (
-                            <a href={`mailto:${viewingOrder.email}`} className="text-sm text-muted-foreground hover:text-primary flex items-center gap-2 transition-colors">
-                              <Mail className="w-3.5 h-3.5" /> {viewingOrder.email}
-                            </a>
-                          )}
-                          {viewingOrder.phone && (
-                            <a href={`tel:${viewingOrder.phone}`} className="text-sm text-muted-foreground hover:text-primary flex items-center gap-2 transition-colors">
-                              <Phone className="w-3.5 h-3.5" /> {viewingOrder.phone}
-                            </a>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Event Info */}
-                <div className="space-y-4">
-                  <h3 className="text-sm font-semibold border-b pb-2 flex items-center gap-2">
-                    <CalendarIcon className="w-4 h-4 text-muted-foreground" />
-                    Event Details
-                  </h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-muted/30 p-3 rounded-lg border text-center">
-                      <div className="text-xs text-muted-foreground mb-1">Event Date</div>
-                      <div className="font-semibold">{format(new Date(viewingOrder.eventDate), "MMM d, yyyy")}</div>
-                    </div>
-                    <div className="bg-muted/30 p-3 rounded-lg border text-center">
-                      <div className="text-xs text-muted-foreground mb-1">Guest Count</div>
-                      <div className="font-semibold">{viewingOrder.guestCount} People</div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Notes */}
-                <div className="space-y-3">
                   <h3 className="text-sm font-semibold border-b pb-2 flex items-center gap-2">
                     <FileText className="w-4 h-4 text-muted-foreground" />
-                    Order Notes / Details
+                    Form Submission Details
                   </h3>
-                  <div className="bg-muted/30 p-4 rounded-lg border text-sm text-foreground whitespace-pre-wrap leading-relaxed">
-                    {viewingOrder.notes ? viewingOrder.notes : <span className="text-muted-foreground italic">No additional notes provided.</span>}
+                  
+                  <div className="grid gap-3 bg-muted/20 p-4 rounded-lg border text-sm">
+                    <div className="grid grid-cols-3 gap-2 py-1">
+                      <div className="text-muted-foreground">Contact Name:</div>
+                      <div className="col-span-2 font-medium">{viewingOrder.contactName}</div>
+                    </div>
+                    
+                    <div className="grid grid-cols-3 gap-2 py-1 border-t border-border/50">
+                      <div className="text-muted-foreground">Email:</div>
+                      <div className="col-span-2">
+                        {viewingOrder.email ? (
+                          <a href={`mailto:${viewingOrder.email}`} className="text-primary hover:underline">{viewingOrder.email}</a>
+                        ) : "—"}
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-3 gap-2 py-1 border-t border-border/50">
+                      <div className="text-muted-foreground">Phone:</div>
+                      <div className="col-span-2">
+                        {viewingOrder.phone ? (
+                          <a href={`tel:${viewingOrder.phone}`} className="text-primary hover:underline">{viewingOrder.phone}</a>
+                        ) : "—"}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2 py-1 border-t border-border/50">
+                      <div className="text-muted-foreground">Company/Event:</div>
+                      <div className="col-span-2 font-medium">{viewingOrder.eventName}</div>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2 py-1 border-t border-border/50">
+                      <div className="text-muted-foreground">Event Date:</div>
+                      <div className="col-span-2 font-medium">{format(new Date(viewingOrder.eventDate), "MMMM d, yyyy")}</div>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2 py-1 border-t border-border/50">
+                      <div className="text-muted-foreground">Guest Count:</div>
+                      <div className="col-span-2 font-medium">{viewingOrder.guestCount} People</div>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2 py-1 border-t border-border/50">
+                      <div className="text-muted-foreground">Location:</div>
+                      <div className="col-span-2 font-medium">{locations.find(l => l.id === viewingOrder.locationId)?.name || "Unknown"}</div>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2 py-1 border-t border-border/50">
+                      <div className="text-muted-foreground">Notes:</div>
+                      <div className="col-span-2 whitespace-pre-wrap">{viewingOrder.notes || "—"}</div>
+                    </div>
                   </div>
                 </div>
 

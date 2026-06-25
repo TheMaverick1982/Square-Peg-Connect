@@ -87,11 +87,14 @@ export function QuoteBuilder({ order, onUpdate }: { order: CateringOrder; onUpda
       const link = data.url;
       setPaymentLink(link);
       
-      // Save link to DB
-      await supabase.from('catering_requests').update({ payment_link: link }).eq('id', order.id);
+      // Save link to DB and auto-update status to 'Waiting on the customer'
+      await supabase.from('catering_requests').update({ 
+        payment_link: link,
+        status: 'Waiting on the customer' 
+      }).eq('id', order.id);
       
-      onUpdate({ ...order, paymentLink: link, quoteItems: items, quoteTotal: total });
-      toast({ title: "Link generated", description: "Payment link is ready to be shared!" });
+      onUpdate({ ...order, paymentLink: link, quoteItems: items, quoteTotal: total, status: 'Waiting on the customer' as any });
+      toast({ title: "Link generated", description: "Payment link is ready, and status is now Waiting on Customer!" });
     }
   };
 
