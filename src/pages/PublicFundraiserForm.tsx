@@ -38,7 +38,10 @@ export default function PublicFundraiserForm() {
           .eq('location', formData.locationId);
           
         if (data) {
-          setBookedDates(data.map(r => new Date(r.event_date)));
+          setBookedDates(data.map(r => {
+            const [year, month, day] = r.event_date.split('-');
+            return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+          }));
         }
       };
       fetchBookings();
