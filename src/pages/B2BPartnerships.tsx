@@ -13,7 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { Handshake, Plus, Activity, Search, MapPin, Building2, Phone, Mail, Calendar, Target, CheckCircle2, Eye, User } from "lucide-react";
+import { AlertCircle, Handshake, Plus, Activity, Search, MapPin, Building2, Phone, Mail, Calendar, Target, CheckCircle2, Eye, User } from "lucide-react";
 
 // --- Constants ---
 const CATEGORIES: Record<string, string[]> = {
@@ -164,6 +164,15 @@ export default function B2BPartnerships() {
     const quarterTargets: Record<number, number> = { 1: 10, 2: 15, 3: 20, 4: 25 };
     const quarterlyTarget = quarterTargets[currentQuarter] || 25;
 
+    // Calculate days left in quarter
+    const quarterEndMonths = [2, 5, 8, 11]; // Mar, Jun, Sep, Dec (0-indexed)
+    const quarterEndMonth = quarterEndMonths[currentQuarter - 1];
+    const quarterEndDate = new Date(currentYear, quarterEndMonth + 1, 0); // Last day of that month
+    
+    // Set time to end of the day for accurate days left
+    quarterEndDate.setHours(23, 59, 59, 999);
+    const daysLeftInQuarter = Math.ceil((quarterEndDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
     // A contact counts as "Active" if it has complete details AND at least 1 activity
     const activeContacts = contacts.filter(contact => {
       const hasDetails = contact.organization_name && contact.contact_name && (contact.email || contact.phone);
@@ -180,9 +189,13 @@ export default function B2BPartnerships() {
     const monthlyFundraisers = currentMonthActivities.filter(act => act.activity_type === "Fundraiser").length;
     const monthlyEvents = currentMonthActivities.filter(act => act.activity_type !== "Fundraiser").length;
 
+    const connectionsRemaining = Math.max(0, quarterlyTarget - activeContacts.length);
+
     return {
       currentQuarter,
       quarterlyTarget,
+      daysLeftInQuarter,
+      connectionsRemaining,
       activeConnectionsCount: activeContacts.length,
       monthlyEvents,
       monthlyFundraisers
@@ -210,6 +223,31 @@ export default function B2BPartnerships() {
         <h1 className="text-3xl font-bold tracking-tight">B2B Partnerships</h1>
         <p className="text-muted-foreground mt-1">Manage local community contacts and track quarterly outreach goals.</p>
       </div>
+
+      {/* Deadline Banner */}
+      {dashboardStats.daysLeftInQuarter <= 30 && dashboardStats.connectionsRemaining > 0 && (
+        <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 text-amber-900 dark:text-amber-200 px-4 py-3 rounded-lg flex items-start gap-3 shadow-sm">
+          <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-500 mt-0.5 shrink-0" />
+          <div>
+            <h3 className="font-semibold text-sm">Action Required: Quarter {dashboardStats.currentQuarter} Ends Soon</h3>
+            <p className="text-sm mt-1 opacity-90">
+              Quarter {dashboardStats.currentQuarter} ends in <strong>{dashboardStats.daysLeftInQuarter} days</strong>. 
+              You need <strong>{dashboardStats.connectionsRemaining} more {dashboardStats.connectionsRemaining === 1 ? 'connection' : 'connections'}</strong> to hit your quarterly growth requirement.
+            </p>
+          </div>
+        </div>
+      )}
+      {dashboardStats.daysLeftInQuarter <= 30 && dashboardStats.connectionsRemaining === 0 && (
+        <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-900 text-green-900 dark:text-green-200 px-4 py-3 rounded-lg flex items-start gap-3 shadow-sm">
+          <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-500 mt-0.5 shrink-0" />
+          <div>
+            <h3 className="font-semibold text-sm">Goal Achieved!</h3>
+            <p className="text-sm mt-1 opacity-90">
+              You've successfully hit your target of {dashboardStats.quarterlyTarget} connections for Quarter {dashboardStats.currentQuarter}. Excellent work!
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* KPI Dashboard */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
