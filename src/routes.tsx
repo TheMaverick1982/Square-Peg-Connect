@@ -3,6 +3,7 @@ import Dashboard from "./pages/Dashboard";
 import CateringPipeline from "./pages/CateringPipeline";
 import FundraisersPipeline from "./pages/FundraisersPipeline";
 import B2BPartnerships from "./pages/B2BPartnerships";
+import GuestBounceBack from "./pages/GuestBounceBack";
 import Campaigns from "./pages/Campaigns";
 import Login from "./pages/Login";
 import PublicCateringForm from "./pages/PublicCateringForm";
@@ -93,6 +94,7 @@ export const routes = [
       { path: "events", element: <EventsDashboard /> },
       { path: "tuesday-fundraisers", element: <FundraisersPipeline /> },
       { path: "b2b-partnerships", element: <B2BPartnerships /> },
+      { path: "guest-bounce-back", element: <GuestBounceBack /> },
       { path: "campaigns", element: <Campaigns /> },
       { path: "team", element: <PlaceholderPage title="Team Management" description="Redirects to Settings > Team Access" /> },
       { path: "automations", element: <AutomationsPlaceholder /> },

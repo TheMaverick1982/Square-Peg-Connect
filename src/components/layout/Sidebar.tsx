@@ -6,6 +6,7 @@ import {
   CalendarDays, 
   PartyPopper,
   Handshake,
+  UserCheck,
   Megaphone,
   Zap,
   Sparkles,
@@ -58,6 +59,10 @@ export function Sidebar() {
         <NavLink to="/b2b-partnerships" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
           <Handshake className="w-4 h-4" />
           B2B Partnerships
+        </NavLink>
+        <NavLink to="/guest-bounce-back" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
+          <UserCheck className="w-4 h-4" />
+          Guest Bounce Back
         </NavLink>
 
         {isAdmin && (
