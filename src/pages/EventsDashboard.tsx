@@ -248,27 +248,44 @@ function EventSheet({ eventToEdit, triggerButton }: { eventToEdit?: Event, trigg
     notify_emails: "brian@brianhardy.com, darene.gtomp@gmail.com"
   });
 
-  // Pre-fill form when editing
+  // Pre-fill form when editing, or reset to defaults when creating new
   useEffect(() => {
-    if (open && eventToEdit) {
-      const startDate = parseISO(eventToEdit.start_date);
-      const endDate = parseISO(eventToEdit.end_date);
-      
-      setFormData({
-        title: eventToEdit.title,
-        location_id: eventToEdit.location_id || "all",
-        details: eventToEdit.details || "",
-        start_date: startDate,
-        start_time: format(startDate, "HH:mm"),
-        end_time: format(endDate, "HH:mm"),
-        is_recurring: eventToEdit.is_recurring,
-        recurrence_pattern: eventToEdit.recurrence_pattern || "weekly",
-        no_end_date: eventToEdit.no_end_date,
-        recurrence_end_date: eventToEdit.recurrence_end_date ? parseISO(eventToEdit.recurrence_end_date) : new Date(),
-        notify_emails: eventToEdit.notify_emails || "brian@brianhardy.com, darene.gtomp@gmail.com"
-      });
+    if (open) {
+      if (eventToEdit) {
+        const startDate = parseISO(eventToEdit.start_date);
+        const endDate = parseISO(eventToEdit.end_date);
+        
+        setFormData({
+          title: eventToEdit.title,
+          location_id: eventToEdit.location_id || "all",
+          details: eventToEdit.details || "",
+          start_date: startDate,
+          start_time: format(startDate, "HH:mm"),
+          end_time: format(endDate, "HH:mm"),
+          is_recurring: eventToEdit.is_recurring,
+          recurrence_pattern: eventToEdit.recurrence_pattern || "weekly",
+          no_end_date: eventToEdit.no_end_date,
+          recurrence_end_date: eventToEdit.recurrence_end_date ? parseISO(eventToEdit.recurrence_end_date) : new Date(),
+          notify_emails: eventToEdit.notify_emails || "brian@brianhardy.com, darene.gtomp@gmail.com"
+        });
+      } else {
+        // Reset to default blank state for new events
+        setFormData({
+          title: "",
+          location_id: selectedLocationId || "all",
+          details: "",
+          start_date: new Date(),
+          start_time: "17:00",
+          end_time: "19:00",
+          is_recurring: false,
+          recurrence_pattern: "weekly",
+          no_end_date: true,
+          recurrence_end_date: new Date(),
+          notify_emails: "brian@brianhardy.com, darene.gtomp@gmail.com"
+        });
+      }
     }
-  }, [open, eventToEdit]);
+  }, [open, eventToEdit, selectedLocationId]);
 
   const saveEvent = useMutation({
     mutationFn: async (data: typeof formData) => {
