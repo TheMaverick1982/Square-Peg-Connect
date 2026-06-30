@@ -10,7 +10,6 @@ import {
   Megaphone,
   Zap,
   Sparkles,
-  Bell,
   CheckSquare,
   BarChart3,
   Settings,
@@ -18,13 +17,13 @@ import {
 } from "lucide-react";
 import { useEmployee } from "@/lib/EmployeeContext";
 
-export function Sidebar() {
+export function SidebarContent() {
   const { profile } = useEmployee();
   const isAdmin = profile?.role === "admin";
 
   return (
-    <div className="sidebar py-4">
-      <div className="px-6 mb-8 flex flex-col items-center gap-2">
+    <>
+      <div className="px-6 mb-8 mt-4 flex flex-col items-center gap-2">
         <img 
           src="https://media-api-prod.apigateway.co/files/v3/AG-D5HZKZ2TNH/FileID-2859e6a7-48eb-46ed-83a6-9d6ebb5d5850/uploaded-1782298633843015700.png" 
           alt="Square Peg Pizzeria Logo" 
@@ -33,7 +32,7 @@ export function Sidebar() {
         <span className="font-bold text-xs text-white/70 uppercase tracking-widest">Connect</span>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-3 space-y-1">
+      <div className="flex-1 overflow-y-auto px-3 space-y-1 pb-6">
         
         <div className="sidebar-group-title mt-0">Workspace</div>
         <NavLink to="/" end className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
@@ -102,8 +101,15 @@ export function Sidebar() {
           <Settings className="w-4 h-4" />
           Settings
         </NavLink>
-
       </div>
+    </>
+  );
+}
+
+export function Sidebar() {
+  return (
+    <div className="sidebar py-4 hidden md:flex">
+      <SidebarContent />
     </div>
   );
 }

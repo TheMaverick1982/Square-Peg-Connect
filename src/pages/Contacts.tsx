@@ -75,7 +75,6 @@ export default function Contacts() {
         location_id: selectedContact.location_id,
         b2b_contact_id: selectedContact.b2bRecord?.id || null,
         guest_bounce_back_id: selectedContact.guestBounceBackRecord?.id || null,
-        // If multiple exist, we just link the first one for simplicity, or ideally the user chooses.
         catering_request_id: selectedContact.cateringRecords?.[0]?.id || null,
         fundraiser_id: selectedContact.fundraiserRecords?.[0]?.id || null,
       };
@@ -147,71 +146,73 @@ export default function Contacts() {
         </div>
       </div>
 
-      <div className="bg-card border rounded-lg overflow-hidden flex-1 flex flex-col">
-        <div className="grid grid-cols-12 gap-4 p-4 border-b bg-muted/30 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-          <div className="col-span-4">Contact</div>
-          <div className="col-span-3">Contact Info</div>
-          <div className="col-span-2">Location</div>
-          <div className="col-span-3">Connections</div>
-        </div>
+      <div className="bg-card border rounded-lg overflow-hidden flex-1 flex flex-col min-w-0">
+        <div className="overflow-x-auto">
+          <div className="min-w-[800px] grid grid-cols-12 gap-4 p-4 border-b bg-muted/30 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+            <div className="col-span-4">Contact</div>
+            <div className="col-span-3">Contact Info</div>
+            <div className="col-span-2">Location</div>
+            <div className="col-span-3">Connections</div>
+          </div>
 
-        <div className="divide-y overflow-y-auto">
-          {isLoading ? (
-            <div className="p-8 text-center text-muted-foreground flex flex-col items-center justify-center h-64">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-3"></div>
-              <p>Loading CRM...</p>
-            </div>
-          ) : filteredContacts.length === 0 ? (
-            <div className="p-12 text-center text-muted-foreground flex flex-col items-center justify-center">
-              <Users className="w-12 h-12 mb-4 opacity-20" />
-              <h3 className="text-lg font-medium">No contacts found</h3>
-              <p className="text-sm">We couldn't find any contacts matching your search.</p>
-            </div>
-          ) : (
-            filteredContacts.map(contact => (
-              <div 
-                key={contact.id}
-                onClick={() => setSelectedContact(contact)}
-                className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-muted/30 transition-colors cursor-pointer"
-              >
-                <div className="col-span-4">
-                  <div className="font-semibold text-sm text-foreground">{contact.name}</div>
-                  {contact.organization && (
-                    <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
-                      <Building className="w-3 h-3" />
-                      {contact.organization}
-                    </div>
-                  )}
-                </div>
-                
-                <div className="col-span-3 text-sm text-muted-foreground space-y-1">
-                  {contact.email && (
-                    <div className="flex items-center gap-1.5 line-clamp-1 text-xs">
-                      <Mail className="w-3 h-3 shrink-0" /> {contact.email}
-                    </div>
-                  )}
-                  {contact.phone && (
-                    <div className="flex items-center gap-1.5 text-xs">
-                      <Phone className="w-3 h-3 shrink-0" /> {contact.phone}
-                    </div>
-                  )}
-                </div>
-
-                <div className="col-span-2 text-sm text-muted-foreground flex items-center gap-1.5">
-                  <MapPin className="w-3 h-3" />
-                  <span className="line-clamp-1">{locations.find(l => l.id === contact.location_id)?.name || "Unknown"}</span>
-                </div>
-
-                <div className="col-span-3 flex flex-wrap gap-1.5">
-                  {contact.sources.map(src => (
-                    <Badge key={src} variant="outline" className={`font-normal ${getSourceColor(src)}`}>
-                      {getSourceIcon(src)} {src}
-                    </Badge>
-                  ))}
-                </div>
+          <div className="divide-y overflow-y-auto min-w-[800px] h-[calc(100vh-300px)]">
+            {isLoading ? (
+              <div className="p-8 text-center text-muted-foreground flex flex-col items-center justify-center h-full">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-3"></div>
+                <p>Loading CRM...</p>
               </div>
-            ))
-          )}
+            ) : filteredContacts.length === 0 ? (
+              <div className="p-12 text-center text-muted-foreground flex flex-col items-center justify-center h-full">
+                <Users className="w-12 h-12 mb-4 opacity-20" />
+                <h3 className="text-lg font-medium">No contacts found</h3>
+                <p className="text-sm">We couldn't find any contacts matching your search.</p>
+              </div>
+            ) : (
+              filteredContacts.map(contact => (
+                <div 
+                  key={contact.id}
+                  onClick={() => setSelectedContact(contact)}
+                  className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-muted/30 transition-colors cursor-pointer"
+                >
+                  <div className="col-span-4">
+                    <div className="font-semibold text-sm text-foreground">{contact.name}</div>
+                    {contact.organization && (
+                      <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
+                        <Building className="w-3 h-3" />
+                        {contact.organization}
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="col-span-3 text-sm text-muted-foreground space-y-1">
+                    {contact.email && (
+                      <div className="flex items-center gap-1.5 line-clamp-1 text-xs">
+                        <Mail className="w-3 h-3 shrink-0" /> {contact.email}
+                      </div>
+                    )}
+                    {contact.phone && (
+                      <div className="flex items-center gap-1.5 text-xs">
+                        <Phone className="w-3 h-3 shrink-0" /> {contact.phone}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="col-span-2 text-sm text-muted-foreground flex items-center gap-1.5">
+                    <MapPin className="w-3 h-3" />
+                    <span className="line-clamp-1">{locations.find(l => l.id === contact.location_id)?.name || "Unknown"}</span>
+                  </div>
+
+                  <div className="col-span-3 flex flex-wrap gap-1.5">
+                    {contact.sources.map(src => (
+                      <Badge key={src} variant="outline" className={`font-normal ${getSourceColor(src)}`}>
+                        {getSourceIcon(src)} {src}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
         </div>
       </div>
 

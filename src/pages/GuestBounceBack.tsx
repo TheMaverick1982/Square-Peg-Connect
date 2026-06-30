@@ -185,7 +185,7 @@ export default function GuestBounceBack() {
   return (
     <div className="flex flex-col h-full space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Guest Bounce Back</h1>
           <p className="text-muted-foreground mt-1">Track return visits and measure the success of comeback incentives.</p>
@@ -276,100 +276,102 @@ export default function GuestBounceBack() {
       </div>
 
       {/* List Area */}
-      <div className="flex-1 flex flex-col mt-2">
+      <div className="flex-1 flex flex-col mt-2 min-w-0">
         <div className="flex items-center justify-between mb-4">
-          <div className="relative">
+          <div className="relative w-full max-w-md">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <Input 
               placeholder="Search guests by name, email, or phone..." 
-              className="pl-9 w-80 bg-background"
+              className="pl-9 w-full bg-background"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
         </div>
 
-        <div className="bg-card border rounded-lg overflow-hidden h-[500px] flex flex-col">
-          <div className="grid grid-cols-12 gap-4 p-4 border-b bg-muted/30 text-xs font-semibold text-muted-foreground uppercase tracking-wider shrink-0">
-            <div className="col-span-3">Guest</div>
-            <div className="col-span-3">Contact Info</div>
-            <div className="col-span-2">Current Stage</div>
-            <div className="col-span-3">Latest Incentive</div>
-            <div className="col-span-1 text-right">Actions</div>
-          </div>
+        <div className="bg-card border rounded-lg overflow-hidden h-[500px] flex flex-col min-w-0">
+          <div className="overflow-x-auto h-full flex flex-col">
+            <div className="min-w-[800px] grid grid-cols-12 gap-4 p-4 border-b bg-muted/30 text-xs font-semibold text-muted-foreground uppercase tracking-wider shrink-0">
+              <div className="col-span-3">Guest</div>
+              <div className="col-span-3">Contact Info</div>
+              <div className="col-span-2">Current Stage</div>
+              <div className="col-span-3">Latest Incentive</div>
+              <div className="col-span-1 text-right">Actions</div>
+            </div>
 
-          <div className="divide-y overflow-auto flex-1">
-            {isLoading ? (
-              <div className="p-8 text-center text-muted-foreground flex flex-col items-center justify-center h-full">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-3"></div>
-                <p>Loading guests...</p>
-              </div>
-            ) : filteredGuests.length === 0 ? (
-              <div className="p-8 text-center text-muted-foreground flex flex-col items-center justify-center h-full">
-                <User className="w-8 h-8 mb-3 opacity-20" />
-                <p>No tracked guests found.</p>
-                <Button variant="link" onClick={openNewGuestSheet} className="mt-2">
-                  Track your first guest
-                </Button>
-              </div>
-            ) : (
-              filteredGuests.map(guest => {
-                const stage = getCurrentStage(guest);
-                let latestIncentive = "";
-                if (stage === 4) latestIncentive = guest.visit_4_given || "";
-                else if (stage === 3) latestIncentive = guest.visit_3_given || "";
-                else if (stage === 2) latestIncentive = guest.visit_2_given || "";
-                else if (stage === 1) latestIncentive = guest.visit_1_given || "";
+            <div className="flex-1 overflow-y-auto divide-y min-w-[800px]">
+              {isLoading ? (
+                <div className="p-8 text-center text-muted-foreground flex flex-col items-center justify-center h-full">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-3"></div>
+                  <p>Loading guests...</p>
+                </div>
+              ) : filteredGuests.length === 0 ? (
+                <div className="p-8 text-center text-muted-foreground flex flex-col items-center justify-center h-full">
+                  <User className="w-8 h-8 mb-3 opacity-20" />
+                  <p>No tracked guests found.</p>
+                  <Button variant="link" onClick={openNewGuestSheet} className="mt-2">
+                    Track your first guest
+                  </Button>
+                </div>
+              ) : (
+                filteredGuests.map(guest => {
+                  const stage = getCurrentStage(guest);
+                  let latestIncentive = "";
+                  if (stage === 4) latestIncentive = guest.visit_4_given || "";
+                  else if (stage === 3) latestIncentive = guest.visit_3_given || "";
+                  else if (stage === 2) latestIncentive = guest.visit_2_given || "";
+                  else if (stage === 1) latestIncentive = guest.visit_1_given || "";
 
-                return (
-                  <div key={guest.id} className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-muted/10 transition-colors">
-                    <div className="col-span-3">
-                      <div className="font-semibold text-sm text-foreground">{guest.name}</div>
-                    </div>
-                    
-                    <div className="col-span-3 space-y-1">
-                      {guest.phone && (
-                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                          <Phone className="w-3 h-3" />
-                          {guest.phone}
+                  return (
+                    <div key={guest.id} className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-muted/10 transition-colors">
+                      <div className="col-span-3">
+                        <div className="font-semibold text-sm text-foreground">{guest.name}</div>
+                      </div>
+                      
+                      <div className="col-span-3 space-y-1">
+                        {guest.phone && (
+                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                            <Phone className="w-3 h-3" />
+                            {guest.phone}
+                          </div>
+                        )}
+                        {guest.email && (
+                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                            <Mail className="w-3 h-3" />
+                            <span className="truncate max-w-[150px]">{guest.email}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="col-span-2">
+                        <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${
+                          stage === 4 ? 'bg-primary/10 text-primary border-primary/20' : 'bg-muted text-muted-foreground border-border'
+                        }`}>
+                          Visit {stage} of 4
                         </div>
-                      )}
-                      {guest.email && (
-                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                          <Mail className="w-3 h-3" />
-                          <span className="truncate max-w-[150px]">{guest.email}</span>
-                        </div>
-                      )}
-                    </div>
+                      </div>
 
-                    <div className="col-span-2">
-                      <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${
-                        stage === 4 ? 'bg-primary/10 text-primary border-primary/20' : 'bg-muted text-muted-foreground border-border'
-                      }`}>
-                        Visit {stage} of 4
+                      <div className="col-span-3 text-sm text-muted-foreground truncate" title={latestIncentive}>
+                        {latestIncentive ? (
+                          <div className="flex items-center gap-1.5">
+                            <Gift className="w-3 h-3 text-amber-500 shrink-0" />
+                            <span className="truncate">{latestIncentive}</span>
+                          </div>
+                        ) : (
+                          <span className="text-xs italic opacity-60">None recorded</span>
+                        )}
+                      </div>
+
+                      <div className="col-span-1 flex justify-end">
+                        <Button variant="ghost" size="icon" onClick={() => openEditGuestSheet(guest)}>
+                          <Edit2 className="w-4 h-4 text-muted-foreground hover:text-foreground" />
+                        </Button>
                       </div>
                     </div>
-
-                    <div className="col-span-3 text-sm text-muted-foreground truncate" title={latestIncentive}>
-                      {latestIncentive ? (
-                        <div className="flex items-center gap-1.5">
-                          <Gift className="w-3 h-3 text-amber-500 shrink-0" />
-                          <span className="truncate">{latestIncentive}</span>
-                        </div>
-                      ) : (
-                        <span className="text-xs italic opacity-60">None recorded</span>
-                      )}
-                    </div>
-
-                    <div className="col-span-1 flex justify-end">
-                      <Button variant="ghost" size="icon" onClick={() => openEditGuestSheet(guest)}>
-                        <Edit2 className="w-4 h-4 text-muted-foreground hover:text-foreground" />
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })
-            )}
+                  );
+                })
+              )}
+            </div>
           </div>
         </div>
       </div>

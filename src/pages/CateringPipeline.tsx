@@ -413,78 +413,80 @@ export default function CateringPipeline() {
       </div>
 
       <div className="bg-card border rounded-lg overflow-hidden flex-1">
-        <div className="grid grid-cols-12 gap-4 p-4 border-b bg-muted/30 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-          <div className="col-span-3">Contact & Event</div>
-          <div className="col-span-2">Date</div>
-          <div className="col-span-2">Location</div>
-          <div className="col-span-2">Details</div>
-          <div className="col-span-3">Status</div>
-        </div>
+        <div className="overflow-x-auto h-full flex flex-col">
+          <div className="min-w-[800px] grid grid-cols-12 gap-4 p-4 border-b bg-muted/30 text-xs font-semibold text-muted-foreground uppercase tracking-wider shrink-0">
+            <div className="col-span-3">Contact & Event</div>
+            <div className="col-span-2">Date</div>
+            <div className="col-span-2">Location</div>
+            <div className="col-span-2">Details</div>
+            <div className="col-span-3">Status</div>
+          </div>
 
-        <div className="divide-y overflow-auto h-[calc(100%-49px)]">
-          {isLoading ? (
-            <div className="p-8 text-center text-muted-foreground flex flex-col items-center justify-center h-48">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-3"></div>
-              <p>Loading catering requests...</p>
-            </div>
-          ) : sortedOrders.length === 0 ? (
-            <div className="p-8 text-center text-muted-foreground flex flex-col items-center justify-center h-48">
-              <UtensilsCrossed className="w-8 h-8 mb-3 opacity-20" />
-              <p>No catering orders found for this view.</p>
-            </div>
-          ) : (
-            sortedOrders.map(order => (
-              <div 
-                key={order.id} 
-                onClick={() => setViewingOrder(order)}
-                className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-muted/10 transition-colors cursor-pointer group"
-              >
-                <div className="col-span-3">
-                  <div className="font-semibold text-sm text-foreground group-hover:text-primary transition-colors">{order.contactName}</div>
-                  <div className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{order.eventName}</div>
-                </div>
-                
-                <div className="col-span-2 flex items-center gap-2 text-sm">
-                  <CalendarIcon className="w-4 h-4 text-muted-foreground shrink-0" />
-                  <span>{format(new Date(order.eventDate), "MMM d, yyyy")}</span>
-                </div>
-
-                <div className="col-span-2 flex items-center gap-2 text-sm text-muted-foreground">
-                  <MapPin className="w-4 h-4 shrink-0" />
-                  <span>{locations.find(l => l.id === order.locationId)?.name || "Location"}</span>
-                </div>
-
-                <div className="col-span-2 flex flex-col gap-1">
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <Users className="w-3.5 h-3.5" />
-                    {order.guestCount} guests
-                  </div>
-                  <div className="text-sm font-medium">${order.totalAmount.toLocaleString()}</div>
-                </div>
-
-                <div className="col-span-3 flex items-center justify-between" onClick={(e) => e.stopPropagation()}>
-                  <Select 
-                    value={order.status} 
-                    onValueChange={(val) => updateOrderStatus(order.id, val as CateringStatus)}
-                  >
-                    <SelectTrigger className={`h-7 text-xs border-none focus:ring-0 ${getStatusPillClass(order.status)}`}>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Requested">Requested</SelectItem>
-                      <SelectItem value="Waiting on you">Waiting on you</SelectItem>
-                      <SelectItem value="Waiting on the customer">Waiting on the customer</SelectItem>
-                      <SelectItem value="Confirmed">Confirmed</SelectItem>
-                      <SelectItem value="Completed">Completed</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => setViewingOrder(order)}>
-                    View
-                  </Button>
-                </div>
+          <div className="divide-y overflow-auto flex-1 min-w-[800px]">
+            {isLoading ? (
+              <div className="p-8 text-center text-muted-foreground flex flex-col items-center justify-center h-48">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-3"></div>
+                <p>Loading catering requests...</p>
               </div>
-            ))
-          )}
+            ) : sortedOrders.length === 0 ? (
+              <div className="p-8 text-center text-muted-foreground flex flex-col items-center justify-center h-48">
+                <UtensilsCrossed className="w-8 h-8 mb-3 opacity-20" />
+                <p>No catering orders found for this view.</p>
+              </div>
+            ) : (
+              sortedOrders.map(order => (
+                <div 
+                  key={order.id} 
+                  onClick={() => setViewingOrder(order)}
+                  className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-muted/10 transition-colors cursor-pointer group"
+                >
+                  <div className="col-span-3">
+                    <div className="font-semibold text-sm text-foreground group-hover:text-primary transition-colors">{order.contactName}</div>
+                    <div className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{order.eventName}</div>
+                  </div>
+                  
+                  <div className="col-span-2 flex items-center gap-2 text-sm">
+                    <CalendarIcon className="w-4 h-4 text-muted-foreground shrink-0" />
+                    <span>{format(new Date(order.eventDate), "MMM d, yyyy")}</span>
+                  </div>
+
+                  <div className="col-span-2 flex items-center gap-2 text-sm text-muted-foreground">
+                    <MapPin className="w-4 h-4 shrink-0" />
+                    <span>{locations.find(l => l.id === order.locationId)?.name || "Location"}</span>
+                  </div>
+
+                  <div className="col-span-2 flex flex-col gap-1">
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <Users className="w-3.5 h-3.5" />
+                      {order.guestCount} guests
+                    </div>
+                    <div className="text-sm font-medium">${order.totalAmount.toLocaleString()}</div>
+                  </div>
+
+                  <div className="col-span-3 flex items-center justify-between" onClick={(e) => e.stopPropagation()}>
+                    <Select 
+                      value={order.status} 
+                      onValueChange={(val) => updateOrderStatus(order.id, val as CateringStatus)}
+                    >
+                      <SelectTrigger className={`h-7 text-xs border-none focus:ring-0 ${getStatusPillClass(order.status)}`}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Requested">Requested</SelectItem>
+                        <SelectItem value="Waiting on you">Waiting on you</SelectItem>
+                        <SelectItem value="Waiting on the customer">Waiting on the customer</SelectItem>
+                        <SelectItem value="Confirmed">Confirmed</SelectItem>
+                        <SelectItem value="Completed">Completed</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => setViewingOrder(order)}>
+                      View
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
         </div>
       </div>
 

@@ -16,6 +16,12 @@ export default function Login() {
     return <Navigate to="/" replace />;
   }
 
+  // Auto-redirect unauthenticated users to SSO immediately to bypass the extra step.
+  if (!auth.isLoading && !auth.isAuthenticated && !auth.activeNavigator) {
+    auth.signinRedirect();
+    return <div className="h-screen w-screen flex items-center justify-center bg-background text-muted-foreground">Redirecting to secure login...</div>;
+  }
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4 relative overflow-hidden">
       {/* Background decorations */}

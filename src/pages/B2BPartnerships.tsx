@@ -599,87 +599,89 @@ export default function B2BPartnerships() {
           <TabsContent value="contacts" className="h-full m-0 p-0">
             {/* Contacts List */}
             <div className="bg-card border rounded-lg overflow-hidden h-[600px] flex flex-col">
-              <div className="grid grid-cols-12 gap-4 p-4 border-b bg-muted/30 text-xs font-semibold text-muted-foreground uppercase tracking-wider shrink-0">
-                <div className="col-span-3">Organization & Contact</div>
-                <div className="col-span-3">Category</div>
-                <div className="col-span-3">Contact Info</div>
-                <div className="col-span-2">Last Activity</div>
-                <div className="col-span-1 text-right">Actions</div>
-              </div>
+              <div className="overflow-x-auto h-full flex flex-col">
+                <div className="min-w-[800px] grid grid-cols-12 gap-4 p-4 border-b bg-muted/30 text-xs font-semibold text-muted-foreground uppercase tracking-wider shrink-0">
+                  <div className="col-span-3">Organization & Contact</div>
+                  <div className="col-span-3">Category</div>
+                  <div className="col-span-3">Contact Info</div>
+                  <div className="col-span-2">Last Activity</div>
+                  <div className="col-span-1 text-right">Actions</div>
+                </div>
 
-              <div className="divide-y overflow-auto flex-1">
-                {loadingContacts || loadingActivities ? (
-                  <div className="p-8 text-center text-muted-foreground flex flex-col items-center justify-center h-full">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-3"></div>
-                    <p>Loading network data...</p>
-                  </div>
-                ) : filteredContacts.length === 0 ? (
-                  <div className="p-8 text-center text-muted-foreground flex flex-col items-center justify-center h-full">
-                    <Building2 className="w-8 h-8 mb-3 opacity-20" />
-                    <p>No community contacts found.</p>
-                    <Button 
-                      variant="link" 
-                      onClick={() => setIsContactSheetOpen(true)}
-                      className="mt-2"
-                    >
-                      Add your first contact
-                    </Button>
-                  </div>
-                ) : (
-                  filteredContacts.map(contact => {
-                    const contactActs = activities.filter(a => a.contact_id === contact.id);
-                    const lastAct = contactActs.length > 0 ? contactActs[0] : null;
+                <div className="divide-y overflow-auto flex-1 min-w-[800px]">
+                  {loadingContacts || loadingActivities ? (
+                    <div className="p-8 text-center text-muted-foreground flex flex-col items-center justify-center h-full">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-3"></div>
+                      <p>Loading network data...</p>
+                    </div>
+                  ) : filteredContacts.length === 0 ? (
+                    <div className="p-8 text-center text-muted-foreground flex flex-col items-center justify-center h-full">
+                      <Building2 className="w-8 h-8 mb-3 opacity-20" />
+                      <p>No community contacts found.</p>
+                      <Button 
+                        variant="link" 
+                        onClick={() => setIsContactSheetOpen(true)}
+                        className="mt-2"
+                      >
+                        Add your first contact
+                      </Button>
+                    </div>
+                  ) : (
+                    filteredContacts.map(contact => {
+                      const contactActs = activities.filter(a => a.contact_id === contact.id);
+                      const lastAct = contactActs.length > 0 ? contactActs[0] : null;
 
-                    return (
-                      <div key={contact.id} className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-muted/10 transition-colors">
-                        <div className="col-span-3">
-                          <div className="font-semibold text-sm text-foreground">{contact.organization_name}</div>
-                          <div className="text-xs text-muted-foreground mt-0.5">{contact.contact_name}</div>
-                        </div>
-                        
-                        <div className="col-span-3">
-                          <div className="text-sm font-medium">{contact.category}</div>
-                          <div className="text-xs text-muted-foreground mt-0.5">{contact.subcategory}</div>
-                        </div>
+                      return (
+                        <div key={contact.id} className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-muted/10 transition-colors">
+                          <div className="col-span-3">
+                            <div className="font-semibold text-sm text-foreground">{contact.organization_name}</div>
+                            <div className="text-xs text-muted-foreground mt-0.5">{contact.contact_name}</div>
+                          </div>
+                          
+                          <div className="col-span-3">
+                            <div className="text-sm font-medium">{contact.category}</div>
+                            <div className="text-xs text-muted-foreground mt-0.5">{contact.subcategory}</div>
+                          </div>
 
-                        <div className="col-span-3 space-y-1">
-                          {contact.phone && (
-                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                              <Phone className="w-3 h-3" />
-                              {contact.phone}
-                            </div>
-                          )}
-                          {contact.email && (
-                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                              <Mail className="w-3 h-3" />
-                              <span className="truncate max-w-[150px]">{contact.email}</span>
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="col-span-2 text-sm text-muted-foreground flex flex-col gap-1">
-                          {lastAct ? (
-                            <>
-                              <div className="flex items-center gap-1.5 font-medium text-foreground">
-                                <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />
-                                {format(new Date(lastAct.activity_date), "MMM d, yyyy")}
+                          <div className="col-span-3 space-y-1">
+                            {contact.phone && (
+                              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                <Phone className="w-3 h-3" />
+                                {contact.phone}
                               </div>
-                              <div className="text-xs truncate">{lastAct.activity_type}</div>
-                            </>
-                          ) : (
-                            <span className="text-xs italic opacity-60">No activity logged</span>
-                          )}
-                        </div>
+                            )}
+                            {contact.email && (
+                              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                <Mail className="w-3 h-3" />
+                                <span className="truncate max-w-[150px]">{contact.email}</span>
+                              </div>
+                            )}
+                          </div>
 
-                        <div className="col-span-1 flex justify-end">
-                          <Button variant="ghost" size="icon" onClick={() => setViewingContactId(contact.id)}>
-                            <Eye className="w-4 h-4 text-muted-foreground hover:text-foreground" />
-                          </Button>
+                          <div className="col-span-2 text-sm text-muted-foreground flex flex-col gap-1">
+                            {lastAct ? (
+                              <>
+                                <div className="flex items-center gap-1.5 font-medium text-foreground">
+                                  <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />
+                                  {format(new Date(lastAct.activity_date), "MMM d, yyyy")}
+                                </div>
+                                <div className="text-xs truncate">{lastAct.activity_type}</div>
+                              </>
+                            ) : (
+                              <span className="text-xs italic opacity-60">No activity logged</span>
+                            )}
+                          </div>
+
+                          <div className="col-span-1 flex justify-end">
+                            <Button variant="ghost" size="icon" onClick={() => setViewingContactId(contact.id)}>
+                              <Eye className="w-4 h-4 text-muted-foreground hover:text-foreground" />
+                            </Button>
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })
-                )}
+                      );
+                    })
+                  )}
+                </div>
               </div>
             </div>
           </TabsContent>
@@ -687,68 +689,70 @@ export default function B2BPartnerships() {
           <TabsContent value="activities" className="h-full m-0 p-0">
             {/* Activity Feed List */}
             <div className="bg-card border rounded-lg overflow-hidden h-[600px] flex flex-col">
-              <div className="grid grid-cols-12 gap-4 p-4 border-b bg-muted/30 text-xs font-semibold text-muted-foreground uppercase tracking-wider shrink-0">
-                <div className="col-span-2">Date</div>
-                <div className="col-span-3">Organization</div>
-                <div className="col-span-3">Activity & Notes</div>
-                <div className="col-span-3">Revenue Generated</div>
-                <div className="col-span-1 text-right">Actions</div>
-              </div>
+              <div className="overflow-x-auto h-full flex flex-col">
+                <div className="min-w-[800px] grid grid-cols-12 gap-4 p-4 border-b bg-muted/30 text-xs font-semibold text-muted-foreground uppercase tracking-wider shrink-0">
+                  <div className="col-span-2">Date</div>
+                  <div className="col-span-3">Organization</div>
+                  <div className="col-span-3">Activity & Notes</div>
+                  <div className="col-span-3">Revenue Generated</div>
+                  <div className="col-span-1 text-right">Actions</div>
+                </div>
 
-              <div className="divide-y overflow-auto flex-1">
-                {loadingActivities ? (
-                  <div className="p-8 text-center text-muted-foreground flex flex-col items-center justify-center h-full">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-3"></div>
-                    <p>Loading activities...</p>
-                  </div>
-                ) : filteredActivities.length === 0 ? (
-                  <div className="p-8 text-center text-muted-foreground flex flex-col items-center justify-center h-full">
-                    <Activity className="w-8 h-8 mb-3 opacity-20" />
-                    <p>No activities logged yet.</p>
-                  </div>
-                ) : (
-                  filteredActivities.map(act => (
-                    <div key={act.id} className="grid grid-cols-12 gap-4 p-4 items-start hover:bg-muted/10 transition-colors">
-                      <div className="col-span-2">
-                        <div className="text-sm font-medium text-foreground">
-                          {format(new Date(act.activity_date), "MMM d, yyyy")}
-                        </div>
-                      </div>
-                      
-                      <div className="col-span-3">
-                        <div className="font-semibold text-sm text-foreground">
-                          {act.b2b_contacts?.organization_name || "Unknown Organization"}
-                        </div>
-                      </div>
-
-                      <div className="col-span-3">
-                        <div className="text-sm font-medium">{act.activity_type}</div>
-                        {act.notes && (
-                          <div className="text-xs text-muted-foreground mt-1 line-clamp-2" title={act.notes}>
-                            {act.notes}
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="col-span-3">
-                        {act.revenue != null && act.revenue > 0 ? (
-                          <div className="inline-flex items-center gap-1.5 bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300 text-xs font-semibold px-2.5 py-1 rounded-full border border-green-200 dark:border-green-800/50">
-                            <DollarSign className="w-3 h-3" />
-                            {act.revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </div>
-                        ) : (
-                          <span className="text-xs text-muted-foreground italic">No revenue recorded</span>
-                        )}
-                      </div>
-
-                      <div className="col-span-1 flex justify-end">
-                        <Button variant="ghost" size="icon" onClick={() => openEditActivitySheet(act)}>
-                          <Edit2 className="w-4 h-4 text-muted-foreground hover:text-foreground" />
-                        </Button>
-                      </div>
+                <div className="divide-y overflow-auto flex-1 min-w-[800px]">
+                  {loadingActivities ? (
+                    <div className="p-8 text-center text-muted-foreground flex flex-col items-center justify-center h-full">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-3"></div>
+                      <p>Loading activities...</p>
                     </div>
-                  ))
-                )}
+                  ) : filteredActivities.length === 0 ? (
+                    <div className="p-8 text-center text-muted-foreground flex flex-col items-center justify-center h-full">
+                      <Activity className="w-8 h-8 mb-3 opacity-20" />
+                      <p>No activities logged yet.</p>
+                    </div>
+                  ) : (
+                    filteredActivities.map(act => (
+                      <div key={act.id} className="grid grid-cols-12 gap-4 p-4 items-start hover:bg-muted/10 transition-colors">
+                        <div className="col-span-2">
+                          <div className="text-sm font-medium text-foreground">
+                            {format(new Date(act.activity_date), "MMM d, yyyy")}
+                          </div>
+                        </div>
+                        
+                        <div className="col-span-3">
+                          <div className="font-semibold text-sm text-foreground">
+                            {act.b2b_contacts?.organization_name || "Unknown Organization"}
+                          </div>
+                        </div>
+
+                        <div className="col-span-3">
+                          <div className="text-sm font-medium">{act.activity_type}</div>
+                          {act.notes && (
+                            <div className="text-xs text-muted-foreground mt-1 line-clamp-2" title={act.notes}>
+                              {act.notes}
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="col-span-3">
+                          {act.revenue != null && act.revenue > 0 ? (
+                            <div className="inline-flex items-center gap-1.5 bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300 text-xs font-semibold px-2.5 py-1 rounded-full border border-green-200 dark:border-green-800/50">
+                              <DollarSign className="w-3 h-3" />
+                              {act.revenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground italic">No revenue recorded</span>
+                          )}
+                        </div>
+
+                        <div className="col-span-1 flex justify-end">
+                          <Button variant="ghost" size="icon" onClick={() => openEditActivitySheet(act)}>
+                            <Edit2 className="w-4 h-4 text-muted-foreground hover:text-foreground" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
             </div>
           </TabsContent>

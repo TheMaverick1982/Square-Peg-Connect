@@ -509,87 +509,89 @@ export default function FundraisersPipeline() {
 
       {viewMode === "list" ? (
       <div className="bg-card border rounded-lg overflow-hidden flex-1 flex flex-col min-h-0">
-        <div className="grid grid-cols-12 gap-4 p-4 border-b bg-muted/30 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-          <div className="col-span-3">Organization</div>
-          <div className="col-span-3">Preferred Event Date & Location</div>
-          <div className="col-span-3">Financials</div>
-          <div className="col-span-3">Status</div>
-        </div>
+        <div className="overflow-x-auto h-full flex flex-col">
+          <div className="min-w-[800px] grid grid-cols-12 gap-4 p-4 border-b bg-muted/30 text-xs font-semibold text-muted-foreground uppercase tracking-wider shrink-0">
+            <div className="col-span-3">Organization</div>
+            <div className="col-span-3">Preferred Event Date & Location</div>
+            <div className="col-span-3">Financials</div>
+            <div className="col-span-3">Status</div>
+          </div>
 
-        <div className="divide-y overflow-auto h-[calc(100%-49px)]">
-          {isLoading ? (
-            <div className="p-8 text-center text-muted-foreground flex flex-col items-center justify-center h-48">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-3"></div>
-              <p>Loading fundraisers...</p>
-            </div>
-          ) : sortedOrders.length === 0 ? (
-            <div className="p-8 text-center text-muted-foreground flex flex-col items-center justify-center h-48">
-              <Building className="w-8 h-8 mb-3 opacity-20" />
-              <p>No fundraiser requests found.</p>
-            </div>
-          ) : (
-            sortedOrders.map(order => (
-              <div 
-                key={order.id} 
-                onClick={() => {
-                  setViewingOrder(order);
-                  setSalesInput(order.totalSales.toString());
-                  setDonatedInput(order.totalDonated.toString());
-                }}
-                className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-muted/10 transition-colors cursor-pointer group"
-              >
-                <div className="col-span-3">
-                  <div className="font-semibold text-sm text-foreground group-hover:text-primary transition-colors">{order.organization}</div>
-                  <div className="text-xs text-muted-foreground mt-0.5">{order.name}</div>
-                </div>
-                
-                <div className="col-span-3 flex flex-col gap-1">
-                  <div className="flex items-center gap-2 text-sm">
-                    <CalendarIcon className="w-4 h-4 text-muted-foreground shrink-0" />
-                    <span>{format(parseSafeDate(order.eventDate), "MMM d, yyyy")}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <MapPin className="w-3.5 h-3.5 shrink-0" />
-                    <span>{locations.find(l => l.id === order.locationId)?.name || "Location"}</span>
-                  </div>
-                </div>
-
-                <div className="col-span-3 flex flex-col gap-1">
-                  {order.status === "Completed" ? (
-                    <>
-                      <div className="text-sm font-medium">Sales: ${order.totalSales.toLocaleString()}</div>
-                      <div className="text-xs text-muted-foreground">Donated: ${order.totalDonated.toLocaleString()}</div>
-                    </>
-                  ) : (
-                    <div className="text-sm text-muted-foreground italic">Pending Event</div>
-                  )}
-                </div>
-
-                <div className="col-span-3 flex items-center justify-between" onClick={(e) => e.stopPropagation()}>
-                  <Select 
-                    value={order.status} 
-                    onValueChange={(val) => updateOrderStatus(order.id, val)}
-                  >
-                    <SelectTrigger className={`h-7 text-xs border-none focus:ring-0 w-32 ${getStatusPillClass(order.status)}`}>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Requested">Requested</SelectItem>
-                      <SelectItem value="Confirmed">Confirmed</SelectItem>
-                      <SelectItem value="Completed">Completed</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => {
+          <div className="divide-y overflow-auto flex-1 min-w-[800px]">
+            {isLoading ? (
+              <div className="p-8 text-center text-muted-foreground flex flex-col items-center justify-center h-48">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-3"></div>
+                <p>Loading fundraisers...</p>
+              </div>
+            ) : sortedOrders.length === 0 ? (
+              <div className="p-8 text-center text-muted-foreground flex flex-col items-center justify-center h-48">
+                <Building className="w-8 h-8 mb-3 opacity-20" />
+                <p>No fundraiser requests found.</p>
+              </div>
+            ) : (
+              sortedOrders.map(order => (
+                <div 
+                  key={order.id} 
+                  onClick={() => {
                     setViewingOrder(order);
                     setSalesInput(order.totalSales.toString());
                     setDonatedInput(order.totalDonated.toString());
-                  }}>
-                    View
-                  </Button>
+                  }}
+                  className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-muted/10 transition-colors cursor-pointer group"
+                >
+                  <div className="col-span-3">
+                    <div className="font-semibold text-sm text-foreground group-hover:text-primary transition-colors">{order.organization}</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">{order.name}</div>
+                  </div>
+                  
+                  <div className="col-span-3 flex flex-col gap-1">
+                    <div className="flex items-center gap-2 text-sm">
+                      <CalendarIcon className="w-4 h-4 text-muted-foreground shrink-0" />
+                      <span>{format(parseSafeDate(order.eventDate), "MMM d, yyyy")}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <MapPin className="w-3.5 h-3.5 shrink-0" />
+                      <span>{locations.find(l => l.id === order.locationId)?.name || "Location"}</span>
+                    </div>
+                  </div>
+
+                  <div className="col-span-3 flex flex-col gap-1">
+                    {order.status === "Completed" ? (
+                      <>
+                        <div className="text-sm font-medium">Sales: ${order.totalSales.toLocaleString()}</div>
+                        <div className="text-xs text-muted-foreground">Donated: ${order.totalDonated.toLocaleString()}</div>
+                      </>
+                    ) : (
+                      <div className="text-sm text-muted-foreground italic">Pending Event</div>
+                    )}
+                  </div>
+
+                  <div className="col-span-3 flex items-center justify-between" onClick={(e) => e.stopPropagation()}>
+                    <Select 
+                      value={order.status} 
+                      onValueChange={(val) => updateOrderStatus(order.id, val)}
+                    >
+                      <SelectTrigger className={`h-7 text-xs border-none focus:ring-0 w-32 ${getStatusPillClass(order.status)}`}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Requested">Requested</SelectItem>
+                        <SelectItem value="Confirmed">Confirmed</SelectItem>
+                        <SelectItem value="Completed">Completed</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => {
+                      setViewingOrder(order);
+                      setSalesInput(order.totalSales.toString());
+                      setDonatedInput(order.totalDonated.toString());
+                    }}>
+                      View
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            ))
-          )}
+              ))
+            )}
+          </div>
         </div>
       </div>
       ) : (
