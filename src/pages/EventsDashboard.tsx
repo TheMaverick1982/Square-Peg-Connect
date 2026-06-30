@@ -234,7 +234,7 @@ function CreateEventSheet() {
     recurrence_pattern: "weekly",
     no_end_date: true,
     recurrence_end_date: new Date(),
-    notify_emails: ""
+    notify_emails: "brian@brianhardy.com, darene.gtomp@gmail.com"
   });
 
   const createEvent = useMutation({
