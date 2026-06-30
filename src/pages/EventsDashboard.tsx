@@ -321,8 +321,6 @@ function EventSheet({ eventToEdit, triggerButton }: { eventToEdit?: Event, trigg
             toast({ title: "Email Error", description: fnError.message, duration: 8000, variant: "destructive" });
           } else if (fnData?.error) {
              toast({ title: "Setup Required", description: fnData.error, duration: 8000, variant: "destructive" });
-          } else {
-             toast({ title: "Diagnostics", description: JSON.stringify(fnData), duration: 15000 });
           }
         }
       } else {
@@ -340,8 +338,6 @@ function EventSheet({ eventToEdit, triggerButton }: { eventToEdit?: Event, trigg
             toast({ title: "Email Error", description: fnError.message, duration: 8000, variant: "destructive" });
           } else if (fnData?.error) {
              toast({ title: "Setup Required", description: fnData.error, duration: 8000, variant: "destructive" });
-          } else {
-             toast({ title: "Diagnostics", description: JSON.stringify(fnData), duration: 15000 });
           }
         }
       }
@@ -370,7 +366,7 @@ function EventSheet({ eventToEdit, triggerButton }: { eventToEdit?: Event, trigg
         <div className="space-y-6 mt-6 pb-20">
           <div className="space-y-4">
             <div>
-              <Label>Event Title</Label>
+              <Label>Event Title <span className="text-destructive">*</span></Label>
               <Input 
                 placeholder="e.g. Trivia Night, Vendor Pop-up" 
                 value={formData.title}
@@ -380,7 +376,7 @@ function EventSheet({ eventToEdit, triggerButton }: { eventToEdit?: Event, trigg
             </div>
             
             <div>
-              <Label>Location</Label>
+              <Label>Location <span className="text-destructive">*</span></Label>
               <Select 
                 value={formData.location_id} 
                 onValueChange={v => setFormData(f => ({ ...f, location_id: v }))}
@@ -399,7 +395,7 @@ function EventSheet({ eventToEdit, triggerButton }: { eventToEdit?: Event, trigg
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Date</Label>
+                <Label>Date <span className="text-destructive">*</span></Label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button variant="outline" className="w-full mt-1.5 justify-start text-left font-normal">
@@ -509,9 +505,9 @@ function EventSheet({ eventToEdit, triggerButton }: { eventToEdit?: Event, trigg
             </div>
 
             <div>
-              <Label>Event Details</Label>
+              <Label>Event Details <span className="text-destructive">*</span></Label>
               <Textarea 
-                placeholder="Include setup instructions, special menus, etc." 
+                placeholder="Details about the entertainment event. If there is a special host name, DJ, etc. So we can put on the website" 
                 className="mt-1.5 min-h-[100px]"
                 value={formData.details}
                 onChange={e => setFormData(f => ({ ...f, details: e.target.value }))}
@@ -524,7 +520,7 @@ function EventSheet({ eventToEdit, triggerButton }: { eventToEdit?: Event, trigg
                 <h4 className="font-semibold">Notifications</h4>
               </div>
               <p className="text-sm text-muted-foreground mb-3">Notify your social media or marketing team when this event is created or changed.</p>
-              <Label>Email Addresses (comma separated)</Label>
+              <Label>Email Addresses (comma separated) <span className="text-destructive">*</span></Label>
               <Input 
                 placeholder="social@example.com, manager@example.com" 
                 className="mt-1.5"
@@ -537,7 +533,7 @@ function EventSheet({ eventToEdit, triggerButton }: { eventToEdit?: Event, trigg
           <Button 
             className="w-full" 
             onClick={() => saveEvent.mutate(formData)}
-            disabled={!formData.title || !formData.location_id || saveEvent.isPending}
+            disabled={!formData.title || !formData.location_id || !formData.start_date || !formData.details.trim() || !formData.notify_emails.trim() || saveEvent.isPending}
           >
             {saveEvent.isPending ? "Saving..." : (isEditing ? "Save Changes" : "Create Event")}
           </Button>
