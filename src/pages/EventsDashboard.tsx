@@ -173,12 +173,12 @@ export default function EventsDashboard() {
                     </AlertDialogContent>
                   </AlertDialog>
                 </div>
-                <div className="flex justify-between items-start mb-3">
-                  <div className="px-2 py-1 bg-primary/10 text-primary text-xs font-medium rounded">
+                <div className="flex items-center gap-2 mb-3 pr-16">
+                  <div className="px-2 py-1 bg-primary/10 text-primary text-xs font-medium rounded shrink-0">
                     {format(parseISO(event.start_date), "MMM d, yyyy")}
                   </div>
                   {event.is_recurring && (
-                    <div className="flex items-center text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
+                    <div className="flex items-center text-xs text-muted-foreground bg-muted px-2 py-1 rounded shrink-0">
                       <Repeat className="w-3 h-3 mr-1" />
                       {event.recurrence_pattern}
                     </div>
