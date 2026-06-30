@@ -320,7 +320,9 @@ function EventSheet({ eventToEdit, triggerButton }: { eventToEdit?: Event, trigg
           if (fnError) {
             toast({ title: "Email Error", description: fnError.message, duration: 8000, variant: "destructive" });
           } else if (fnData?.error) {
-             toast({ title: "Setup Required", description: fnData.error, duration: 8000 });
+             toast({ title: "Setup Required", description: fnData.error, duration: 8000, variant: "destructive" });
+          } else {
+             toast({ title: "Diagnostics", description: JSON.stringify(fnData), duration: 15000 });
           }
         }
       } else {
@@ -337,7 +339,9 @@ function EventSheet({ eventToEdit, triggerButton }: { eventToEdit?: Event, trigg
           if (fnError) {
             toast({ title: "Email Error", description: fnError.message, duration: 8000, variant: "destructive" });
           } else if (fnData?.error) {
-             toast({ title: "Setup Required", description: fnData.error, duration: 8000 });
+             toast({ title: "Setup Required", description: fnData.error, duration: 8000, variant: "destructive" });
+          } else {
+             toast({ title: "Diagnostics", description: JSON.stringify(fnData), duration: 15000 });
           }
         }
       }
