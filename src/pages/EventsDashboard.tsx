@@ -13,8 +13,9 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTr
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, parseISO, addMonths, subMonths } from "date-fns";
-import { Calendar as CalendarIcon, MapPin, Clock, Users, Plus, Bell, ChevronLeft, ChevronRight, Repeat, Info, Edit2 } from "lucide-react";
+import { Calendar as CalendarIcon, MapPin, Clock, Users, Plus, Bell, ChevronLeft, ChevronRight, Repeat, Info, Edit2, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface Event {
@@ -35,6 +36,22 @@ export default function EventsDashboard() {
   const { selectedLocationId, selectedLocation } = useLocationContext();
   const [view, setView] = useState<"list" | "calendar">("list");
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  
+  const deleteEvent = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('events').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+      toast({ title: "Event deleted successfully." });
+    },
+    onError: (error) => {
+      toast({ title: "Failed to delete event", description: error.message, variant: "destructive" });
+    }
+  });
   
   const { data: events = [], isLoading } = useQuery({
     queryKey: ['events', selectedLocationId],
@@ -132,8 +149,29 @@ export default function EventsDashboard() {
           ) : (
             events.map(event => (
               <div key={event.id} className="bg-card border rounded-lg p-5 flex flex-col hover:border-primary/50 transition-colors group relative">
-                <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
                   <EventSheet eventToEdit={event} triggerButton={<Button variant="ghost" size="icon" className="h-8 w-8"><Edit2 className="w-4 h-4 text-muted-foreground" /></Button>} />
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive">
+                        <Trash2 className="w-4 h-4 text-muted-foreground" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Event</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Are you sure you want to delete "{event.title}"? This action cannot be undone.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => deleteEvent.mutate(event.id)}>
+                          Delete
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </div>
                 <div className="flex justify-between items-start mb-3">
                   <div className="px-2 py-1 bg-primary/10 text-primary text-xs font-medium rounded">
@@ -200,15 +238,38 @@ export default function EventsDashboard() {
                   </div>
                   <div className="space-y-1">
                     {dayEvents.slice(0, 3).map((evt, j) => (
-                      <div key={`${evt.id}-${j}`} className="relative group/event">
-                        <EventSheet 
-                          eventToEdit={evt} 
-                          triggerButton={
-                            <div className="text-xs truncate px-1.5 py-0.5 bg-primary/10 text-primary rounded border border-primary/20 cursor-pointer hover:bg-primary/20 transition-colors" title={evt.title}>
-                              {format(parseISO(evt.start_date), "h:mma").toLowerCase()} {evt.title}
-                            </div>
-                          } 
-                        />
+                      <div key={`${evt.id}-${j}`} className="relative group/event flex items-center gap-1">
+                        <div className="flex-1 min-w-0">
+                          <EventSheet 
+                            eventToEdit={evt} 
+                            triggerButton={
+                              <div className="text-xs truncate px-1.5 py-0.5 bg-primary/10 text-primary rounded border border-primary/20 cursor-pointer hover:bg-primary/20 transition-colors" title={evt.title}>
+                                {format(parseISO(evt.start_date), "h:mma").toLowerCase()} {evt.title}
+                              </div>
+                            } 
+                          />
+                        </div>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0 opacity-0 group-hover/event:opacity-100 hover:bg-destructive/10 hover:text-destructive">
+                              <Trash2 className="w-3 h-3 text-muted-foreground" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete Event</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to delete "{evt.title}"? This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => deleteEvent.mutate(evt.id)}>
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </div>
                     ))}
                     {dayEvents.length > 3 && (
