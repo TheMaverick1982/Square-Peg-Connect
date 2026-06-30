@@ -322,13 +322,14 @@ function EventSheet({ eventToEdit, triggerButton }: { eventToEdit?: Event, trigg
           }
         }
       } else {
-        const { error, data: newEvt } = await supabase.from('events').insert(payload).select().single();
+        const { error } = await supabase.from('events').insert(payload);
         if (error) throw error;
 
         // Trigger notification edge function for creation
-        if (data.notify_emails && newEvt) {
+        // We do not rely on returning the row (which RLS might block), we just use the payload
+        if (data.notify_emails) {
           const { error: fnError, data: fnData } = await supabase.functions.invoke('notify-event', {
-            body: { event: newEvt, action: 'created' }
+            body: { event: payload, action: 'created' }
           });
           if (fnData?.error) {
              toast({ title: "Setup Required", description: fnData.error, duration: 8000 });
