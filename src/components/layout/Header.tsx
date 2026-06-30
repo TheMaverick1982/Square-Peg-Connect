@@ -1,9 +1,13 @@
-import { MapPin, Plus, Search, Bell, LogOut, User, Menu } from "lucide-react";
+import { MapPin, Plus, Search, Bell, LogOut, User, Menu, UtensilsCrossed, PartyPopper, Handshake, CheckSquare } from "lucide-react";
 import { useLocationContext } from "@/lib/LocationContext";
 import { useEmployee } from "@/lib/EmployeeContext";
 import { locations } from "@/lib/data";
+import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "react-oidc-context";
+import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,7 +15,13 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuGroup,
 } from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -21,13 +31,83 @@ import {
 } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { SidebarContent } from "./Sidebar";
+import { format } from "date-fns";
 
 export function Header() {
+  const navigate = useNavigate();
   const { selectedLocationId, setSelectedLocationId } = useLocationContext();
   const { profile } = useEmployee();
   const auth = useAuth();
+  const [isAlertsOpen, setIsAlertsOpen] = useState(false);
   
   const isLocked = profile?.role !== "admin" && !!profile?.assigned_location;
+
+  // Fetch active alerts based on location
+  const { data: alerts = [] } = useQuery({
+    queryKey: ['header_alerts', selectedLocationId],
+    queryFn: async () => {
+      const activeAlerts = [];
+
+      // 1. Pending Catering (Waiting on you / Requested)
+      let cateringQuery = supabase.from('catering_requests').select('id, company, status, created_at').in('status', ['Waiting on you', 'Requested']);
+      if (selectedLocationId) cateringQuery = cateringQuery.eq('location', selectedLocationId);
+      const { data: cateringData } = await cateringQuery;
+      
+      if (cateringData) {
+        cateringData.forEach(item => {
+          activeAlerts.push({
+            id: `cat-${item.id}`,
+            type: 'catering',
+            title: 'Action Required: Catering',
+            desc: `${item.company || 'New lead'} - ${item.status}`,
+            date: item.created_at,
+            onClick: () => { setIsAlertsOpen(false); navigate('/catering'); }
+          });
+        });
+      }
+
+      // 2. Pending Fundraisers (Requested)
+      let fundQuery = supabase.from('fundraisers').select('id, organization, created_at').eq('status', 'Requested');
+      if (selectedLocationId) fundQuery = fundQuery.eq('location', selectedLocationId);
+      const { data: fundData } = await fundQuery;
+
+      if (fundData) {
+        fundData.forEach(item => {
+          activeAlerts.push({
+            id: `fund-${item.id}`,
+            type: 'fundraiser',
+            title: 'New Fundraiser Request',
+            desc: item.organization || 'Review required',
+            date: item.created_at,
+            onClick: () => { setIsAlertsOpen(false); navigate('/tuesday-fundraisers'); }
+          });
+        });
+      }
+
+      // 3. Pending Reminders/Tasks
+      let tasksQuery = supabase.from('reminders').select('id, title, due_date').eq('is_completed', false);
+      if (selectedLocationId) tasksQuery = tasksQuery.eq('location_id', selectedLocationId);
+      const { data: tasksData } = await tasksQuery;
+
+      if (tasksData) {
+        tasksData.forEach(item => {
+          activeAlerts.push({
+            id: `task-${item.id}`,
+            type: 'task',
+            title: 'Pending Task',
+            desc: item.title,
+            date: item.due_date || new Date().toISOString(),
+            onClick: () => { setIsAlertsOpen(false); navigate('/reminders'); }
+          });
+        });
+      }
+
+      // Sort by newest first
+      return activeAlerts.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    },
+    // Poll every 30 seconds
+    refetchInterval: 30000 
+  });
 
   return (
     <div className="header gap-2 sm:gap-4 px-3 sm:px-6">
@@ -81,14 +161,84 @@ export function Header() {
           <Search className="w-5 h-5" />
         </Button>
 
-        <Button variant="ghost" size="icon" className="hidden sm:inline-flex text-muted-foreground">
-          <Bell className="w-4 h-4" />
-        </Button>
+        <Popover open={isAlertsOpen} onOpenChange={setIsAlertsOpen}>
+          <PopoverTrigger asChild>
+            <Button variant="ghost" size="icon" className="relative text-muted-foreground">
+              <Bell className="w-4 h-4" />
+              {alerts.length > 0 && (
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-destructive border-2 border-card" />
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-80 p-0">
+            <div className="flex items-center justify-between px-4 py-3 border-b">
+              <span className="text-sm font-semibold">Action Items</span>
+              <span className="text-xs bg-muted px-2 py-0.5 rounded-full text-muted-foreground">{alerts.length} pending</span>
+            </div>
+            <div className="max-h-[300px] overflow-y-auto">
+              {alerts.length === 0 ? (
+                <div className="p-4 text-center text-sm text-muted-foreground">
+                  You're all caught up!
+                </div>
+              ) : (
+                <div className="divide-y">
+                  {alerts.map(alert => (
+                    <button 
+                      key={alert.id}
+                      onClick={alert.onClick}
+                      className="w-full text-left px-4 py-3 hover:bg-muted/50 transition-colors flex flex-col gap-1"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <span className={`text-xs font-semibold ${
+                          alert.type === 'catering' ? 'text-orange-600 dark:text-orange-400' :
+                          alert.type === 'fundraiser' ? 'text-green-600 dark:text-green-400' :
+                          'text-blue-600 dark:text-blue-400'
+                        }`}>
+                          {alert.title}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground shrink-0">
+                          {format(new Date(alert.date), "MMM d")}
+                        </span>
+                      </div>
+                      <span className="text-sm font-medium line-clamp-1">{alert.desc}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </PopoverContent>
+        </Popover>
 
-        <Button size="sm" className="hidden sm:flex gap-2">
-          <Plus className="w-4 h-4" />
-          New Intake
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button size="sm" className="hidden sm:flex gap-2">
+              <Plus className="w-4 h-4" />
+              New Intake
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuLabel>Quick Create</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              <DropdownMenuItem onClick={() => navigate('/catering')}>
+                <UtensilsCrossed className="mr-2 h-4 w-4" />
+                <span>Catering Request</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate('/tuesday-fundraisers')}>
+                <PartyPopper className="mr-2 h-4 w-4" />
+                <span>Tuesday Fundraiser</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate('/b2b-partnerships')}>
+                <Handshake className="mr-2 h-4 w-4" />
+                <span>B2B Contact</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate('/reminders')}>
+                <CheckSquare className="mr-2 h-4 w-4" />
+                <span>Task / Reminder</span>
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
         
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
