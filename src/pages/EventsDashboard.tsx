@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useLocationContext } from "@/lib/LocationContext";
@@ -14,7 +14,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, parseISO, addMonths, subMonths } from "date-fns";
-import { Calendar as CalendarIcon, MapPin, Clock, Users, Plus, Bell, ChevronLeft, ChevronRight, Repeat, Info } from "lucide-react";
+import { Calendar as CalendarIcon, MapPin, Clock, Users, Plus, Bell, ChevronLeft, ChevronRight, Repeat, Info, Edit2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface Event {
@@ -113,7 +113,7 @@ export default function EventsDashboard() {
             </TabsList>
           </Tabs>
           
-          <CreateEventSheet />
+          <EventSheet />
         </div>
       </div>
 
@@ -131,7 +131,10 @@ export default function EventsDashboard() {
             </div>
           ) : (
             events.map(event => (
-              <div key={event.id} className="bg-card border rounded-lg p-5 flex flex-col hover:border-primary/50 transition-colors group">
+              <div key={event.id} className="bg-card border rounded-lg p-5 flex flex-col hover:border-primary/50 transition-colors group relative">
+                <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <EventSheet eventToEdit={event} triggerButton={<Button variant="ghost" size="icon" className="h-8 w-8"><Edit2 className="w-4 h-4 text-muted-foreground" /></Button>} />
+                </div>
                 <div className="flex justify-between items-start mb-3">
                   <div className="px-2 py-1 bg-primary/10 text-primary text-xs font-medium rounded">
                     {format(parseISO(event.start_date), "MMM d, yyyy")}
@@ -191,14 +194,21 @@ export default function EventsDashboard() {
               const isToday = isSameDay(day, new Date());
               
               return (
-                <div key={day.toString()} className={`border-r border-b p-2 min-h-[120px] ${isToday ? 'bg-primary/5' : ''}`}>
+                <div key={day.toString()} className={`border-r border-b p-2 min-h-[120px] relative group/day ${isToday ? 'bg-primary/5' : ''}`}>
                   <div className={`text-xs font-medium w-6 h-6 flex items-center justify-center rounded-full mb-1 ${isToday ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}>
                     {format(day, "d")}
                   </div>
                   <div className="space-y-1">
                     {dayEvents.slice(0, 3).map((evt, j) => (
-                      <div key={`${evt.id}-${j}`} className="text-xs truncate px-1.5 py-0.5 bg-primary/10 text-primary rounded border border-primary/20 cursor-pointer hover:bg-primary/20 transition-colors" title={evt.title}>
-                        {format(parseISO(evt.start_date), "h:mma").toLowerCase()} {evt.title}
+                      <div key={`${evt.id}-${j}`} className="relative group/event">
+                        <EventSheet 
+                          eventToEdit={evt} 
+                          triggerButton={
+                            <div className="text-xs truncate px-1.5 py-0.5 bg-primary/10 text-primary rounded border border-primary/20 cursor-pointer hover:bg-primary/20 transition-colors" title={evt.title}>
+                              {format(parseISO(evt.start_date), "h:mma").toLowerCase()} {evt.title}
+                            </div>
+                          } 
+                        />
                       </div>
                     ))}
                     {dayEvents.length > 3 && (
@@ -217,15 +227,16 @@ export default function EventsDashboard() {
   );
 }
 
-function CreateEventSheet() {
+function EventSheet({ eventToEdit, triggerButton }: { eventToEdit?: Event, triggerButton?: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const { selectedLocationId } = useLocationContext();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const isEditing = !!eventToEdit;
   
   const [formData, setFormData] = useState({
     title: "",
-    location_id: selectedLocationId || "",
+    location_id: selectedLocationId || "all",
     details: "",
     start_date: new Date(),
     start_time: "17:00",
@@ -237,7 +248,29 @@ function CreateEventSheet() {
     notify_emails: "brian@brianhardy.com, darene.gtomp@gmail.com"
   });
 
-  const createEvent = useMutation({
+  // Pre-fill form when editing
+  useEffect(() => {
+    if (open && eventToEdit) {
+      const startDate = parseISO(eventToEdit.start_date);
+      const endDate = parseISO(eventToEdit.end_date);
+      
+      setFormData({
+        title: eventToEdit.title,
+        location_id: eventToEdit.location_id || "all",
+        details: eventToEdit.details || "",
+        start_date: startDate,
+        start_time: format(startDate, "HH:mm"),
+        end_time: format(endDate, "HH:mm"),
+        is_recurring: eventToEdit.is_recurring,
+        recurrence_pattern: eventToEdit.recurrence_pattern || "weekly",
+        no_end_date: eventToEdit.no_end_date,
+        recurrence_end_date: eventToEdit.recurrence_end_date ? parseISO(eventToEdit.recurrence_end_date) : new Date(),
+        notify_emails: eventToEdit.notify_emails || "brian@brianhardy.com, darene.gtomp@gmail.com"
+      });
+    }
+  }, [open, eventToEdit]);
+
+  const saveEvent = useMutation({
     mutationFn: async (data: typeof formData) => {
       // Combine dates and times for DB
       const startDateStr = format(data.start_date, 'yyyy-MM-dd');
@@ -246,7 +279,7 @@ function CreateEventSheet() {
       
       const payload = {
         title: data.title,
-        location_id: data.location_id,
+        location_id: data.location_id === "all" ? null : data.location_id,
         details: data.details,
         start_date: startDateTime,
         end_date: endDateTime,
@@ -257,28 +290,54 @@ function CreateEventSheet() {
         notify_emails: data.notify_emails
       };
 
-      const { error } = await supabase.from('events').insert(payload);
-      if (error) throw error;
+      if (isEditing) {
+        const { error } = await supabase.from('events').update(payload).eq('id', eventToEdit.id);
+        if (error) throw error;
+        
+        // Trigger notification edge function for the edit
+        if (data.notify_emails) {
+          const { error: fnError, data: fnData } = await supabase.functions.invoke('notify-event', {
+            body: { event: { ...payload, id: eventToEdit.id }, action: 'updated' }
+          });
+          // Not treating missing API key as a hard fail, but surfacing the message
+          if (fnData?.error) {
+             toast({ title: "Setup Required", description: fnData.error, duration: 8000 });
+          }
+        }
+      } else {
+        const { error, data: newEvt } = await supabase.from('events').insert(payload).select().single();
+        if (error) throw error;
+
+        // Trigger notification edge function for creation
+        if (data.notify_emails && newEvt) {
+          const { error: fnError, data: fnData } = await supabase.functions.invoke('notify-event', {
+            body: { event: newEvt, action: 'created' }
+          });
+          if (fnData?.error) {
+             toast({ title: "Setup Required", description: fnData.error, duration: 8000 });
+          }
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['events'] });
       setOpen(false);
-      toast({ title: "Event created successfully!" });
+      toast({ title: isEditing ? "Event updated successfully!" : "Event created successfully!" });
     },
     onError: (error) => {
-      toast({ title: "Failed to create event", description: error.message, variant: "destructive" });
+      toast({ title: "Failed to save event", description: error.message, variant: "destructive" });
     }
   });
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button><Plus className="w-4 h-4 mr-2" /> Create Event</Button>
+        {triggerButton || <Button><Plus className="w-4 h-4 mr-2" /> Create Event</Button>}
       </SheetTrigger>
       <SheetContent className="sm:max-w-xl w-full overflow-y-auto">
         <SheetHeader>
-          <SheetTitle>Create New Event</SheetTitle>
-          <SheetDescription>Schedule an event for one or all locations.</SheetDescription>
+          <SheetTitle>{isEditing ? "Edit Event" : "Create New Event"}</SheetTitle>
+          <SheetDescription>{isEditing ? "Update the event details." : "Schedule an event for one or all locations."}</SheetDescription>
         </SheetHeader>
 
         <div className="space-y-6 mt-6 pb-20">
@@ -450,10 +509,10 @@ function CreateEventSheet() {
 
           <Button 
             className="w-full" 
-            onClick={() => createEvent.mutate(formData)}
-            disabled={!formData.title || !formData.location_id || createEvent.isPending}
+            onClick={() => saveEvent.mutate(formData)}
+            disabled={!formData.title || !formData.location_id || saveEvent.isPending}
           >
-            {createEvent.isPending ? "Creating..." : "Create Event"}
+            {saveEvent.isPending ? "Saving..." : (isEditing ? "Save Changes" : "Create Event")}
           </Button>
         </div>
       </SheetContent>
