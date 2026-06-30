@@ -316,8 +316,10 @@ function EventSheet({ eventToEdit, triggerButton }: { eventToEdit?: Event, trigg
           const { error: fnError, data: fnData } = await supabase.functions.invoke('notify-event', {
             body: { event: { ...payload, id: eventToEdit.id }, action: 'updated' }
           });
-          // Not treating missing API key as a hard fail, but surfacing the message
-          if (fnData?.error) {
+          
+          if (fnError) {
+            toast({ title: "Email Error", description: fnError.message, duration: 8000, variant: "destructive" });
+          } else if (fnData?.error) {
              toast({ title: "Setup Required", description: fnData.error, duration: 8000 });
           }
         }
@@ -331,7 +333,10 @@ function EventSheet({ eventToEdit, triggerButton }: { eventToEdit?: Event, trigg
           const { error: fnError, data: fnData } = await supabase.functions.invoke('notify-event', {
             body: { event: payload, action: 'created' }
           });
-          if (fnData?.error) {
+          
+          if (fnError) {
+            toast({ title: "Email Error", description: fnError.message, duration: 8000, variant: "destructive" });
+          } else if (fnData?.error) {
              toast({ title: "Setup Required", description: fnData.error, duration: 8000 });
           }
         }
