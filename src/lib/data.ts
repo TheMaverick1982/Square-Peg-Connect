@@ -47,6 +47,7 @@ export interface CateringOrder {
   quoteItems?: { description: string, amount: number, quantity: number }[];
   quoteTotal?: number;
   paymentLink?: string;
+  quoteNotes?: string;
 }
 
 export interface FundraiserEvent {

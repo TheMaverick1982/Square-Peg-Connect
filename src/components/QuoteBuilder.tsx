@@ -2,6 +2,8 @@ import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Trash2, Link as LinkIcon, Loader2, DollarSign, Mail } from "lucide-react";
 import { type CateringOrder, locations } from "@/lib/data";
@@ -15,6 +17,7 @@ interface QuoteItem {
 export function QuoteBuilder({ order, onUpdate }: { order: CateringOrder; onUpdate: (updated: CateringOrder) => void }) {
   const { toast } = useToast();
   const [items, setItems] = useState<QuoteItem[]>(order.quoteItems || []);
+  const [quoteNotes, setQuoteNotes] = useState(order.quoteNotes || "");
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [paymentLink, setPaymentLink] = useState(order.paymentLink || "");
@@ -35,11 +38,11 @@ export function QuoteBuilder({ order, onUpdate }: { order: CateringOrder; onUpda
     setItems(newItems);
   };
 
-  const handleSaveQuote = async () => {
+  const handleSaveQuote = async (showToast = true) => {
     setIsSaving(true);
     const { error } = await supabase
       .from('catering_requests')
-      .update({ quote_items: items, quote_total: total })
+      .update({ quote_items: items, quote_total: total, quote_notes: quoteNotes })
       .eq('id', order.id);
 
     setIsSaving(false);
@@ -49,8 +52,10 @@ export function QuoteBuilder({ order, onUpdate }: { order: CateringOrder; onUpda
       return;
     }
     
-    onUpdate({ ...order, quoteItems: items, quoteTotal: total });
-    toast({ title: "Quote saved", description: "Quote items have been updated." });
+    onUpdate({ ...order, quoteItems: items, quoteTotal: total, quoteNotes });
+    if (showToast) {
+      toast({ title: "Draft Saved", description: "Your quote progress has been saved securely." });
+    }
   };
 
   const handleSendEmailEstimate = async () => {
@@ -64,7 +69,7 @@ export function QuoteBuilder({ order, onUpdate }: { order: CateringOrder; onUpda
     }
 
     setIsGenerating(true);
-    await handleSaveQuote();
+    await handleSaveQuote(false);
 
     const location = locations.find(l => l.id === order.locationId) || locations[0];
 
@@ -73,7 +78,8 @@ export function QuoteBuilder({ order, onUpdate }: { order: CateringOrder; onUpda
         order,
         location,
         items,
-        total
+        total,
+        quoteNotes
       }
     });
 
@@ -191,26 +197,43 @@ export function QuoteBuilder({ order, onUpdate }: { order: CateringOrder; onUpda
             Total: ${total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
         </div>
+
+        <div className="pt-2">
+          <Label className="text-xs text-muted-foreground mb-1.5 block">Custom Notes & Details</Label>
+          <Textarea 
+            placeholder="Add details about sauces, extra forks, specific delivery instructions..." 
+            className="text-sm min-h-[80px]"
+            value={quoteNotes}
+            onChange={(e) => setQuoteNotes(e.target.value)}
+          />
+        </div>
       </div>
 
       <div className="bg-muted/30 p-4 rounded-lg border mt-4">
-        <div className="text-center space-y-3">
-          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center mx-auto text-primary">
-            <Mail className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="font-medium text-sm">Send Estimate via Email</div>
-            <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
-              Send the customer an itemized breakdown including the handling store's real address and phone number. Stripe payment coming soon!
-            </p>
-          </div>
-          <Button onClick={handleSendEmailEstimate} disabled={isGenerating || items.length === 0} className="w-full">
-            {isGenerating ? (
-              <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Sending Email...</>
-            ) : (
-              "Email Estimate to Customer"
-            )}
+        <div className="flex flex-col gap-3">
+          <Button variant="outline" onClick={() => handleSaveQuote(true)} disabled={isSaving} className="w-full">
+            {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+            Save Draft
           </Button>
+
+          <div className="pt-3 border-t text-center space-y-3">
+            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center mx-auto text-primary">
+              <Mail className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="font-medium text-sm">Send Estimate via Email</div>
+              <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
+                Send the customer an itemized breakdown including the handling store's real address and phone number.
+              </p>
+            </div>
+            <Button onClick={handleSendEmailEstimate} disabled={isGenerating || items.length === 0} className="w-full">
+              {isGenerating ? (
+                <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Sending Email...</>
+              ) : (
+                "Email Estimate to Customer"
+              )}
+            </Button>
+          </div>
         </div>
       </div>
     </div>
