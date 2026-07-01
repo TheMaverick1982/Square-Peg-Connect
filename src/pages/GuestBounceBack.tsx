@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger, SheetFooter, SheetClose } from "@/components/ui/sheet";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -72,6 +73,7 @@ export default function GuestBounceBack() {
     name: "",
     email: "",
     phone: "",
+    location_id: "",
     visit_1_date: format(new Date(), "yyyy-MM-dd"),
     visit_1_given: "",
     visit_1_notes: "",
@@ -176,6 +178,7 @@ export default function GuestBounceBack() {
       name: guest.name,
       email: guest.email || "",
       phone: guest.phone || "",
+      location_id: guest.location_id || "",
       visit_1_date: guest.visit_1_date ? format(new Date(guest.visit_1_date), "yyyy-MM-dd") : "",
       visit_1_given: guest.visit_1_given || "",
       visit_1_notes: guest.visit_1_notes || "",
@@ -413,6 +416,24 @@ export default function GuestBounceBack() {
             <div className="space-y-4">
               <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Contact Details</h4>
               <div className="grid gap-4">
+                
+                {/* Location selector - only shows in All Locations mode */}
+                {!selectedLocationId && (
+                  <div className="grid gap-2">
+                    <Label>Location *</Label>
+                    <Select value={form.location_id} onValueChange={(val) => setForm({ ...form, location_id: val })}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select the location for this guest" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {locations.map(loc => (
+                          <SelectItem key={loc.id} value={loc.id}>{loc.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
                 <div className="grid gap-2">
                   <Label>Full Name *</Label>
                   <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="John Doe" />
@@ -532,11 +553,11 @@ export default function GuestBounceBack() {
                   visit_4_date: form.visit_4_date || null,
                 };
                 if (!editingGuestId) {
-                  (payload as any).location_id = selectedLocationId || locations[0].id;
+                  (payload as any).location_id = selectedLocationId || form.location_id || locations[0].id;
                 }
                 saveGuest.mutate(payload);
               }}
-              disabled={!form.name}
+              disabled={!form.name || (!selectedLocationId && !form.location_id)}
             >
               Save Tracker
             </Button>
