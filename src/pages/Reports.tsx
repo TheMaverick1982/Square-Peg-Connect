@@ -178,7 +178,7 @@ export default function Reports() {
 
     return [
       { name: 'Pending Orders', value: cPending + fPending, fill: 'hsl(var(--muted-foreground))' },
-      { name: 'Completed Events', value: cCompleted + fCompleted, fill: 'hsl(var(--primary))' },
+      { name: 'Completed Entertainment', value: cCompleted + fCompleted, fill: 'hsl(var(--primary))' },
     ];
   }, [catering, fundraisers]);
 
@@ -378,7 +378,7 @@ export default function Reports() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex justify-between items-center border-b pb-2">
-                    <span className="text-sm text-muted-foreground">Total Events</span>
+                    <span className="text-sm text-muted-foreground">Total Fundraisers</span>
                     <span className="font-semibold">{fundraisers.length}</span>
                   </div>
                   <div className="flex justify-between items-center border-b pb-2">

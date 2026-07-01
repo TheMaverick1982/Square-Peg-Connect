@@ -49,7 +49,7 @@ export function SidebarContent() {
         </NavLink>
         <NavLink to="/events" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
           <CalendarDays className="w-4 h-4" />
-          Events
+          Entertainment
         </NavLink>
         <NavLink to="/tuesday-fundraisers" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
           <PartyPopper className="w-4 h-4" />

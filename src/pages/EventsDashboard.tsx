@@ -46,10 +46,10 @@ export default function EventsDashboard() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['events'] });
-      toast({ title: "Event deleted successfully." });
+      toast({ title: "Entertainment deleted successfully." });
     },
     onError: (error) => {
-      toast({ title: "Failed to delete event", description: error.message, variant: "destructive" });
+      toast({ title: "Failed to delete entertainment", description: error.message, variant: "destructive" });
     }
   });
   
@@ -116,9 +116,9 @@ export default function EventsDashboard() {
     <div className="flex flex-col h-full space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Events</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Entertainment</h1>
           <p className="text-muted-foreground mt-1">
-            {selectedLocationId ? `Managing events for ${selectedLocation?.name}` : 'Managing events across all locations.'}
+            {selectedLocationId ? `Managing entertainment for ${selectedLocation?.name}` : 'Managing entertainment across all locations.'}
           </p>
         </div>
         
@@ -143,8 +143,8 @@ export default function EventsDashboard() {
           {events.length === 0 ? (
             <div className="col-span-full py-12 text-center border rounded-lg bg-card border-dashed">
               <CalendarIcon className="w-12 h-12 mx-auto text-muted-foreground opacity-20 mb-3" />
-              <h3 className="text-lg font-medium">No upcoming events</h3>
-              <p className="text-muted-foreground text-sm mt-1">Get started by creating your first event.</p>
+              <h3 className="text-lg font-medium">No upcoming entertainment</h3>
+              <p className="text-muted-foreground text-sm mt-1">Get started by adding your first entertainment.</p>
             </div>
           ) : (
             events.map(event => (
@@ -159,7 +159,7 @@ export default function EventsDashboard() {
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                       <AlertDialogHeader>
-                        <AlertDialogTitle>Delete Event</AlertDialogTitle>
+                        <AlertDialogTitle>Delete Entertainment</AlertDialogTitle>
                         <AlertDialogDescription>
                           Are you sure you want to delete "{event.title}"? This action cannot be undone.
                         </AlertDialogDescription>
@@ -260,7 +260,7 @@ export default function EventsDashboard() {
                           </AlertDialogTrigger>
                           <AlertDialogContent>
                             <AlertDialogHeader>
-                              <AlertDialogTitle>Delete Event</AlertDialogTitle>
+                              <AlertDialogTitle>Delete Entertainment</AlertDialogTitle>
                               <AlertDialogDescription>
                                 Are you sure you want to delete "{evt.title}"? This action cannot be undone.
                               </AlertDialogDescription>
@@ -409,28 +409,28 @@ function EventSheet({ eventToEdit, triggerButton }: { eventToEdit?: Event, trigg
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['events'] });
       setOpen(false);
-      toast({ title: isEditing ? "Event updated successfully!" : "Event created successfully!" });
+      toast({ title: isEditing ? "Entertainment updated successfully!" : "Entertainment created successfully!" });
     },
     onError: (error) => {
-      toast({ title: "Failed to save event", description: error.message, variant: "destructive" });
+      toast({ title: "Failed to save entertainment", description: error.message, variant: "destructive" });
     }
   });
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        {triggerButton || <Button><Plus className="w-4 h-4 mr-2" /> Create Event</Button>}
+        {triggerButton || <Button><Plus className="w-4 h-4 mr-2" /> Add Entertainment</Button>}
       </SheetTrigger>
       <SheetContent className="sm:max-w-xl w-full overflow-y-auto">
         <SheetHeader>
-          <SheetTitle>{isEditing ? "Edit Event" : "Create New Event"}</SheetTitle>
-          <SheetDescription>{isEditing ? "Update the event details." : "Schedule an event for one or all locations."}</SheetDescription>
+          <SheetTitle>{isEditing ? "Edit Entertainment" : "Add Entertainment"}</SheetTitle>
+          <SheetDescription>{isEditing ? "Update the entertainment details." : "Schedule entertainment for one or all locations."}</SheetDescription>
         </SheetHeader>
 
         <div className="space-y-6 mt-6 pb-20">
           <div className="space-y-4">
             <div>
-              <Label>Event Title <span className="text-destructive">*</span></Label>
+              <Label>Title <span className="text-destructive">*</span></Label>
               <Input 
                 placeholder="e.g. Trivia Night, Vendor Pop-up" 
                 value={formData.title}
@@ -569,7 +569,7 @@ function EventSheet({ eventToEdit, triggerButton }: { eventToEdit?: Event, trigg
             </div>
 
             <div>
-              <Label>Event Details <span className="text-destructive">*</span></Label>
+              <Label>Details <span className="text-destructive">*</span></Label>
               <Textarea 
                 placeholder="Details about the entertainment event. If there is a special host name, DJ, etc. So we can put on the website" 
                 className="mt-1.5 min-h-[100px]"
@@ -583,7 +583,7 @@ function EventSheet({ eventToEdit, triggerButton }: { eventToEdit?: Event, trigg
                 <Bell className="w-4 h-4 text-primary" />
                 <h4 className="font-semibold">Notifications</h4>
               </div>
-              <p className="text-sm text-muted-foreground mb-3">Notify your social media or marketing team when this event is created or changed.</p>
+              <p className="text-sm text-muted-foreground mb-3">Notify your social media or marketing team when this entertainment is created or changed.</p>
               <Label>Email Addresses (comma separated) <span className="text-destructive">*</span></Label>
               <Input 
                 placeholder="social@example.com, manager@example.com" 
@@ -599,7 +599,7 @@ function EventSheet({ eventToEdit, triggerButton }: { eventToEdit?: Event, trigg
             onClick={() => saveEvent.mutate(formData)}
             disabled={!formData.title || !formData.location_id || !formData.start_date || !formData.details.trim() || !formData.notify_emails.trim() || saveEvent.isPending}
           >
-            {saveEvent.isPending ? "Saving..." : (isEditing ? "Save Changes" : "Create Event")}
+            {saveEvent.isPending ? "Saving..." : (isEditing ? "Save Changes" : "Add Entertainment")}
           </Button>
         </div>
       </SheetContent>
