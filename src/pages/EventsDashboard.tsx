@@ -175,7 +175,7 @@ export default function EventsDashboard() {
                 </div>
                 <div className="flex items-center gap-2 mb-3 pr-16">
                   <div className="px-2 py-1 bg-primary/10 text-primary text-xs font-medium rounded shrink-0">
-                    {format(parseISO(event.start_date), "MMM d, yyyy")}
+                    {format(parseISO(event.start_date), "EEEE, MMM d, yyyy")}
                   </div>
                   {event.is_recurring && (
                     <div className="flex items-center text-xs text-muted-foreground bg-muted px-2 py-1 rounded shrink-0">
