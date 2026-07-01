@@ -2,18 +2,20 @@ export interface Location {
   id: string;
   name: string;
   vendestaId: string;
+  address?: string;
+  phone?: string;
 }
 
 export const locations: Location[] = [
-  { id: "loc-1", name: "Storrs", vendestaId: "ven-storrs-001" },
-  { id: "loc-2", name: "Vernon", vendestaId: "ven-vernon-002" },
-  { id: "loc-3", name: "Shelton", vendestaId: "ven-shelton-003" },
-  { id: "loc-4", name: "Preston", vendestaId: "ven-preston-004" },
-  { id: "loc-5", name: "Glastonbury", vendestaId: "ven-glastonbury-005" },
-  { id: "loc-6", name: "East Hartford", vendestaId: "ven-easthartford-006" },
-  { id: "loc-7", name: "Plainville", vendestaId: "ven-plainville-007" },
-  { id: "loc-8", name: "Delray Beach", vendestaId: "ven-delray-008" },
-  { id: "loc-9", name: "Berlin", vendestaId: "ven-berlin-009" },
+  { id: "loc-1", name: "Storrs", vendestaId: "ven-storrs-001", address: "9 Dog Lane, Storrs, CT 06268", phone: "(860) 548-6086" },
+  { id: "loc-2", name: "Vernon", vendestaId: "ven-vernon-002", address: "226 Talcottville Road, Vernon, CT 06066", phone: "(860) 858-6927" },
+  { id: "loc-3", name: "Shelton", vendestaId: "ven-shelton-003", address: "901 Bridgeport Avenue, Shelton, CT 06484", phone: "(203) 538-5182" },
+  { id: "loc-4", name: "Preston", vendestaId: "ven-preston-004", address: "164 Route 2, Preston, CT 06365", phone: "(860) 800-4740" },
+  { id: "loc-5", name: "Glastonbury", vendestaId: "ven-glastonbury-005", address: "Hebron Avenue, Glastonbury, CT 06033", phone: "(860) 659-1717" },
+  { id: "loc-6", name: "East Hartford", vendestaId: "ven-easthartford-006", address: "111 Brewer Street, East Hartford, CT 06118", phone: "(860) 568-1811" },
+  { id: "loc-7", name: "Plainville", vendestaId: "ven-plainville-007", address: "17 Farmington Ave, Plainville, CT 06062", phone: "(860) 793-1811" },
+  { id: "loc-8", name: "Delray Beach", vendestaId: "ven-delray-008", address: "814 E Atlantic Ave, Delray Beach, FL 33483", phone: "(561) 908-2511" },
+  { id: "loc-9", name: "Berlin", vendestaId: "ven-berlin-009", address: "555 Farmington Ave, Berlin, CT 06037", phone: "(860) 828-5555" },
 ];
 
 export type CateringStatus = "Requested" | "Waiting on you" | "Waiting on the customer" | "Confirmed" | "Completed";

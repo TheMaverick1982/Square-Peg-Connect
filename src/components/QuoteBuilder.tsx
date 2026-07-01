@@ -2,10 +2,9 @@ import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2, Link as LinkIcon, Loader2, DollarSign } from "lucide-react";
-import type { CateringOrder } from "@/lib/data";
+import { Plus, Trash2, Link as LinkIcon, Loader2, DollarSign, Mail } from "lucide-react";
+import { type CateringOrder, locations } from "@/lib/data";
 
 interface QuoteItem {
   description: string;
@@ -52,6 +51,45 @@ export function QuoteBuilder({ order, onUpdate }: { order: CateringOrder; onUpda
     
     onUpdate({ ...order, quoteItems: items, quoteTotal: total });
     toast({ title: "Quote saved", description: "Quote items have been updated." });
+  };
+
+  const handleSendEmailEstimate = async () => {
+    if (items.length === 0) {
+      toast({ title: "No items", description: "Add at least one item to generate a quote.", variant: "destructive" });
+      return;
+    }
+    if (!order.email) {
+      toast({ title: "No email", description: "This order doesn't have an email address attached.", variant: "destructive" });
+      return;
+    }
+
+    setIsGenerating(true);
+    await handleSaveQuote();
+
+    const location = locations.find(l => l.id === order.locationId) || locations[0];
+
+    const { data, error } = await supabase.functions.invoke('send-quote', {
+      body: {
+        order,
+        location,
+        items,
+        total
+      }
+    });
+
+    setIsGenerating(false);
+
+    if (error || data?.error) {
+      toast({ title: "Email Failed", description: data?.error || error?.message, variant: "destructive" });
+      return;
+    }
+
+    await supabase.from('catering_requests').update({ 
+      status: 'Waiting on the customer' 
+    }).eq('id', order.id);
+    
+    onUpdate({ ...order, quoteItems: items, quoteTotal: total, status: 'Waiting on the customer' as any });
+    toast({ title: "Estimate Sent!", description: "The itemized estimate has been emailed to the customer." });
   };
 
   const handleGenerateLink = async () => {
@@ -156,40 +194,24 @@ export function QuoteBuilder({ order, onUpdate }: { order: CateringOrder; onUpda
       </div>
 
       <div className="bg-muted/30 p-4 rounded-lg border mt-4">
-        {paymentLink ? (
-          <div className="space-y-3 text-center">
-            <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center mx-auto text-green-600">
-              <DollarSign className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="font-medium text-sm">Payment Link Ready</div>
-              <div className="text-xs text-muted-foreground mt-1">
-                Drop this link in your Vendasta conversation to get paid securely via Stripe.
-              </div>
-            </div>
-            <div className="flex gap-2 justify-center">
-              <Button onClick={handleCopyLink} className="gap-2">
-                <LinkIcon className="w-4 h-4" /> Copy Link
-              </Button>
-              <Button variant="outline" onClick={handleGenerateLink} disabled={isGenerating}>
-                {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : "Regenerate"}
-              </Button>
-            </div>
+        <div className="text-center space-y-3">
+          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center mx-auto text-primary">
+            <Mail className="w-5 h-5" />
           </div>
-        ) : (
-          <div className="text-center space-y-3">
-            <p className="text-sm text-muted-foreground">
-              Generate a secure Stripe Checkout link for this quote.
+          <div>
+            <div className="font-medium text-sm">Send Estimate via Email</div>
+            <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
+              Send the customer an itemized breakdown including the handling store's real address and phone number. Stripe payment coming soon!
             </p>
-            <Button onClick={handleGenerateLink} disabled={isGenerating || items.length === 0} className="w-full">
-              {isGenerating ? (
-                <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Generating...</>
-              ) : (
-                "Generate Payment Link"
-              )}
-            </Button>
           </div>
-        )}
+          <Button onClick={handleSendEmailEstimate} disabled={isGenerating || items.length === 0} className="w-full">
+            {isGenerating ? (
+              <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Sending Email...</>
+            ) : (
+              "Email Estimate to Customer"
+            )}
+          </Button>
+        </div>
       </div>
     </div>
   );
