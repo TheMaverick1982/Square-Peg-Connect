@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { Plus, Search, MapPin, Phone, Mail, User, Edit2, History, Gift, CheckCircle2 } from "lucide-react";
+import { Plus, Search, MapPin, Phone, Mail, User, Edit2, History, Gift, CheckCircle2, Send, Loader2 } from "lucide-react";
 
 // --- Types ---
 type GuestBounceBack = {
@@ -49,6 +49,24 @@ export default function GuestBounceBack() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [editingGuestId, setEditingGuestId] = useState<string | null>(null);
+  const [isSendingReport, setIsSendingReport] = useState(false);
+
+  const handleSendTestReport = async () => {
+    const testEmail = prompt("Enter your email address to receive a test copy of the report:", "your-email@example.com");
+    if (!testEmail) return;
+
+    setIsSendingReport(true);
+    const { error, data } = await supabase.functions.invoke('send-bounce-back-metrics', {
+      body: { toEmail: testEmail }
+    });
+    setIsSendingReport(false);
+
+    if (error || data?.error) {
+      toast({ title: "Failed to send report", description: data?.error || error?.message, variant: "destructive" });
+    } else {
+      toast({ title: "Report Sent!", description: `A copy of the weekly metrics was sent to ${testEmail}.` });
+    }
+  };
 
   const defaultFormState = {
     name: "",
@@ -190,10 +208,16 @@ export default function GuestBounceBack() {
           <h1 className="text-3xl font-bold tracking-tight">Guest Bounce Back</h1>
           <p className="text-muted-foreground mt-1">Track return visits and measure the success of comeback incentives.</p>
         </div>
-        <Button className="gap-2 shadow-sm" onClick={openNewGuestSheet}>
-          <Plus className="w-4 h-4" />
-          Log New Guest
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" className="gap-2 shadow-sm" onClick={handleSendTestReport} disabled={isSendingReport}>
+            {isSendingReport ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+            Email Report to Me
+          </Button>
+          <Button className="gap-2 shadow-sm" onClick={openNewGuestSheet}>
+            <Plus className="w-4 h-4" />
+            Log New Guest
+          </Button>
+        </div>
       </div>
 
       {/* KPI Dashboard */}
