@@ -17,7 +17,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { useToast } from "@/hooks/use-toast";
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, isToday, isTuesday } from "date-fns";
-import { Search, Filter, Calendar as CalendarIcon, MapPin, Link as LinkIcon, DollarSign, Building, Phone, Mail, FileText, Plus, ChevronLeft, ChevronRight, LayoutList, CalendarDays, ArrowDownUp } from "lucide-react";
+import { Search, Filter, Calendar as CalendarIcon, MapPin, Link as LinkIcon, DollarSign, Building, Phone, Mail, FileText, Plus, ChevronLeft, ChevronRight, LayoutList, CalendarDays, ArrowDownUp, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface FundraiserOrder {
@@ -69,6 +69,7 @@ export default function FundraisersPipeline() {
   // Edit state for sales/donated
   const [salesInput, setSalesInput] = useState("");
   const [donatedInput, setDonatedInput] = useState("");
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
 
   const fetchOrders = async () => {
     setIsLoading(true);
@@ -160,6 +161,29 @@ export default function FundraisersPipeline() {
     setOrders(orders.map(o => o.id === viewingOrder.id ? { ...o, totalSales: sales, totalDonated: donated } : o));
     setViewingOrder({ ...viewingOrder, totalSales: sales, totalDonated: donated });
     toast({ title: "Saved", description: "Financials updated successfully." });
+  };
+
+  const handleSendConfirmationEmail = async () => {
+    if (!viewingOrder) return;
+    setIsSendingEmail(true);
+
+    const location = locations.find(l => l.id === viewingOrder.locationId) || locations[0];
+
+    const { data, error } = await supabase.functions.invoke('send-fundraiser-email', {
+      body: {
+        order: viewingOrder,
+        location
+      }
+    });
+
+    setIsSendingEmail(false);
+
+    if (error || data?.error) {
+      toast({ title: "Email Failed", description: data?.error || error?.message, variant: "destructive" });
+      return;
+    }
+
+    toast({ title: "Email Sent!", description: "The confirmation and tips email has been sent to the organization." });
   };
 
   const handleAddFundraiser = async (e: React.FormEvent) => {
@@ -679,6 +703,28 @@ export default function FundraisersPipeline() {
                       <div className="text-muted-foreground">Mailing Addr:</div>
                       <div className="col-span-2 whitespace-pre-wrap">{viewingOrder.address}</div>
                     </div>
+                  </div>
+                </div>
+
+                {/* Email Confirmation Action */}
+                <div className="bg-muted/30 p-4 rounded-lg border">
+                  <div className="text-center space-y-3">
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center mx-auto text-primary">
+                      <Mail className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="font-medium text-sm">Send Confirmation & Tips</div>
+                      <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
+                        Email the non-profit their confirmed date, location details, and success tips from the website.
+                      </p>
+                    </div>
+                    <Button onClick={handleSendConfirmationEmail} disabled={isSendingEmail} className="w-full">
+                      {isSendingEmail ? (
+                        <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Sending Email...</>
+                      ) : (
+                        "Email Non-Profit"
+                      )}
+                    </Button>
                   </div>
                 </div>
 
