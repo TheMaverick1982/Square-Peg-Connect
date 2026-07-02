@@ -19,7 +19,8 @@ import {
 } from "@/components/ui/sheet";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { Search, Filter, Plus, Calendar as CalendarIcon, Users, MapPin, UtensilsCrossed, Link as LinkIcon, MessageSquare, Phone, Mail, FileText, ArrowDownUp } from "lucide-react";
+import { Search, Filter, Plus, Calendar as CalendarIcon, Users, MapPin, UtensilsCrossed, Link as LinkIcon, MessageSquare, Phone, Mail, FileText, ArrowDownUp, Trash2 } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { QuoteBuilder } from "@/components/QuoteBuilder";
 
 type TabState = "all" | "upcoming" | "unopened" | "past";
@@ -231,6 +232,23 @@ export default function CateringPipeline() {
   };
 
 
+
+  const handleDeleteOrder = async (orderId: string) => {
+    const { error } = await supabase
+      .from('catering_requests')
+      .delete()
+      .eq('id', orderId);
+
+    if (error) {
+      console.error("Error deleting order:", error);
+      toast({ title: "Error", description: "Could not delete order.", variant: "destructive" });
+      return;
+    }
+
+    setOrders(orders.filter(o => o.id !== orderId));
+    setViewingOrder(null);
+    toast({ title: "Order Deleted", description: "The catering request has been removed." });
+  };
 
   const updateOrderStatus = async (orderId: string, newStatus: CateringStatus) => {
     const { error } = await supabase
@@ -497,11 +515,37 @@ export default function CateringPipeline() {
             <>
               <SheetHeader className="mb-6">
                 <div className="flex items-start justify-between">
-                  <div>
-                    <SheetTitle className="text-2xl">{viewingOrder.eventName}</SheetTitle>
+                  <div className="shrink-1 min-w-0 pr-4">
+                    <SheetTitle className="text-2xl break-words">{viewingOrder.eventName}</SheetTitle>
                     <SheetDescription className="mt-1">
                       Submitted on {format(new Date(viewingOrder.createdAt), "MMMM d, yyyy")}
                     </SheetDescription>
+                  </div>
+                  <div className="flex items-center shrink-0">
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete Request</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to delete this catering request? This action cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction 
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            onClick={() => handleDeleteOrder(viewingOrder.id)}
+                          >
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </div>
                 </div>
               </SheetHeader>
