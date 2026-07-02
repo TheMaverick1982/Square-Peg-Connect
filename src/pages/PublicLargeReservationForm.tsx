@@ -105,7 +105,8 @@ export default function PublicLargeReservationForm() {
           </CardHeader>
           <CardContent>
             <p className="text-muted-foreground">
-              Thank you for choosing us for your large reservation. Our manager will be in touch to finalize details.
+              Thank you for choosing Square Peg Pizzeria.<br />
+              Our manager will be in touch to finalize details.
             </p>
           </CardContent>
         </Card>
