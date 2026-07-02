@@ -14,10 +14,11 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Calendar } from "@/components/ui/calendar";
 import { useToast } from "@/hooks/use-toast";
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, isToday, isTuesday } from "date-fns";
-import { Search, Filter, Calendar as CalendarIcon, MapPin, Link as LinkIcon, DollarSign, Building, Phone, Mail, FileText, Plus, ChevronLeft, ChevronRight, LayoutList, CalendarDays, ArrowDownUp, Loader2 } from "lucide-react";
+import { Search, Filter, Calendar as CalendarIcon, MapPin, Link as LinkIcon, DollarSign, Building, Phone, Mail, FileText, Plus, ChevronLeft, ChevronRight, LayoutList, CalendarDays, ArrowDownUp, Loader2, Edit2, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface FundraiserOrder {
@@ -58,6 +59,12 @@ export default function FundraisersPipeline() {
 
   // Sheet state
   const [viewingOrder, setViewingOrder] = useState<FundraiserOrder | null>(null);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editFormData, setEditFormData] = useState({
+    name: "", email: "", phone: "", address: "", organization: "", locationId: "", eventDate: new Date()
+  });
+  const [isUpdating, setIsUpdating] = useState(false);
+
   const [isAddSheetOpen, setIsAddSheetOpen] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
   
@@ -184,6 +191,61 @@ export default function FundraisersPipeline() {
     }
 
     toast({ title: "Email Sent!", description: "The confirmation and tips email has been sent to the organization." });
+  };
+
+  const handleUpdateFundraiser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!viewingOrder) return;
+    setIsUpdating(true);
+
+    const formattedDate = format(editFormData.eventDate, 'yyyy-MM-dd');
+
+    const { error } = await supabase
+      .from('fundraisers')
+      .update({
+        name: editFormData.name,
+        email: editFormData.email,
+        phone: editFormData.phone,
+        address: editFormData.address,
+        organization: editFormData.organization,
+        location: editFormData.locationId,
+        event_date: formattedDate
+      })
+      .eq('id', viewingOrder.id);
+
+    setIsUpdating(false);
+
+    if (error) {
+      toast({ title: "Error", description: "Failed to update fundraiser details.", variant: "destructive" });
+      return;
+    }
+
+    const updatedOrder = {
+      ...viewingOrder,
+      name: editFormData.name,
+      email: editFormData.email,
+      phone: editFormData.phone,
+      address: editFormData.address,
+      organization: editFormData.organization,
+      locationId: editFormData.locationId,
+      eventDate: formattedDate
+    };
+
+    setOrders(orders.map(o => o.id === viewingOrder.id ? updatedOrder : o));
+    setViewingOrder(updatedOrder);
+    setIsEditMode(false);
+    toast({ title: "Updated", description: "Fundraiser details saved successfully." });
+  };
+
+  const handleDeleteFundraiser = async (id: string) => {
+    const { error } = await supabase.from('fundraisers').delete().eq('id', id);
+    if (error) {
+      toast({ title: "Error", description: "Could not delete the fundraiser.", variant: "destructive" });
+      return;
+    }
+    setOrders(orders.filter(o => o.id !== id));
+    setViewingOrder(null);
+    toast({ title: "Deleted", description: "Fundraiser has been removed." });
   };
 
   const handleAddFundraiser = async (e: React.FormEvent) => {
@@ -635,10 +697,124 @@ export default function FundraisersPipeline() {
                       Preferred Event Date: <strong className="text-foreground">{format(parseSafeDate(viewingOrder.eventDate), "MMMM d, yyyy")}</strong>
                     </SheetDescription>
                   </div>
+                  <div className="flex items-center gap-1">
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => {
+                      setEditFormData({
+                        name: viewingOrder.name,
+                        email: viewingOrder.email,
+                        phone: viewingOrder.phone,
+                        address: viewingOrder.address,
+                        organization: viewingOrder.organization,
+                        locationId: viewingOrder.locationId,
+                        eventDate: parseSafeDate(viewingOrder.eventDate)
+                      });
+                      setIsEditMode(true);
+                    }}>
+                      <Edit2 className="h-4 w-4 text-muted-foreground" />
+                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-destructive/10 hover:text-destructive">
+                          <Trash2 className="h-4 w-4 text-muted-foreground" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete Fundraiser</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to delete this fundraiser for {viewingOrder.organization}? This cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => handleDeleteFundraiser(viewingOrder.id)}>
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
                 </div>
               </SheetHeader>
 
-              <div className="space-y-8">
+              {isEditMode ? (
+                <form onSubmit={handleUpdateFundraiser} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Organization Name</Label>
+                    <Input required value={editFormData.organization} onChange={(e) => setEditFormData({...editFormData, organization: e.target.value})} />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label>Contact Name</Label>
+                    <Input required value={editFormData.name} onChange={(e) => setEditFormData({...editFormData, name: e.target.value})} />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Email</Label>
+                      <Input type="email" required value={editFormData.email} onChange={(e) => setEditFormData({...editFormData, email: e.target.value})} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Phone</Label>
+                      <Input type="tel" required value={editFormData.phone} onChange={(e) => setEditFormData({...editFormData, phone: e.target.value})} />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Mailing Address</Label>
+                    <Input required value={editFormData.address} onChange={(e) => setEditFormData({...editFormData, address: e.target.value})} />
+                  </div>
+
+                  <div className="grid gap-4">
+                    <div className="space-y-2">
+                      <Label>Location</Label>
+                      <Select value={editFormData.locationId} onValueChange={(val) => setEditFormData({...editFormData, locationId: val})}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {locations.map(loc => (
+                            <SelectItem key={loc.id} value={loc.id}>{loc.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2 flex flex-col">
+                      <Label>Preferred Event Date</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant={"outline"}
+                            className="w-full justify-start text-left font-normal"
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {format(editFormData.eventDate, "PPP")}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0">
+                          <Calendar
+                            mode="single"
+                            selected={editFormData.eventDate}
+                            onSelect={(d) => d && setEditFormData({...editFormData, eventDate: d})}
+                            disabled={(date) => !isTuesday(date)}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2 pt-6 border-t mt-6">
+                    <Button type="button" variant="outline" className="flex-1" onClick={() => setIsEditMode(false)}>
+                      Cancel
+                    </Button>
+                    <Button type="submit" className="flex-1" disabled={isUpdating}>
+                      {isUpdating ? "Saving..." : "Save Changes"}
+                    </Button>
+                  </div>
+                </form>
+              ) : (
+                <div className="space-y-8">
                 {/* Status & Location */}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
@@ -764,6 +940,7 @@ export default function FundraisersPipeline() {
                 )}
 
               </div>
+              )}
             </>
           )}
         </SheetContent>
