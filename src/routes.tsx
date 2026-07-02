@@ -18,6 +18,8 @@ import { AuthCallback } from "./pages/AuthCallback";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import EventsDashboard from "./pages/EventsDashboard";
 import StoreEventsPipeline from "./pages/StoreEventsPipeline";
+import LargeReservationsPipeline from "./pages/LargeReservationsPipeline";
+import PublicLargeReservationForm from "./pages/PublicLargeReservationForm";
 import { Navigate } from "react-router-dom";
 
 // Automations placeholder containing the requested workflows
@@ -64,6 +66,10 @@ export const routes = [
     element: <PublicFundraiserForm />
   },
   {
+    path: "/public/large-reservations",
+    element: <PublicLargeReservationForm />
+  },
+  {
     path: "/auth/callback",
     element: <AuthCallback />
   },
@@ -81,6 +87,7 @@ export const routes = [
       { path: "events", element: <EventsDashboard /> },
       { path: "tuesday-fundraisers", element: <FundraisersPipeline /> },
       { path: "store-events", element: <StoreEventsPipeline /> },
+      { path: "large-reservations", element: <LargeReservationsPipeline /> },
       { path: "b2b-partnerships", element: <B2BPartnerships /> },
       { path: "guest-bounce-back", element: <GuestBounceBack /> },
       { path: "campaigns", element: <Campaigns /> },

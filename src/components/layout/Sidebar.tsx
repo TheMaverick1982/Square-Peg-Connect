@@ -60,6 +60,10 @@ export function SidebarContent() {
           <Store className="w-4 h-4" />
           Store Events
         </NavLink>
+        <NavLink to="/large-reservations" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
+          <Users className="w-4 h-4" />
+          Large Reservations
+        </NavLink>
         <NavLink to="/b2b-partnerships" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
           <Handshake className="w-4 h-4" />
           B2B Partnerships
