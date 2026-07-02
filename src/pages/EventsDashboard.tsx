@@ -43,8 +43,12 @@ export default function EventsDashboard() {
     mutationFn: async (eventToDelete: Event) => {
       // 1. Send notification before deleting
       if (eventToDelete.notify_emails) {
+        const locName = eventToDelete.location_id 
+          ? locations.find(l => l.id === eventToDelete.location_id)?.name || "All Locations" 
+          : "All Locations";
+          
         const { error: fnError, data: fnData } = await supabase.functions.invoke('notify-event', {
-          body: { event: eventToDelete, action: 'deleted' }
+          body: { event: eventToDelete, action: 'deleted', locationName: locName }
         });
         if (fnError) {
           console.error("Failed to send delete notification:", fnError);
@@ -399,8 +403,12 @@ function EventSheet({ eventToEdit, triggerButton }: { eventToEdit?: Event, trigg
         
         // Trigger notification edge function for the edit
         if (data.notify_emails) {
+          const locName = payload.location_id 
+            ? locations.find(l => l.id === payload.location_id)?.name || "All Locations" 
+            : "All Locations";
+            
           const { error: fnError, data: fnData } = await supabase.functions.invoke('notify-event', {
-            body: { event: { ...payload, id: eventToEdit.id }, action: 'updated' }
+            body: { event: { ...payload, id: eventToEdit.id }, action: 'updated', locationName: locName }
           });
           
           if (fnError) {
@@ -416,8 +424,12 @@ function EventSheet({ eventToEdit, triggerButton }: { eventToEdit?: Event, trigg
         // Trigger notification edge function for creation
         // We do not rely on returning the row (which RLS might block), we just use the payload
         if (data.notify_emails) {
+          const locName = payload.location_id 
+            ? locations.find(l => l.id === payload.location_id)?.name || "All Locations" 
+            : "All Locations";
+            
           const { error: fnError, data: fnData } = await supabase.functions.invoke('notify-event', {
-            body: { event: payload, action: 'created' }
+            body: { event: payload, action: 'created', locationName: locName }
           });
           
           if (fnError) {
