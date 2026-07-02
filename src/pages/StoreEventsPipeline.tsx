@@ -4,6 +4,7 @@ import { locations } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
@@ -28,7 +29,6 @@ export interface StoreEventOrder {
   phone: string;
   address: string;
   organization: string;
-  payableTo?: string;
   notes?: string;
   locationId: string;
   eventDate: string;
@@ -63,7 +63,7 @@ export default function StoreEventsPipeline() {
   const [viewingOrder, setViewingOrder] = useState<StoreEventOrder | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editFormData, setEditFormData] = useState({
-    name: "", email: "", phone: "", address: "", organization: "", payableTo: "", notes: "", locationId: "", eventDate: new Date()
+    name: "", email: "", phone: "", address: "", organization: "", notes: "", locationId: "", eventDate: new Date()
   });
   const [isUpdating, setIsUpdating] = useState(false);
 
@@ -71,7 +71,7 @@ export default function StoreEventsPipeline() {
   const [isAdding, setIsAdding] = useState(false);
   
   const [addFormData, setAddFormData] = useState({
-    name: "", email: "", phone: "", address: "", organization: "", payableTo: "", notes: "", locationId: ""
+    name: "", email: "", phone: "", address: "", organization: "", notes: "", locationId: ""
   });
   const [addFormDate, setAddFormDate] = useState<Date | undefined>(undefined);
 
@@ -99,7 +99,6 @@ export default function StoreEventsPipeline() {
         phone: row.phone,
         address: row.address,
         organization: row.organization,
-        payableTo: row.payable_to,
         notes: row.notes,
         locationId: row.location,
         eventDate: row.event_date,
@@ -213,7 +212,6 @@ export default function StoreEventsPipeline() {
         phone: editFormData.phone,
         address: editFormData.address,
         organization: editFormData.organization,
-        payable_to: editFormData.payableTo,
         notes: editFormData.notes,
         location: editFormData.locationId,
         event_date: formattedDate
@@ -234,7 +232,6 @@ export default function StoreEventsPipeline() {
       phone: editFormData.phone,
       address: editFormData.address,
       organization: editFormData.organization,
-      payableTo: editFormData.payableTo,
       notes: editFormData.notes,
       locationId: editFormData.locationId,
       eventDate: formattedDate
@@ -275,7 +272,6 @@ export default function StoreEventsPipeline() {
       phone: addFormData.phone,
       address: addFormData.address,
       organization: addFormData.organization,
-      payable_to: addFormData.payableTo,
       notes: addFormData.notes,
       location: loc,
       event_date: formattedDate,
@@ -308,7 +304,6 @@ export default function StoreEventsPipeline() {
         phone: data.phone,
         address: data.address,
         organization: data.organization,
-        payableTo: data.payable_to,
         locationId: data.location,
         eventDate: data.event_date,
         status: data.status,
@@ -317,7 +312,7 @@ export default function StoreEventsPipeline() {
         createdAt: data.created_at,
       }].sort((a, b) => parseSafeDate(a.eventDate).getTime() - parseSafeDate(b.eventDate).getTime()));
       setIsAddSheetOpen(false);
-      setAddFormData({ name: "", email: "", phone: "", address: "", organization: "", payableTo: "", notes: "", locationId: "" });
+      setAddFormData({ name: "", email: "", phone: "", address: "", organization: "", notes: "", locationId: "" });
       setAddFormDate(undefined);
     }
   };
@@ -630,7 +625,7 @@ export default function StoreEventsPipeline() {
         <div className="overflow-x-auto h-full flex flex-col">
           <div className="min-w-[800px] grid grid-cols-12 gap-4 p-4 border-b bg-muted/30 text-xs font-semibold text-muted-foreground uppercase tracking-wider shrink-0">
             <div className="col-span-3">Organization</div>
-            <div className="col-span-3">Preferred Event Date & Location</div>
+            <div className="col-span-3">Event Date & Location</div>
             <div className="col-span-3">Financials</div>
             <div className="col-span-3">Status</div>
           </div>
@@ -726,7 +721,7 @@ export default function StoreEventsPipeline() {
                   <div className="min-w-0 flex-1">
                     <SheetTitle className="text-2xl break-words">{viewingOrder.organization}</SheetTitle>
                     <SheetDescription className="mt-1">
-                      Preferred Event Date: <strong className="text-foreground">{format(parseSafeDate(viewingOrder.eventDate), "MMMM d, yyyy")}</strong>
+                      Event Date: <strong className="text-foreground">{format(parseSafeDate(viewingOrder.eventDate), "MMMM d, yyyy")}</strong>
                     </SheetDescription>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
@@ -737,7 +732,6 @@ export default function StoreEventsPipeline() {
                         phone: viewingOrder.phone,
                         address: viewingOrder.address,
                         organization: viewingOrder.organization,
-                        payableTo: viewingOrder.payableTo || "",
                         notes: viewingOrder.notes || "",
                         locationId: viewingOrder.locationId,
                         eventDate: parseSafeDate(viewingOrder.eventDate)
@@ -779,15 +773,10 @@ export default function StoreEventsPipeline() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Notes / Special Requests</Label>
-                    <Input placeholder="Any details for this event" value={editFormData.notes} onChange={(e) => setEditFormData({...editFormData, notes: e.target.value})} />
+                    <Label>Notes & Special Requests</Label>
+                    <Textarea placeholder="Any details for this event" value={editFormData.notes || ""} onChange={(e) => setEditFormData({...editFormData, notes: e.target.value})} className="min-h-[100px]" />
                   </div>
 
-                  <div className="space-y-2">
-                    <Label>Make Check Payable To (Optional)</Label>
-                    <Input placeholder="Leave blank to use Organization Name" value={editFormData.payableTo} onChange={(e) => setEditFormData({...editFormData, payableTo: e.target.value})} />
-                  </div>
-                  
                   <div className="space-y-2">
                     <Label>Contact Name</Label>
                     <Input required value={editFormData.name} onChange={(e) => setEditFormData({...editFormData, name: e.target.value})} />
@@ -829,7 +818,7 @@ export default function StoreEventsPipeline() {
                       </Select>
                     </div>
                     <div className="space-y-2 flex flex-col">
-                      <Label>Preferred Event Date</Label>
+                      <Label>Event Date</Label>
                       <Popover>
                         <PopoverTrigger asChild>
                           <Button
@@ -908,11 +897,6 @@ export default function StoreEventsPipeline() {
                     <div className="grid grid-cols-3 gap-2 py-1">
                       <div className="text-muted-foreground">Contact Name:</div>
                       <div className="col-span-2 font-medium">{viewingOrder.name}</div>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-2 py-1 border-t border-border/50">
-                      <div className="text-muted-foreground">Make Check Payable To:</div>
-                      <div className="col-span-2 font-medium">{viewingOrder.payableTo || <span className="text-muted-foreground italic">Same as organization</span>}</div>
                     </div>
                     
                     <div className="grid grid-cols-3 gap-2 py-1 border-t border-border/50">
@@ -1064,7 +1048,6 @@ export default function StoreEventsPipeline() {
                     setAddFormData({
                       ...addFormData, 
                       organization: existing.organization,
-                      payableTo: existing.payableTo || "",
                       name: existing.name,
                       email: existing.email,
                       phone: existing.phone,
@@ -1093,11 +1076,6 @@ export default function StoreEventsPipeline() {
             <div className="space-y-2">
               <Label>Organization Name</Label>
               <Input required value={addFormData.organization} onChange={(e) => setAddFormData({...addFormData, organization: e.target.value})} />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Make Check Payable To (Optional)</Label>
-              <Input placeholder="Leave blank to use Organization Name" value={addFormData.payableTo} onChange={(e) => setAddFormData({...addFormData, payableTo: e.target.value})} />
             </div>
             
             <div className="space-y-2">
@@ -1141,7 +1119,7 @@ export default function StoreEventsPipeline() {
                 </Select>
               </div>
               <div className="space-y-2 flex flex-col">
-                <Label>Preferred Event Date</Label>
+                <Label>Event Date</Label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
