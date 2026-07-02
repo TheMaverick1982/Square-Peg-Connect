@@ -21,7 +21,8 @@ export default function PublicFundraiserForm() {
     email: "",
     phone: "",
     address: "",
-    organization: ""
+    organization: "",
+    payableTo: ""
   });
 
   const [bookedDates, setBookedDates] = useState<Date[]>([]);
@@ -84,6 +85,7 @@ export default function PublicFundraiserForm() {
       phone: formData.phone,
       address: formData.address,
       organization: formData.organization,
+      payable_to: formData.payableTo,
       location: formData.locationId,
       event_date: format(formData.eventDate, 'yyyy-MM-dd'),
       status: 'Requested'
@@ -197,6 +199,10 @@ export default function PublicFundraiserForm() {
               <div className="grid gap-2">
                 <Label htmlFor="organization">Organization Name</Label>
                 <Input id="organization" required value={formData.organization} onChange={e => setFormData({...formData, organization: e.target.value})} />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="payableTo">Make Check Payable To (Optional)</Label>
+                <Input id="payableTo" placeholder="Leave blank to use Organization Name" value={formData.payableTo} onChange={e => setFormData({...formData, payableTo: e.target.value})} />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="address">Mailing Address (for the check)</Label>

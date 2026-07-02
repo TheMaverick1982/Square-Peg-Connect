@@ -28,6 +28,7 @@ export interface FundraiserOrder {
   phone: string;
   address: string;
   organization: string;
+  payableTo?: string;
   locationId: string;
   eventDate: string;
   status: "Requested" | "Confirmed" | "Completed";
@@ -61,7 +62,7 @@ export default function FundraisersPipeline() {
   const [viewingOrder, setViewingOrder] = useState<FundraiserOrder | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editFormData, setEditFormData] = useState({
-    name: "", email: "", phone: "", address: "", organization: "", locationId: "", eventDate: new Date()
+    name: "", email: "", phone: "", address: "", organization: "", payableTo: "", locationId: "", eventDate: new Date()
   });
   const [isUpdating, setIsUpdating] = useState(false);
 
@@ -69,7 +70,7 @@ export default function FundraisersPipeline() {
   const [isAdding, setIsAdding] = useState(false);
   
   const [addFormData, setAddFormData] = useState({
-    name: "", email: "", phone: "", address: "", organization: "", locationId: ""
+    name: "", email: "", phone: "", address: "", organization: "", payableTo: "", locationId: ""
   });
   const [addFormDate, setAddFormDate] = useState<Date | undefined>(undefined);
 
@@ -96,6 +97,7 @@ export default function FundraisersPipeline() {
         phone: row.phone,
         address: row.address,
         organization: row.organization,
+        payableTo: row.payable_to,
         locationId: row.location,
         eventDate: row.event_date,
         status: row.status as "Requested" | "Confirmed" | "Completed",
@@ -208,6 +210,7 @@ export default function FundraisersPipeline() {
         phone: editFormData.phone,
         address: editFormData.address,
         organization: editFormData.organization,
+        payable_to: editFormData.payableTo,
         location: editFormData.locationId,
         event_date: formattedDate
       })
@@ -227,6 +230,7 @@ export default function FundraisersPipeline() {
       phone: editFormData.phone,
       address: editFormData.address,
       organization: editFormData.organization,
+      payableTo: editFormData.payableTo,
       locationId: editFormData.locationId,
       eventDate: formattedDate
     };
@@ -266,6 +270,7 @@ export default function FundraisersPipeline() {
       phone: addFormData.phone,
       address: addFormData.address,
       organization: addFormData.organization,
+      payable_to: addFormData.payableTo,
       location: loc,
       event_date: formattedDate,
       status: 'Confirmed'
@@ -284,6 +289,7 @@ export default function FundraisersPipeline() {
         phone: data.phone,
         address: data.address,
         organization: data.organization,
+        payableTo: data.payable_to,
         locationId: data.location,
         eventDate: data.event_date,
         status: data.status,
@@ -292,7 +298,7 @@ export default function FundraisersPipeline() {
         createdAt: data.created_at,
       }].sort((a, b) => parseSafeDate(a.eventDate).getTime() - parseSafeDate(b.eventDate).getTime()));
       setIsAddSheetOpen(false);
-      setAddFormData({ name: "", email: "", phone: "", address: "", organization: "", locationId: "" });
+      setAddFormData({ name: "", email: "", phone: "", address: "", organization: "", payableTo: "", locationId: "" });
       setAddFormDate(undefined);
     }
   };
@@ -705,6 +711,7 @@ export default function FundraisersPipeline() {
                         phone: viewingOrder.phone,
                         address: viewingOrder.address,
                         organization: viewingOrder.organization,
+                        payableTo: viewingOrder.payableTo || "",
                         locationId: viewingOrder.locationId,
                         eventDate: parseSafeDate(viewingOrder.eventDate)
                       });
@@ -742,6 +749,11 @@ export default function FundraisersPipeline() {
                   <div className="space-y-2">
                     <Label>Organization Name</Label>
                     <Input required value={editFormData.organization} onChange={(e) => setEditFormData({...editFormData, organization: e.target.value})} />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Make Check Payable To (Optional)</Label>
+                    <Input placeholder="Leave blank to use Organization Name" value={editFormData.payableTo} onChange={(e) => setEditFormData({...editFormData, payableTo: e.target.value})} />
                   </div>
                   
                   <div className="space-y-2">
@@ -860,6 +872,11 @@ export default function FundraisersPipeline() {
                       <div className="text-muted-foreground">Contact Name:</div>
                       <div className="col-span-2 font-medium">{viewingOrder.name}</div>
                     </div>
+
+                    <div className="grid grid-cols-3 gap-2 py-1 border-t border-border/50">
+                      <div className="text-muted-foreground">Make Check Payable To:</div>
+                      <div className="col-span-2 font-medium">{viewingOrder.payableTo || <span className="text-muted-foreground italic">Same as organization</span>}</div>
+                    </div>
                     
                     <div className="grid grid-cols-3 gap-2 py-1 border-t border-border/50">
                       <div className="text-muted-foreground">Email:</div>
@@ -958,6 +975,11 @@ export default function FundraisersPipeline() {
             <div className="space-y-2">
               <Label>Organization Name</Label>
               <Input required value={addFormData.organization} onChange={(e) => setAddFormData({...addFormData, organization: e.target.value})} />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Make Check Payable To (Optional)</Label>
+              <Input placeholder="Leave blank to use Organization Name" value={addFormData.payableTo} onChange={(e) => setAddFormData({...addFormData, payableTo: e.target.value})} />
             </div>
             
             <div className="space-y-2">
