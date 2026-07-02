@@ -338,9 +338,9 @@ export default function FundraisersPipeline() {
 
   const sortedOrders = [...filteredOrders].sort((a, b) => {
     if (sortOrder === "newest") {
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      return parseSafeDate(b.eventDate).getTime() - parseSafeDate(a.eventDate).getTime();
     } else {
-      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      return parseSafeDate(a.eventDate).getTime() - parseSafeDate(b.eventDate).getTime();
     }
   });
 
