@@ -40,8 +40,19 @@ export default function EventsDashboard() {
   const { toast } = useToast();
   
   const deleteEvent = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from('events').delete().eq('id', id);
+    mutationFn: async (eventToDelete: Event) => {
+      // 1. Send notification before deleting
+      if (eventToDelete.notify_emails) {
+        const { error: fnError } = await supabase.functions.invoke('notify-event', {
+          body: { event: eventToDelete, action: 'deleted' }
+        });
+        if (fnError) {
+          console.error("Failed to send delete notification:", fnError);
+        }
+      }
+      
+      // 2. Perform delete
+      const { error } = await supabase.from('events').delete().eq('id', eventToDelete.id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -166,7 +177,7 @@ export default function EventsDashboard() {
                       </AlertDialogHeader>
                       <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => deleteEvent.mutate(event.id)}>
+                        <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => deleteEvent.mutate(event)}>
                           Delete
                         </AlertDialogAction>
                       </AlertDialogFooter>
@@ -267,7 +278,7 @@ export default function EventsDashboard() {
                             </AlertDialogHeader>
                             <AlertDialogFooter>
                               <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => deleteEvent.mutate(evt.id)}>
+                              <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => deleteEvent.mutate(evt)}>
                                 Delete
                               </AlertDialogAction>
                             </AlertDialogFooter>
@@ -583,7 +594,7 @@ function EventSheet({ eventToEdit, triggerButton }: { eventToEdit?: Event, trigg
                 <Bell className="w-4 h-4 text-primary" />
                 <h4 className="font-semibold">Notifications</h4>
               </div>
-              <p className="text-sm text-muted-foreground mb-3">Notify your social media or marketing team when this entertainment is created or changed.</p>
+              <p className="text-sm text-muted-foreground mb-3">Notify your team when this entertainment is created, changed, or deleted.</p>
               <Label>Email Addresses (comma separated) <span className="text-destructive">*</span></Label>
               <Input 
                 placeholder="social@example.com, manager@example.com" 
