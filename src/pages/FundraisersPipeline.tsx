@@ -18,7 +18,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Calendar } from "@/components/ui/calendar";
 import { useToast } from "@/hooks/use-toast";
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, isToday, isTuesday } from "date-fns";
-import { Search, Filter, Calendar as CalendarIcon, MapPin, Link as LinkIcon, DollarSign, Building, Phone, Mail, FileText, Plus, ChevronLeft, ChevronRight, LayoutList, CalendarDays, ArrowDownUp, Loader2, Edit2, Trash2 } from "lucide-react";
+import { Search, Filter, Calendar as CalendarIcon, MapPin, Link as LinkIcon, DollarSign, Building, Phone, Mail, FileText, Plus, ChevronLeft, ChevronRight, LayoutList, CalendarDays, ArrowDownUp, Loader2, Edit2, Trash2, History } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface FundraiserOrder {
@@ -29,6 +29,7 @@ export interface FundraiserOrder {
   address: string;
   organization: string;
   payableTo?: string;
+  notes?: string;
   locationId: string;
   eventDate: string;
   status: "Requested" | "Confirmed" | "Completed";
@@ -62,7 +63,7 @@ export default function FundraisersPipeline() {
   const [viewingOrder, setViewingOrder] = useState<FundraiserOrder | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editFormData, setEditFormData] = useState({
-    name: "", email: "", phone: "", address: "", organization: "", payableTo: "", locationId: "", eventDate: new Date()
+    name: "", email: "", phone: "", address: "", organization: "", payableTo: "", notes: "", locationId: "", eventDate: new Date()
   });
   const [isUpdating, setIsUpdating] = useState(false);
 
@@ -98,6 +99,7 @@ export default function FundraisersPipeline() {
         address: row.address,
         organization: row.organization,
         payableTo: row.payable_to,
+        notes: row.notes,
         locationId: row.location,
         eventDate: row.event_date,
         status: row.status as "Requested" | "Confirmed" | "Completed",
@@ -211,6 +213,7 @@ export default function FundraisersPipeline() {
         address: editFormData.address,
         organization: editFormData.organization,
         payable_to: editFormData.payableTo,
+        notes: editFormData.notes,
         location: editFormData.locationId,
         event_date: formattedDate
       })
@@ -231,6 +234,7 @@ export default function FundraisersPipeline() {
       address: editFormData.address,
       organization: editFormData.organization,
       payableTo: editFormData.payableTo,
+      notes: editFormData.notes,
       locationId: editFormData.locationId,
       eventDate: formattedDate
     };
@@ -722,6 +726,7 @@ export default function FundraisersPipeline() {
                         address: viewingOrder.address,
                         organization: viewingOrder.organization,
                         payableTo: viewingOrder.payableTo || "",
+                        notes: viewingOrder.notes || "",
                         locationId: viewingOrder.locationId,
                         eventDate: parseSafeDate(viewingOrder.eventDate)
                       });
@@ -759,6 +764,11 @@ export default function FundraisersPipeline() {
                   <div className="space-y-2">
                     <Label>Organization Name</Label>
                     <Input required value={editFormData.organization} onChange={(e) => setEditFormData({...editFormData, organization: e.target.value})} />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Notes / Special Requests</Label>
+                    <Input placeholder="Any details for this event" value={editFormData.notes} onChange={(e) => setEditFormData({...editFormData, notes: e.target.value})} />
                   </div>
 
                   <div className="space-y-2">
@@ -906,6 +916,13 @@ export default function FundraisersPipeline() {
                       <div className="text-muted-foreground">Mailing Addr:</div>
                       <div className="col-span-2 whitespace-pre-wrap">{viewingOrder.address}</div>
                     </div>
+
+                    {viewingOrder.notes && (
+                      <div className="grid grid-cols-3 gap-2 py-1 border-t border-border/50">
+                        <div className="text-muted-foreground">Notes:</div>
+                        <div className="col-span-2 whitespace-pre-wrap">{viewingOrder.notes}</div>
+                      </div>
+                    )}
                   </div>
                 </div>
 

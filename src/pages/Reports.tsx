@@ -393,6 +393,43 @@ export default function Reports() {
                   </div>
                 </CardContent>
               </Card>
+              <Card className="lg:col-span-2">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <PartyPopper className="w-4 h-4" /> Fundraisers by Organization
+                  </CardTitle>
+                  <CardDescription>Total sales and donations grouped by organization.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {Object.values(fundraisers.reduce((acc, f) => {
+                      if (!acc[f.organization]) {
+                        acc[f.organization] = { name: f.organization, sales: 0, donated: 0, events: 0 };
+                      }
+                      acc[f.organization].sales += Number(f.total_sales) || 0;
+                      acc[f.organization].donated += Number(f.total_donated) || 0;
+                      acc[f.organization].events += 1;
+                      return acc;
+                    }, {} as Record<string, { name: string, sales: number, donated: number, events: number }>))
+                    .sort((a: any, b: any) => b.donated - a.donated)
+                    .map((org: any, idx) => (
+                      <div key={idx} className="flex justify-between items-center border-b pb-2 last:border-0 last:pb-0">
+                        <div>
+                          <div className="font-semibold text-sm">{org.name}</div>
+                          <div className="text-xs text-muted-foreground">{org.events} {org.events === 1 ? 'Event' : 'Events'}</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="font-semibold text-primary">${org.donated.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Donated</div>
+                          <div className="text-xs text-muted-foreground">${org.sales.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Sales</div>
+                        </div>
+                      </div>
+                    ))}
+                    {fundraisers.length === 0 && (
+                      <div className="text-sm text-muted-foreground text-center py-4">No fundraiser data available.</div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
             </div>
             
           </div>
