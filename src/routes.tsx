@@ -17,6 +17,7 @@ import PlaceholderPage from "./components/layout/PlaceholderPage";
 import { AuthCallback } from "./pages/AuthCallback";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import EventsDashboard from "./pages/EventsDashboard";
+import StoreEventsPipeline from "./pages/StoreEventsPipeline";
 import { Navigate } from "react-router-dom";
 
 // Automations placeholder containing the requested workflows
@@ -79,6 +80,7 @@ export const routes = [
       { path: "catering", element: <CateringPipeline /> },
       { path: "events", element: <EventsDashboard /> },
       { path: "tuesday-fundraisers", element: <FundraisersPipeline /> },
+      { path: "store-events", element: <StoreEventsPipeline /> },
       { path: "b2b-partnerships", element: <B2BPartnerships /> },
       { path: "guest-bounce-back", element: <GuestBounceBack /> },
       { path: "campaigns", element: <Campaigns /> },

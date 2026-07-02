@@ -13,7 +13,8 @@ import {
   CheckSquare,
   BarChart3,
   Settings,
-  ShieldCheck
+  ShieldCheck,
+  Store
 } from "lucide-react";
 import { useEmployee } from "@/lib/EmployeeContext";
 
@@ -54,6 +55,10 @@ export function SidebarContent() {
         <NavLink to="/tuesday-fundraisers" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
           <PartyPopper className="w-4 h-4" />
           Tuesday Fundraisers
+        </NavLink>
+        <NavLink to="/store-events" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
+          <Store className="w-4 h-4" />
+          Store Events
         </NavLink>
         <NavLink to="/b2b-partnerships" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
           <Handshake className="w-4 h-4" />
