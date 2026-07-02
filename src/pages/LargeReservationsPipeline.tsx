@@ -85,6 +85,10 @@ export default function LargeReservationsPipeline() {
   // Edit state for sales
   const [salesInput, setSalesInput] = useState("");
 
+  // Inline edit state for staffing
+  const [isStaffEditMode, setIsStaffEditMode] = useState(false);
+  const [staffEditData, setStaffEditData] = useState({ needed: false, count: 0 });
+
   const fetchOrders = async () => {
     setIsLoading(true);
     const { data, error } = await supabase
@@ -178,6 +182,37 @@ export default function LargeReservationsPipeline() {
     setOrders(orders.map(o => o.id === viewingOrder.id ? { ...o, totalSales: sales } : o));
     setViewingOrder({ ...viewingOrder, totalSales: sales });
     toast({ title: "Saved", description: "Financials updated successfully." });
+  };
+
+  const handleSaveStaffing = async () => {
+    if (!viewingOrder) return;
+    setIsUpdating(true);
+
+    const { error } = await supabase
+      .from('large_reservations')
+      .update({
+        additional_staff_needed: staffEditData.needed,
+        additional_staff_count: staffEditData.count
+      })
+      .eq('id', viewingOrder.id);
+
+    setIsUpdating(false);
+
+    if (error) {
+      toast({ title: "Error", description: "Failed to update staffing details.", variant: "destructive" });
+      return;
+    }
+
+    const updatedOrder = {
+      ...viewingOrder,
+      additionalStaffNeeded: staffEditData.needed,
+      additionalStaffCount: staffEditData.count
+    };
+
+    setOrders(orders.map(o => o.id === viewingOrder.id ? updatedOrder : o));
+    setViewingOrder(updatedOrder);
+    setIsStaffEditMode(false);
+    toast({ title: "Updated", description: "Staffing details saved successfully." });
   };
 
   const handleUpdateReservation = async (e: React.FormEvent) => {
@@ -736,6 +771,7 @@ export default function LargeReservationsPipeline() {
         if (!open) {
           setViewingOrder(null);
           setIsEditMode(false);
+          setIsStaffEditMode(false);
         }
       }}>
         <SheetContent className="sm:max-w-md w-full overflow-y-auto border-l-0 shadow-2xl">
@@ -768,6 +804,7 @@ export default function LargeReservationsPipeline() {
                           additionalStaffCount: viewingOrder.additionalStaffCount
                         });
                         setIsEditMode(true);
+                        setIsStaffEditMode(false);
                       }}>
                         <Edit2 className="h-4 w-4 text-muted-foreground" />
                       </Button>
@@ -994,17 +1031,55 @@ export default function LargeReservationsPipeline() {
                       )}
 
                       <div className="space-y-3">
-                        <h3 className="text-sm font-semibold border-b pb-2">Internal Staffing</h3>
-                        <div className={`p-4 rounded-lg border text-sm ${viewingOrder.additionalStaffNeeded ? 'bg-primary/5 border-primary/20 text-primary' : 'bg-muted/30 text-muted-foreground'}`}>
-                          {viewingOrder.additionalStaffNeeded ? (
-                            <div className="flex justify-between font-medium">
-                              <span>Additional Staff Required:</span>
-                              <span>{viewingOrder.additionalStaffCount} Staff Member(s)</span>
-                            </div>
-                          ) : (
-                            <span>No additional staff required.</span>
+                        <div className="flex items-center justify-between border-b pb-2">
+                          <h3 className="text-sm font-semibold">Additional Staff?</h3>
+                          {!isStaffEditMode && (
+                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => {
+                              setStaffEditData({
+                                needed: viewingOrder.additionalStaffNeeded,
+                                count: viewingOrder.additionalStaffCount || 1
+                              });
+                              setIsStaffEditMode(true);
+                            }}>
+                              <Edit2 className="h-3 w-3 text-muted-foreground" />
+                            </Button>
                           )}
                         </div>
+                        
+                        {isStaffEditMode ? (
+                          <div className="p-4 rounded-lg border bg-muted/10 space-y-4">
+                            <div className="flex items-center justify-between">
+                              <Label className="font-semibold">Additional Staff Needed?</Label>
+                              <Switch 
+                                checked={staffEditData.needed} 
+                                onCheckedChange={(checked) => setStaffEditData({...staffEditData, needed: checked})}
+                              />
+                            </div>
+                            {staffEditData.needed && (
+                              <div className="space-y-2">
+                                <Label>How many additional staff?</Label>
+                                <Input type="number" min="1" value={staffEditData.count} onChange={(e) => setStaffEditData({...staffEditData, count: parseInt(e.target.value) || 0})} />
+                              </div>
+                            )}
+                            <div className="flex gap-2 justify-end pt-2">
+                              <Button type="button" variant="outline" size="sm" onClick={() => setIsStaffEditMode(false)}>Cancel</Button>
+                              <Button type="button" size="sm" disabled={isUpdating} onClick={handleSaveStaffing}>
+                                {isUpdating ? <Loader2 className="w-3 h-3 animate-spin" /> : "Save"}
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className={`p-4 rounded-lg border text-sm ${viewingOrder.additionalStaffNeeded ? 'bg-primary/5 border-primary/20 text-primary' : 'bg-muted/30 text-muted-foreground'}`}>
+                            {viewingOrder.additionalStaffNeeded ? (
+                              <div className="flex justify-between font-medium">
+                                <span>Additional Staff Required:</span>
+                                <span>{viewingOrder.additionalStaffCount} Staff Member(s)</span>
+                              </div>
+                            ) : (
+                              <span>No additional staff required.</span>
+                            )}
+                          </div>
+                        )}
                       </div>
 
                     </div>
