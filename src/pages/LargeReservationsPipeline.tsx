@@ -50,6 +50,18 @@ const parseSafeDate = (dateString: string) => {
   return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
 };
 
+// Convert 24h "14:30" to 12h "2:30 PM"
+const formatTime12Hour = (time24?: string) => {
+  if (!time24) return '';
+  const parts = time24.split(':');
+  if (parts.length < 2) return time24;
+  let h = parseInt(parts[0], 10);
+  const m = parts[1];
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  return `${h}:${m} ${ampm}`;
+};
+
 export default function LargeReservationsPipeline() {
   const { selectedLocationId } = useLocationContext();
   const { toast } = useToast();
@@ -153,8 +165,8 @@ export default function LargeReservationsPipeline() {
       o.organization || "",
       locations.find(l => l.id === o.locationId)?.name || "Unknown",
       format(parseSafeDate(o.eventDate), "yyyy-MM-dd"),
-      o.timeStart || "",
-      o.timeFinish || "",
+      formatTime12Hour(o.timeStart) || "",
+      formatTime12Hour(o.timeFinish) || "",
       o.guestCount,
       o.additionalStaffNeeded ? "Yes" : "No",
       o.additionalStaffCount || 0,
@@ -750,7 +762,7 @@ export default function LargeReservationsPipeline() {
                   <div key={order.id} className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-muted/10 transition-colors">
                     <div className="col-span-2">
                       <div className="font-semibold text-sm">{format(parseSafeDate(order.eventDate), "EEEE, MMMM d, yyyy")}</div>
-                      <div className="text-xs text-muted-foreground mt-0.5">{order.timeStart || 'TBD'} - {order.timeFinish || 'TBD'}</div>
+                      <div className="text-xs text-muted-foreground mt-0.5">{formatTime12Hour(order.timeStart) || 'TBD'} - {formatTime12Hour(order.timeFinish) || 'TBD'}</div>
                     </div>
                     <div className="col-span-2 min-w-0">
                       <div className="font-medium text-sm truncate">{order.name}</div>
@@ -834,7 +846,7 @@ export default function LargeReservationsPipeline() {
                   {(order.timeStart || order.timeFinish) && (
                     <div className="flex items-center text-sm text-muted-foreground">
                       <CalendarDays className="w-4 h-4 mr-2 shrink-0 text-foreground/40" />
-                      <span className="truncate">{order.timeStart} {order.timeFinish ? `- ${order.timeFinish}` : ''}</span>
+                      <span className="truncate">{formatTime12Hour(order.timeStart)} {order.timeFinish ? `- ${formatTime12Hour(order.timeFinish)}` : ''}</span>
                     </div>
                   )}
                 </div>
@@ -1093,7 +1105,7 @@ export default function LargeReservationsPipeline() {
                            <div>
                              <Label className="text-xs text-muted-foreground block">Time</Label>
                              <div className="text-sm font-medium">
-                               {viewingOrder.timeStart || 'TBD'} - {viewingOrder.timeFinish || 'TBD'}
+                               {formatTime12Hour(viewingOrder.timeStart) || 'TBD'} - {formatTime12Hour(viewingOrder.timeFinish) || 'TBD'}
                              </div>
                            </div>
                            <div>
