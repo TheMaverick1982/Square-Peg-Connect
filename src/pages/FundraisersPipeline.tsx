@@ -800,6 +800,11 @@ export default function FundraisersPipeline() {
                     <Input required value={editFormData.address} onChange={(e) => setEditFormData({...editFormData, address: e.target.value})} />
                   </div>
 
+                  <div className="space-y-2">
+                    <Label>Notes & Special Requests</Label>
+                    <Input placeholder="Any details for this event" value={editFormData.notes || ""} onChange={(e) => setEditFormData({...editFormData, notes: e.target.value})} />
+                  </div>
+
                   <div className="grid gap-4">
                     <div className="space-y-2">
                       <Label>Location</Label>
