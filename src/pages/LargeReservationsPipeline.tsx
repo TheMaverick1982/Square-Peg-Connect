@@ -635,7 +635,7 @@ export default function LargeReservationsPipeline() {
                 sortedOrders.map(order => (
                   <div key={order.id} className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-muted/10 transition-colors">
                     <div className="col-span-2">
-                      <div className="font-semibold text-sm">{format(parseSafeDate(order.eventDate), "EEE, MMM d")}</div>
+                      <div className="font-semibold text-sm">{format(parseSafeDate(order.eventDate), "EEEE, MMMM d, yyyy")}</div>
                       <div className="text-xs text-muted-foreground mt-0.5">{order.timeStart || 'TBD'} - {order.timeFinish || 'TBD'}</div>
                     </div>
                     <div className="col-span-2 min-w-0">
@@ -695,7 +695,7 @@ export default function LargeReservationsPipeline() {
                   </div>
                   <div className="text-xs font-medium bg-muted px-2 py-1 rounded-md flex items-center gap-1.5 text-muted-foreground">
                     <CalendarIcon className="w-3.5 h-3.5" />
-                    {format(parseSafeDate(order.eventDate), "EEE, MMM d")}
+                    {format(parseSafeDate(order.eventDate), "EEEE, MMMM d, yyyy")}
                   </div>
                 </div>
 
