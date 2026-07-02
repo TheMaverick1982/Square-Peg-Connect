@@ -20,7 +20,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Calendar } from "@/components/ui/calendar";
 import { useToast } from "@/hooks/use-toast";
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, isToday } from "date-fns";
-import { Search, Filter, Calendar as CalendarIcon, MapPin, Link as LinkIcon, DollarSign, Building, Phone, Mail, Plus, ChevronLeft, ChevronRight, LayoutList, CalendarDays, Edit2, Trash2, Users, Loader2, FileText } from "lucide-react";
+import { Search, Filter, Calendar as CalendarIcon, MapPin, Link as LinkIcon, DollarSign, Building, Phone, Mail, Plus, ChevronLeft, ChevronRight, LayoutList, CalendarDays, Edit2, Trash2, Users, Loader2, FileText, Download, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface LargeReservationOrder {
@@ -89,6 +89,8 @@ export default function LargeReservationsPipeline() {
   const [isStaffEditMode, setIsStaffEditMode] = useState(false);
   const [staffEditData, setStaffEditData] = useState({ needed: false, count: 0 });
 
+  const [isSendingDetails, setIsSendingDetails] = useState(false);
+
   const fetchOrders = async () => {
     setIsLoading(true);
     const { data, error } = await supabase
@@ -127,6 +129,79 @@ export default function LargeReservationsPipeline() {
   useEffect(() => {
     fetchOrders();
   }, []);
+
+  const handleExportCSV = () => {
+    const headers = [
+      "Client Name", 
+      "Organization", 
+      "Location", 
+      "Event Date", 
+      "Start Time", 
+      "End Time", 
+      "Guest Count", 
+      "Additional Staff Needed", 
+      "Additional Staff Count", 
+      "Email", 
+      "Phone", 
+      "Notes", 
+      "Status",
+      "Created At"
+    ];
+    
+    const rows = sortedOrders.map(o => [
+      o.name,
+      o.organization || "",
+      locations.find(l => l.id === o.locationId)?.name || "Unknown",
+      format(parseSafeDate(o.eventDate), "yyyy-MM-dd"),
+      o.timeStart || "",
+      o.timeFinish || "",
+      o.guestCount,
+      o.additionalStaffNeeded ? "Yes" : "No",
+      o.additionalStaffCount || 0,
+      o.email || "",
+      o.phone || "",
+      o.notes || "",
+      o.status,
+      format(new Date(o.createdAt), "yyyy-MM-dd")
+    ]);
+    
+    const csvContent = [
+      headers.join(","),
+      ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(","))
+    ].join("\n");
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `large-reservations-${format(new Date(), 'yyyy-MM-dd')}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleEmailDetailsToLocation = async () => {
+    if (!viewingOrder) return;
+    setIsSendingDetails(true);
+
+    const location = locations.find(l => l.id === viewingOrder.locationId) || locations[0];
+
+    const { data, error } = await supabase.functions.invoke('send-large-reservation-details', {
+      body: {
+        order: viewingOrder,
+        location
+      }
+    });
+
+    setIsSendingDetails(false);
+
+    if (error || data?.error) {
+      toast({ title: "Email Failed", description: data?.error || error?.message, variant: "destructive" });
+      return;
+    }
+
+    toast({ title: "Details Sent!", description: `Reservation details have been emailed to ${location.name}.` });
+  };
 
   const handleCopyLink = () => {
     // Dynamically extract the base path from the current URL to ensure it works
@@ -561,6 +636,10 @@ export default function LargeReservationsPipeline() {
         </div>
         
         <div className="flex items-center gap-2">
+          <Button variant="outline" className="gap-2 shadow-sm" onClick={handleExportCSV}>
+            <Download className="w-4 h-4" />
+            Export CSV
+          </Button>
           <Button variant="outline" className="gap-2 shadow-sm" onClick={handleCopyLink}>
             <LinkIcon className="w-4 h-4" />
             Copy Booking Link
@@ -746,6 +825,12 @@ export default function LargeReservationsPipeline() {
                     <Users className="w-4 h-4 mr-2 shrink-0 text-foreground/40" />
                     <span className="truncate">{order.guestCount} Guests</span>
                   </div>
+                  {order.additionalStaffNeeded && (
+                    <div className="flex items-center text-sm text-primary font-medium">
+                      <Users className="w-4 h-4 mr-2 shrink-0 opacity-70" />
+                      <span className="truncate">{order.additionalStaffCount} Extra Staff Needed</span>
+                    </div>
+                  )}
                   {(order.timeStart || order.timeFinish) && (
                     <div className="flex items-center text-sm text-muted-foreground">
                       <CalendarDays className="w-4 h-4 mr-2 shrink-0 text-foreground/40" />
@@ -788,6 +873,9 @@ export default function LargeReservationsPipeline() {
                       </SheetDescription>
                     </div>
                     <div className="flex gap-2 ml-4 shrink-0">
+                      <Button variant="outline" size="icon" title="Email Details to Store" disabled={isSendingDetails} onClick={handleEmailDetailsToLocation}>
+                        {isSendingDetails ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /> : <Send className="h-4 w-4 text-muted-foreground" />}
+                      </Button>
                       <Button variant="outline" size="icon" onClick={() => {
                         setEditFormData({
                           name: viewingOrder.name,
