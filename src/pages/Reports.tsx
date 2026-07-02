@@ -219,9 +219,44 @@ export default function Reports() {
 
   return (
     <div className="flex flex-col h-full space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Reports & Analytics</h1>
-        <p className="text-muted-foreground mt-1">System-wide performance metrics and pipeline health.</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Reports & Analytics</h1>
+          <p className="text-muted-foreground mt-1">System-wide performance metrics and pipeline health.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className={cn("w-[280px] justify-start text-left font-normal", !dateRange?.from && "text-muted-foreground")}>
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {dateRange?.from ? (
+                  dateRange.to ? (
+                    <>
+                      {format(dateRange.from, "LLL dd, y")} - {format(dateRange.to, "LLL dd, y")}
+                    </>
+                  ) : (
+                    format(dateRange.from, "LLL dd, y")
+                  )
+                ) : (
+                  <span>All time</span>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="end">
+              <Calendar
+                initialFocus
+                mode="range"
+                defaultMonth={dateRange?.from}
+                selected={{ from: dateRange?.from, to: dateRange?.to }}
+                onSelect={(range) => setDateRange(range as DateRange)}
+                numberOfMonths={2}
+              />
+              <div className="p-3 border-t flex justify-end">
+                <Button variant="ghost" size="sm" onClick={() => setDateRange(undefined)}>Clear Filter</Button>
+              </div>
+            </PopoverContent>
+          </Popover>
+        </div>
       </div>
 
       {isLoading ? (
