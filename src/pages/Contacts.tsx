@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Search, Mail, Phone, Users, Calendar as CalendarIcon, MapPin, Building, UtensilsCrossed, PartyPopper, Handshake, UserCheck, Plus, CheckCircle2, Circle, Clock } from "lucide-react";
+import { Search, Mail, Phone, Users, Calendar as CalendarIcon, MapPin, Building, UtensilsCrossed, PartyPopper, Handshake, UserCheck, Plus, CheckCircle2, Circle, Clock, ChevronLeft, ChevronRight } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useLocationContext } from "@/lib/LocationContext";
 import { locations } from "@/lib/data";
@@ -25,9 +25,16 @@ export default function Contacts() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 25;
   const [selectedContact, setSelectedContact] = useState<UnifiedContact | null>(null);
 
   const { data: contacts = [], isLoading } = useUnifiedContacts(selectedLocationId);
+
+  // Reset to page 1 when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
 
   // Reminders for selected contact
   const { data: contactReminders = [] } = useQuery({
@@ -107,6 +114,29 @@ export default function Contacts() {
     c.organization.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const totalPages = Math.ceil(filteredContacts.length / ITEMS_PER_PAGE);
+  const paginatedContacts = filteredContacts.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
+  // Generate page numbers for pagination
+  const getPageNumbers = () => {
+    const pages = [];
+    if (totalPages <= 5) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      if (currentPage <= 3) {
+        pages.push(1, 2, 3, 4, '...', totalPages);
+      } else if (currentPage >= totalPages - 2) {
+        pages.push(1, '...', totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
+      } else {
+        pages.push(1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages);
+      }
+    }
+    return pages;
+  };
+
   const getSourceIcon = (source: SourceTag) => {
     switch (source) {
       case "B2B": return <Handshake className="w-3 h-3 mr-1" />;
@@ -168,49 +198,93 @@ export default function Contacts() {
                 <p className="text-sm">We couldn't find any contacts matching your search.</p>
               </div>
             ) : (
-              filteredContacts.map(contact => (
-                <div 
-                  key={contact.id}
-                  onClick={() => setSelectedContact(contact)}
-                  className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-muted/30 transition-colors cursor-pointer"
-                >
-                  <div className="col-span-4">
-                    <div className="font-semibold text-sm text-foreground">{contact.name}</div>
-                    {contact.organization && (
-                      <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
-                        <Building className="w-3 h-3" />
-                        {contact.organization}
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div className="col-span-3 text-sm text-muted-foreground space-y-1">
-                    {contact.email && (
-                      <div className="flex items-center gap-1.5 line-clamp-1 text-xs">
-                        <Mail className="w-3 h-3 shrink-0" /> {contact.email}
-                      </div>
-                    )}
-                    {contact.phone && (
-                      <div className="flex items-center gap-1.5 text-xs">
-                        <Phone className="w-3 h-3 shrink-0" /> {contact.phone}
-                      </div>
-                    )}
-                  </div>
+              <>
+                {paginatedContacts.map(contact => (
+                  <div 
+                    key={contact.id}
+                    onClick={() => setSelectedContact(contact)}
+                    className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-muted/30 transition-colors cursor-pointer"
+                  >
+                    <div className="col-span-4">
+                      <div className="font-semibold text-sm text-foreground">{contact.name}</div>
+                      {contact.organization && (
+                        <div className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
+                          <Building className="w-3 h-3" />
+                          {contact.organization}
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="col-span-3 text-sm text-muted-foreground space-y-1">
+                      {contact.email && (
+                        <div className="flex items-center gap-1.5 line-clamp-1 text-xs">
+                          <Mail className="w-3 h-3 shrink-0" /> {contact.email}
+                        </div>
+                      )}
+                      {contact.phone && (
+                        <div className="flex items-center gap-1.5 text-xs">
+                          <Phone className="w-3 h-3 shrink-0" /> {contact.phone}
+                        </div>
+                      )}
+                    </div>
 
-                  <div className="col-span-2 text-sm text-muted-foreground flex items-center gap-1.5">
-                    <MapPin className="w-3 h-3" />
-                    <span className="line-clamp-1">{locations.find(l => l.id === contact.location_id)?.name || "Unknown"}</span>
-                  </div>
+                    <div className="col-span-2 text-sm text-muted-foreground flex items-center gap-1.5">
+                      <MapPin className="w-3 h-3" />
+                      <span className="line-clamp-1">{locations.find(l => l.id === contact.location_id)?.name || "Unknown"}</span>
+                    </div>
 
-                  <div className="col-span-3 flex flex-wrap gap-1.5">
-                    {contact.sources.map(src => (
-                      <Badge key={src} variant="outline" className={`font-normal ${getSourceColor(src)}`}>
-                        {getSourceIcon(src)} {src}
-                      </Badge>
-                    ))}
+                    <div className="col-span-3 flex flex-wrap gap-1.5">
+                      {contact.sources.map(src => (
+                        <Badge key={src} variant="outline" className={`font-normal ${getSourceColor(src)}`}>
+                          {getSourceIcon(src)} {src}
+                        </Badge>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ))
+                ))}
+                
+                {totalPages > 1 && (
+                  <div className="p-4 border-t flex items-center justify-between bg-muted/10 sticky bottom-0">
+                    <div className="text-xs text-muted-foreground">
+                      Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1} to {Math.min(currentPage * ITEMS_PER_PAGE, filteredContacts.length)} of {filteredContacts.length} contacts
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                        disabled={currentPage === 1}
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                      </Button>
+                      
+                      {getPageNumbers().map((pageNum, idx) => (
+                        <Button
+                          key={idx}
+                          variant={pageNum === currentPage ? "default" : "outline"}
+                          size="icon"
+                          className={`h-8 w-8 ${pageNum === '...' ? 'cursor-default hover:bg-transparent border-transparent' : ''}`}
+                          onClick={() => typeof pageNum === 'number' && setCurrentPage(pageNum)}
+                          disabled={pageNum === '...'}
+                        >
+                          {pageNum}
+                        </Button>
+                      ))}
+
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                        disabled={currentPage === totalPages}
+                      >
+                        <ChevronRight className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
