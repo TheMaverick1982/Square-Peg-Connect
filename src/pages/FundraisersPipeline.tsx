@@ -20,6 +20,7 @@ import { useToast } from "@/hooks/use-toast";
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, isToday, isTuesday } from "date-fns";
 import { Search, Filter, Calendar as CalendarIcon, MapPin, Link as LinkIcon, DollarSign, Building, Phone, Mail, FileText, Plus, ChevronLeft, ChevronRight, LayoutList, CalendarDays, ArrowDownUp, Loader2, Edit2, Trash2, History } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { FundraiserCsvImporter } from "@/components/FundraiserCsvImporter";
 
 export interface FundraiserOrder {
   id: string;
@@ -71,7 +72,7 @@ export default function FundraisersPipeline() {
   const [isAdding, setIsAdding] = useState(false);
   
   const [addFormData, setAddFormData] = useState({
-    name: "", email: "", phone: "", address: "", organization: "", payableTo: "", locationId: ""
+    name: "", email: "", phone: "", address: "", organization: "", payableTo: "", notes: "", locationId: ""
   });
   const [addFormDate, setAddFormDate] = useState<Date | undefined>(undefined);
 
@@ -275,6 +276,7 @@ export default function FundraisersPipeline() {
       address: addFormData.address,
       organization: addFormData.organization,
       payable_to: addFormData.payableTo,
+      notes: addFormData.notes,
       location: loc,
       event_date: formattedDate,
       status: 'Confirmed'
@@ -302,7 +304,7 @@ export default function FundraisersPipeline() {
         createdAt: data.created_at,
       }].sort((a, b) => parseSafeDate(a.eventDate).getTime() - parseSafeDate(b.eventDate).getTime()));
       setIsAddSheetOpen(false);
-      setAddFormData({ name: "", email: "", phone: "", address: "", organization: "", payableTo: "", locationId: "" });
+      setAddFormData({ name: "", email: "", phone: "", address: "", organization: "", payableTo: "", notes: "", locationId: "" });
       setAddFormDate(undefined);
     }
   };
@@ -542,6 +544,7 @@ export default function FundraisersPipeline() {
             <LinkIcon className="w-4 h-4" />
             Copy Booking Link
           </Button>
+          <FundraiserCsvImporter onImportSuccess={fetchOrders} />
           <Button className="gap-2 shadow-sm" onClick={() => setIsAddSheetOpen(true)}>
             <Plus className="w-4 h-4" />
             New Fundraiser
@@ -926,6 +929,45 @@ export default function FundraisersPipeline() {
                   </div>
                 </div>
 
+                {/* Past Activity */}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-semibold border-b pb-2 flex items-center gap-2">
+                    <History className="w-4 h-4 text-muted-foreground" />
+                    Past Activity for {viewingOrder.organization}
+                  </h3>
+                  <div className="space-y-3">
+                    {orders
+                      .filter(o => o.organization === viewingOrder.organization && o.id !== viewingOrder.id)
+                      .sort((a, b) => new Date(b.eventDate).getTime() - new Date(a.eventDate).getTime())
+                      .map(pastEvent => (
+                        <div key={pastEvent.id} className="bg-muted/10 p-3 rounded-lg border text-sm flex justify-between items-center">
+                          <div>
+                            <div className="font-medium">{format(parseSafeDate(pastEvent.eventDate), "MMM d, yyyy")}</div>
+                            <div className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                              <MapPin className="w-3 h-3" />
+                              {locations.find(l => l.id === pastEvent.locationId)?.name || 'Unknown Location'}
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            {pastEvent.status === "Completed" ? (
+                              <>
+                                <div className="font-semibold text-primary">${pastEvent.totalDonated.toLocaleString(undefined, { minimumFractionDigits: 2 })} Donated</div>
+                                <div className="text-xs text-muted-foreground">${pastEvent.totalSales.toLocaleString(undefined, { minimumFractionDigits: 2 })} Sales</div>
+                              </>
+                            ) : (
+                              <div className="text-muted-foreground italic text-xs">{pastEvent.status}</div>
+                            )}
+                          </div>
+                        </div>
+                    ))}
+                    {orders.filter(o => o.organization === viewingOrder.organization && o.id !== viewingOrder.id).length === 0 && (
+                      <div className="text-sm text-muted-foreground italic bg-muted/10 p-4 rounded-lg border text-center">
+                        No previous activity found.
+                      </div>
+                    )}
+                  </div>
+                </div>
+
                 {/* Email Confirmation Action */}
                 <div className="bg-muted/30 p-4 rounded-lg border">
                   <div className="text-center space-y-3">
@@ -1012,7 +1054,8 @@ export default function FundraisersPipeline() {
                       name: existing.name,
                       email: existing.email,
                       phone: existing.phone,
-                      address: existing.address
+                      address: existing.address,
+                      notes: existing.notes || "",
                     });
                   }
                 }}>
@@ -1062,6 +1105,11 @@ export default function FundraisersPipeline() {
             <div className="space-y-2">
               <Label>Mailing Address</Label>
               <Input required value={addFormData.address} onChange={(e) => setAddFormData({...addFormData, address: e.target.value})} />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Notes & Special Requests</Label>
+              <Input placeholder="Any details for this event" value={addFormData.notes} onChange={(e) => setAddFormData({...addFormData, notes: e.target.value})} />
             </div>
 
             <div className="grid gap-4">
