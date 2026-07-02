@@ -3,16 +3,40 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useLocationContext } from "@/lib/LocationContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { DollarSign, Users, Briefcase, CalendarDays, BarChart3, Target, UtensilsCrossed, PartyPopper } from "lucide-react";
+import { DollarSign, Users, Briefcase, CalendarDays, BarChart3, Target, UtensilsCrossed, PartyPopper, Calendar as CalendarIcon } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { ChartContainer, ChartTooltipContent, ChartTooltip } from "@/components/ui/chart";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, startOfDay, endOfDay } from "date-fns";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+
+type DateRange = {
+  from: Date | undefined;
+  to?: Date | undefined;
+};
+
+const isDateInRange = (dateStr: string | null | undefined, range: DateRange | undefined) => {
+  if (!dateStr) return false;
+  if (!range?.from && !range?.to) return true;
+  const d = parseISO(dateStr);
+  
+  const from = range.from ? startOfDay(range.from) : undefined;
+  const to = range.to ? endOfDay(range.to) : undefined;
+
+  if (from && to) return d >= from && d <= to;
+  if (from) return d >= from;
+  if (to) return d <= to;
+  return true;
+};
 
 export default function Reports() {
   const { selectedLocationId } = useLocationContext();
+  const [dateRange, setDateRange] = useState<DateRange | undefined>();
 
   // Fetch all necessary data
-  const { data: b2bActivities = [], isLoading: isLoadingB2B } = useQuery({
+  const { data: rawB2bActivities = [], isLoading: isLoadingB2B } = useQuery({
     queryKey: ['b2b_activities_report', selectedLocationId],
     queryFn: async () => {
       let query = supabase.from('b2b_activities').select('*, contact:b2b_contacts(*)');
@@ -37,7 +61,7 @@ export default function Reports() {
     }
   });
 
-  const { data: catering = [], isLoading: isLoadingCatering } = useQuery({
+  const { data: rawCatering = [], isLoading: isLoadingCatering } = useQuery({
     queryKey: ['catering_report', selectedLocationId],
     queryFn: async () => {
       let query = supabase.from('catering_requests').select('*');
@@ -48,7 +72,7 @@ export default function Reports() {
     }
   });
 
-  const { data: fundraisers = [], isLoading: isLoadingFundraisers } = useQuery({
+  const { data: rawFundraisers = [], isLoading: isLoadingFundraisers } = useQuery({
     queryKey: ['fundraisers_report', selectedLocationId],
     queryFn: async () => {
       let query = supabase.from('fundraisers').select('*');
@@ -59,7 +83,7 @@ export default function Reports() {
     }
   });
 
-  const { data: guestBounceBacks = [], isLoading: isLoadingGBB } = useQuery({
+  const { data: rawGuestBounceBacks = [], isLoading: isLoadingGBB } = useQuery({
     queryKey: ['gbb_report', selectedLocationId],
     queryFn: async () => {
       let query = supabase.from('guest_bounce_backs').select('*');
@@ -70,7 +94,7 @@ export default function Reports() {
     }
   });
 
-  const { data: tasks = [], isLoading: isLoadingTasks } = useQuery({
+  const { data: rawTasks = [], isLoading: isLoadingTasks } = useQuery({
     queryKey: ['tasks_report', selectedLocationId],
     queryFn: async () => {
       let query = supabase.from('reminders').select('*');
@@ -83,12 +107,21 @@ export default function Reports() {
 
   const isLoading = isLoadingB2B || isLoadingCatering || isLoadingFundraisers || isLoadingGBB || isLoadingTasks;
 
-  // Filter B2B activities based on the selected location's contacts
+  // Apply date filters
+  const catering = useMemo(() => rawCatering.filter((c: any) => isDateInRange(c.event_date || c.created_at, dateRange)), [rawCatering, dateRange]);
+  const fundraisers = useMemo(() => rawFundraisers.filter((f: any) => isDateInRange(f.event_date || f.created_at, dateRange)), [rawFundraisers, dateRange]);
+  const guestBounceBacks = useMemo(() => rawGuestBounceBacks.filter((g: any) => isDateInRange(g.created_at, dateRange)), [rawGuestBounceBacks, dateRange]);
+  const tasks = useMemo(() => rawTasks.filter((t: any) => isDateInRange(t.due_date || t.created_at, dateRange)), [rawTasks, dateRange]);
+
+  // Filter B2B activities based on the selected location's contacts AND date
   const filteredB2BActivities = useMemo(() => {
-    if (!selectedLocationId) return b2bActivities;
-    const allowedContactIds = new Set(b2bContacts.map(c => c.id));
-    return b2bActivities.filter(a => allowedContactIds.has(a.contact_id));
-  }, [b2bActivities, b2bContacts, selectedLocationId]);
+    let activities = rawB2bActivities;
+    if (selectedLocationId) {
+      const allowedContactIds = new Set(b2bContacts.map(c => c.id));
+      activities = activities.filter(a => allowedContactIds.has(a.contact_id));
+    }
+    return activities.filter(a => isDateInRange(a.activity_date, dateRange));
+  }, [rawB2bActivities, b2bContacts, selectedLocationId, dateRange]);
 
   // Aggregate Metrics
   const metrics = useMemo(() => {
