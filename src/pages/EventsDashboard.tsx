@@ -43,11 +43,13 @@ export default function EventsDashboard() {
     mutationFn: async (eventToDelete: Event) => {
       // 1. Send notification before deleting
       if (eventToDelete.notify_emails) {
-        const { error: fnError } = await supabase.functions.invoke('notify-event', {
+        const { error: fnError, data: fnData } = await supabase.functions.invoke('notify-event', {
           body: { event: eventToDelete, action: 'deleted' }
         });
         if (fnError) {
           console.error("Failed to send delete notification:", fnError);
+        } else if (fnData?.error) {
+          throw new Error(fnData.error);
         }
       }
       
@@ -60,7 +62,16 @@ export default function EventsDashboard() {
       toast({ title: "Entertainment deleted successfully." });
     },
     onError: (error) => {
-      toast({ title: "Failed to delete entertainment", description: error.message, variant: "destructive" });
+      if (error.message.includes("RESEND_API_KEY")) {
+        toast({ 
+          title: "Setup Required", 
+          description: error.message, 
+          duration: 8000, 
+          variant: "destructive" 
+        });
+      } else {
+        toast({ title: "Failed to delete entertainment", description: error.message, variant: "destructive" });
+      }
     }
   });
   
