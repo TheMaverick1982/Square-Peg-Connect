@@ -130,6 +130,21 @@ export default function B2BPartnerships() {
     }
   });
 
+  const { data: actualFundraisers = [], isLoading: loadingFundraisers } = useQuery({
+    queryKey: ['b2b_actual_fundraisers', selectedLocationId],
+    queryFn: async () => {
+      let query = supabase.from('fundraisers').select('id, event_date, location');
+      if (selectedLocationId) {
+        query = query.eq('location', selectedLocationId);
+      }
+      const { data, error } = await query;
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  const isLoading = loadingContacts || loadingActivities || loadingFundraisers;
+
   // Mutations
   const createContact = useMutation({
     mutationFn: async (newContact: any) => {
@@ -226,8 +241,18 @@ export default function B2BPartnerships() {
 
     const yearlyRevenue = currentYearActivities.reduce((sum, act) => sum + (act.revenue || 0), 0);
 
-    const monthlyFundraisers = currentMonthActivities.filter(act => act.activity_type === "Fundraiser").length;
     const monthlyEvents = currentMonthActivities.filter(act => act.activity_type !== "Fundraiser").length;
+
+    // Actual fundraisers from the Tuesday Fundraisers pipeline (filtered by location already)
+    const actualMonthlyFundraisers = actualFundraisers.filter(f => {
+      if (!f.event_date) return false;
+      // Handle the yyyy-MM-dd cleanly
+      const dateParts = f.event_date.split('-');
+      if (dateParts.length !== 3) return false;
+      const fMonth = parseInt(dateParts[1], 10) - 1; // 0-indexed
+      const fYear = parseInt(dateParts[0], 10);
+      return fMonth === currentMonth && fYear === currentYear;
+    }).length;
 
     const connectionsRemaining = Math.max(0, quarterlyTarget - activeContacts.length);
 
@@ -238,10 +263,10 @@ export default function B2BPartnerships() {
       connectionsRemaining,
       activeConnectionsCount: activeContacts.length,
       monthlyEvents,
-      monthlyFundraisers,
+      monthlyFundraisers: actualMonthlyFundraisers,
       yearlyRevenue
     };
-  }, [contacts, activities]);
+  }, [contacts, activities, actualFundraisers]);
 
   const viewingContact = contacts.find(c => c.id === viewingContactId) || null;
   const viewingContactActivities = activities.filter(a => a.contact_id === viewingContactId);
