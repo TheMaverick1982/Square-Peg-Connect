@@ -9,12 +9,13 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger, SheetFooter, SheetClose } from "@/components/ui/sheet";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { AlertCircle, Handshake, Plus, Activity, Search, MapPin, Building2, Phone, Mail, Calendar, Target, CheckCircle2, Eye, User, Edit2, DollarSign } from "lucide-react";
+import { AlertCircle, Handshake, Plus, Activity, Search, MapPin, Building2, Phone, Mail, Calendar, Target, CheckCircle2, Eye, User, Edit2, DollarSign, Trash2 } from "lucide-react";
 
 // --- Constants ---
 const CATEGORIES: Record<string, string[]> = {
@@ -208,6 +209,19 @@ export default function B2BPartnerships() {
       toast({ title: "Activity Updated", description: "The activity details have been updated." });
     },
     onError: () => toast({ title: "Error", description: "Failed to update activity.", variant: "destructive" })
+  });
+
+  const deleteContact = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('b2b_contacts').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['b2b_contacts'] });
+      queryClient.invalidateQueries({ queryKey: ['b2b_activities'] });
+      toast({ title: "Contact Deleted", description: "The contact has been removed." });
+    },
+    onError: () => toast({ title: "Error", description: "Failed to delete contact.", variant: "destructive" })
   });
 
   // Derived KPI Calculations
@@ -719,10 +733,34 @@ export default function B2BPartnerships() {
                             )}
                           </div>
 
-                          <div className="col-span-1 flex justify-end">
+                          <div className="col-span-1 flex justify-end items-center gap-1">
                             <Button variant="ghost" size="icon" onClick={() => setViewingContactId(contact.id)}>
                               <Eye className="w-4 h-4 text-muted-foreground hover:text-foreground" />
                             </Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
+                                  <Trash2 className="w-4 h-4 text-muted-foreground hover:text-destructive" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    This will permanently delete {contact.organization_name} and all of their logged activities. This action cannot be undone.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction 
+                                    onClick={() => deleteContact.mutate(contact.id)}
+                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                  >
+                                    Delete Contact
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
                           </div>
                         </div>
                       );
