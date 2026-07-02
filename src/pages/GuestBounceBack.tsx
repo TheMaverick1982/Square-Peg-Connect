@@ -322,8 +322,8 @@ export default function GuestBounceBack() {
               <div className="col-span-3">Guest</div>
               <div className="col-span-3">Contact Info</div>
               <div className="col-span-2">Current Stage</div>
-              <div className="col-span-3">Latest Incentive</div>
-              <div className="col-span-1 text-right">Actions</div>
+              <div className="col-span-2">Latest Incentive</div>
+              <div className="col-span-2 text-right">Actions</div>
             </div>
 
             <div className="flex-1 overflow-y-auto divide-y min-w-[800px]">
@@ -378,7 +378,7 @@ export default function GuestBounceBack() {
                         </div>
                       </div>
 
-                      <div className="col-span-3 text-sm text-muted-foreground truncate" title={latestIncentive}>
+                      <div className="col-span-2 text-sm text-muted-foreground truncate" title={latestIncentive}>
                         {latestIncentive ? (
                           <div className="flex items-center gap-1.5">
                             <Gift className="w-3 h-3 text-amber-500 shrink-0" />
@@ -389,8 +389,11 @@ export default function GuestBounceBack() {
                         )}
                       </div>
 
-                      <div className="col-span-1 flex justify-end">
-                        <Button variant="ghost" size="icon" onClick={() => openEditGuestSheet(guest)}>
+                      <div className="col-span-2 flex justify-end items-center gap-1">
+                        <Button variant="outline" size="sm" className="h-8 px-2.5 text-xs shadow-sm bg-background" onClick={() => openEditGuestSheet(guest)}>
+                          <Plus className="w-3 h-3 mr-1" /> Log Visit
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => openEditGuestSheet(guest)}>
                           <Edit2 className="w-4 h-4 text-muted-foreground hover:text-foreground" />
                         </Button>
                       </div>
