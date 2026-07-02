@@ -20,7 +20,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Calendar } from "@/components/ui/calendar";
 import { useToast } from "@/hooks/use-toast";
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, isToday } from "date-fns";
-import { Search, Filter, Calendar as CalendarIcon, MapPin, DollarSign, Building, Phone, Mail, Plus, ChevronLeft, ChevronRight, LayoutList, CalendarDays, Edit2, Trash2, Users, Loader2, FileText } from "lucide-react";
+import { Search, Filter, Calendar as CalendarIcon, MapPin, Link as LinkIcon, DollarSign, Building, Phone, Mail, Plus, ChevronLeft, ChevronRight, LayoutList, CalendarDays, Edit2, Trash2, Users, Loader2, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface LargeReservationOrder {
@@ -123,6 +123,18 @@ export default function LargeReservationsPipeline() {
   useEffect(() => {
     fetchOrders();
   }, []);
+
+  const handleCopyLink = () => {
+    // Dynamically extract the base path from the current URL to ensure it works
+    // correctly through the Vibe proxy sandbox without stripping the UUIDs.
+    const basePath = window.location.pathname.replace(/\/large-reservations$/, '');
+    const url = `${window.location.origin}${basePath}/public/large-reservations`;
+    navigator.clipboard.writeText(url);
+    toast({
+      title: "Link Copied",
+      description: "Public reservation booking link copied to clipboard.",
+    });
+  };
 
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
     const { error } = await supabase
@@ -514,6 +526,10 @@ export default function LargeReservationsPipeline() {
         </div>
         
         <div className="flex items-center gap-2">
+          <Button variant="outline" className="gap-2 shadow-sm" onClick={handleCopyLink}>
+            <LinkIcon className="w-4 h-4" />
+            Copy Booking Link
+          </Button>
           <Button className="gap-2 shadow-sm" onClick={() => setIsAddSheetOpen(true)}>
             <Plus className="w-4 h-4" />
             New Reservation

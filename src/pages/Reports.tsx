@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useLocationContext } from "@/lib/LocationContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { DollarSign, Users, Briefcase, CalendarDays, BarChart3, Target, UtensilsCrossed, PartyPopper, Calendar as CalendarIcon, Store } from "lucide-react";
+import { DollarSign, Users, Briefcase, CalendarDays, BarChart3, Target, UtensilsCrossed, PartyPopper, Calendar as CalendarIcon, Store, Contact } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { ChartContainer, ChartTooltipContent, ChartTooltip } from "@/components/ui/chart";
 import { format, parseISO, startOfDay, endOfDay } from "date-fns";
@@ -94,6 +94,17 @@ export default function Reports() {
     }
   });
 
+  const { data: rawLargeReservations = [], isLoading: isLoadingLargeReservations } = useQuery({
+    queryKey: ['large_reservations_report', selectedLocationId],
+    queryFn: async () => {
+      let query = supabase.from('large_reservations').select('*').is('deleted_at', null);
+      if (selectedLocationId) query = query.eq('location', selectedLocationId);
+      const { data, error } = await query;
+      if (error) throw error;
+      return data || [];
+    }
+  });
+
   const { data: rawGuestBounceBacks = [], isLoading: isLoadingGBB } = useQuery({
     queryKey: ['gbb_report', selectedLocationId],
     queryFn: async () => {
@@ -116,12 +127,13 @@ export default function Reports() {
     }
   });
 
-  const isLoading = isLoadingB2B || isLoadingCatering || isLoadingFundraisers || isLoadingStoreEvents || isLoadingGBB || isLoadingTasks;
+  const isLoading = isLoadingB2B || isLoadingCatering || isLoadingFundraisers || isLoadingStoreEvents || isLoadingLargeReservations || isLoadingGBB || isLoadingTasks;
 
   // Apply date filters
   const catering = useMemo(() => rawCatering.filter((c: any) => isDateInRange(c.event_date || c.created_at, dateRange)), [rawCatering, dateRange]);
   const fundraisers = useMemo(() => rawFundraisers.filter((f: any) => isDateInRange(f.event_date || f.created_at, dateRange)), [rawFundraisers, dateRange]);
   const storeEvents = useMemo(() => rawStoreEvents.filter((e: any) => isDateInRange(e.event_date || e.created_at, dateRange)), [rawStoreEvents, dateRange]);
+  const largeReservations = useMemo(() => rawLargeReservations.filter((r: any) => isDateInRange(r.event_date || r.created_at, dateRange)), [rawLargeReservations, dateRange]);
   const guestBounceBacks = useMemo(() => rawGuestBounceBacks.filter((g: any) => isDateInRange(g.created_at, dateRange)), [rawGuestBounceBacks, dateRange]);
   const tasks = useMemo(() => rawTasks.filter((t: any) => isDateInRange(t.due_date || t.created_at, dateRange)), [rawTasks, dateRange]);
 
@@ -135,7 +147,7 @@ export default function Reports() {
     return activities.filter(a => isDateInRange(a.activity_date, dateRange));
   }, [rawB2bActivities, b2bContacts, selectedLocationId, dateRange]);
 
-  // Aggregate Metrics
+    // Aggregate Metrics
   const metrics = useMemo(() => {
     // 1. Catering Revenue (Completed orders)
     const cateringRevenue = catering
@@ -149,14 +161,18 @@ export default function Reports() {
     // 3. Store Events Revenue
     const storeEventsRevenue = storeEvents
       .reduce((sum, e) => sum + (Number(e.total_sales) || 0), 0);
+      
+    // 4. Large Reservations Revenue
+    const largeReservationsRevenue = largeReservations
+      .reduce((sum, r) => sum + (Number(r.total_sales) || 0), 0);
 
-    // 4. B2B Event Revenue
+    // 5. B2B Event Revenue
     const b2bRevenue = filteredB2BActivities.reduce((sum, a) => sum + (Number(a.revenue) || 0), 0);
 
-    const totalRevenue = cateringRevenue + fundraiserRevenue + storeEventsRevenue + b2bRevenue;
+    const totalRevenue = cateringRevenue + fundraiserRevenue + storeEventsRevenue + largeReservationsRevenue + b2bRevenue;
 
     // Contacts
-    const totalContactsTracked = b2bContacts.length + catering.length + fundraisers.length + storeEvents.length + guestBounceBacks.length;
+    const totalContactsTracked = b2bContacts.length + catering.length + fundraisers.length + storeEvents.length + largeReservations.length + guestBounceBacks.length;
 
     // Task Completion
     const totalTasks = tasks.length;
@@ -177,14 +193,14 @@ export default function Reports() {
 
   // Monthly Revenue Chart Data
   const revenueChartData = useMemo(() => {
-    const monthlyMap: Record<string, { month: string; Catering: number; Fundraisers: number; StoreEvents: number; B2B: number }> = {};
+    const monthlyMap: Record<string, { month: string; Catering: number; Fundraisers: number; StoreEvents: number; LargeReservations: number; B2B: number }> = {};
     
     // Helper to add revenue
-    const addRevenue = (dateStr: string, source: 'Catering' | 'Fundraisers' | 'StoreEvents' | 'B2B', amount: number) => {
+    const addRevenue = (dateStr: string, source: 'Catering' | 'Fundraisers' | 'StoreEvents' | 'LargeReservations' | 'B2B', amount: number) => {
       if (!dateStr || amount === 0) return;
       const monthStr = dateStr.substring(0, 7); // YYYY-MM
       if (!monthlyMap[monthStr]) {
-        monthlyMap[monthStr] = { month: monthStr, Catering: 0, Fundraisers: 0, StoreEvents: 0, B2B: 0 };
+        monthlyMap[monthStr] = { month: monthStr, Catering: 0, Fundraisers: 0, StoreEvents: 0, LargeReservations: 0, B2B: 0 };
       }
       monthlyMap[monthStr][source] += amount;
     };
@@ -192,6 +208,7 @@ export default function Reports() {
     catering.filter(c => c.status === 'Completed').forEach(c => addRevenue(c.event_date, 'Catering', Number(c.quote_total) || 0));
     fundraisers.forEach(f => addRevenue(f.event_date, 'Fundraisers', Number(f.total_sales) || 0));
     storeEvents.forEach(e => addRevenue(e.event_date, 'StoreEvents', Number(e.total_sales) || 0));
+    largeReservations.forEach(r => addRevenue(r.event_date, 'LargeReservations', Number(r.total_sales) || 0));
     filteredB2BActivities.forEach(a => addRevenue(a.activity_date, 'B2B', Number(a.revenue) || 0));
 
     return Object.values(monthlyMap)
@@ -227,12 +244,14 @@ export default function Reports() {
     const fCompleted = fundraisers.filter(f => f.status === 'Completed').length;
     const sPending = storeEvents.filter(e => e.status !== 'Completed').length;
     const sCompleted = storeEvents.filter(e => e.status === 'Completed').length;
+    const rPending = largeReservations.filter(r => r.status !== 'Completed').length;
+    const rCompleted = largeReservations.filter(r => r.status === 'Completed').length;
 
     return [
-      { name: 'Pending Orders', value: cPending + fPending + sPending, fill: 'hsl(var(--muted-foreground))' },
-      { name: 'Completed Entertainment', value: cCompleted + fCompleted + sCompleted, fill: 'hsl(var(--primary))' },
+      { name: 'Pending Orders', value: cPending + fPending + sPending + rPending, fill: 'hsl(var(--muted-foreground))' },
+      { name: 'Completed Entertainment', value: cCompleted + fCompleted + sCompleted + rCompleted, fill: 'hsl(var(--primary))' },
     ];
-  }, [catering, fundraisers, storeEvents]);
+  }, [catering, fundraisers, storeEvents, largeReservations]);
 
   const COLORS = ['hsl(var(--chart-1))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))'];
 
@@ -346,6 +365,7 @@ export default function Reports() {
                       Catering: { label: "Catering", color: "hsl(var(--chart-1))" },
                       Fundraisers: { label: "Fundraisers", color: "hsl(var(--chart-2))" },
                       StoreEvents: { label: "Store Events", color: "hsl(var(--chart-4))" },
+                      LargeReservations: { label: "Large Reservations", color: "hsl(var(--chart-5))" },
                       B2B: { label: "B2B Events", color: "hsl(var(--chart-3))" }
                     }}
                     className="h-full w-full"
@@ -358,6 +378,7 @@ export default function Reports() {
                       <Bar dataKey="Catering" stackId="a" fill="var(--color-Catering)" />
                       <Bar dataKey="Fundraisers" stackId="a" fill="var(--color-Fundraisers)" />
                       <Bar dataKey="StoreEvents" stackId="a" fill="var(--color-StoreEvents)" />
+                      <Bar dataKey="LargeReservations" stackId="a" fill="var(--color-LargeReservations)" />
                       <Bar dataKey="B2B" stackId="a" fill="var(--color-B2B)" />
                     </BarChart>
                   </ChartContainer>
@@ -514,6 +535,30 @@ export default function Reports() {
                     <span className="text-sm text-muted-foreground">Total Sales</span>
                     <span className="font-semibold text-primary">
                       ${storeEvents.reduce((sum, e) => sum + (Number(e.total_sales) || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Contact className="w-4 h-4" /> Large Reservations
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex justify-between items-center border-b pb-2">
+                    <span className="text-sm text-muted-foreground">Total Requested</span>
+                    <span className="font-semibold">{largeReservations.length}</span>
+                  </div>
+                  <div className="flex justify-between items-center border-b pb-2">
+                    <span className="text-sm text-muted-foreground">Completed</span>
+                    <span className="font-semibold">{largeReservations.filter(r => r.status === 'Completed').length}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Total Sales</span>
+                    <span className="font-semibold text-primary">
+                      ${largeReservations.reduce((sum, r) => sum + (Number(r.total_sales) || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                   </div>
                 </CardContent>
