@@ -76,6 +76,17 @@ export default function PublicLargeReservationForm() {
       return;
     }
 
+    // Sync to CRM
+    const { error: crmError } = await supabase.from('b2b_contacts').insert([{
+      location_id: formData.locationId,
+      organization_name: formData.organization || "No Org Provided",
+      contact_name: formData.name,
+      email: formData.email,
+      phone: formData.phone,
+      category: 'Reservation'
+    }]);
+    if (crmError) console.error("Error syncing to CRM:", crmError);
+
     // Trigger email notification
     const location = locations.find(l => l.id === formData.locationId) || locations[0];
     await supabase.functions.invoke('send-large-reservation-email', {

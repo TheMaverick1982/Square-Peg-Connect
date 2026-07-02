@@ -432,7 +432,7 @@ export default function LargeReservationsPipeline() {
       contact_name: addFormData.name,
       email: addFormData.email,
       phone: addFormData.phone,
-      category: 'Large Reservation'
+      category: 'Reservation'
     }]);
     if (crmError) console.error("Error syncing to CRM:", crmError);
 
