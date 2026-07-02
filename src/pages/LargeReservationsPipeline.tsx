@@ -56,7 +56,7 @@ export default function LargeReservationsPipeline() {
   const [orders, setOrders] = useState<LargeReservationOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
-  const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
+  const [viewMode, setViewMode] = useState<"table" | "card" | "calendar">("table");
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [filterLocation, setFilterLocation] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
@@ -575,13 +575,22 @@ export default function LargeReservationsPipeline() {
 
         <div className="flex items-center bg-muted p-1 rounded-lg">
           <Button 
-            variant={viewMode === "list" ? "secondary" : "ghost"} 
+            variant={viewMode === "table" ? "secondary" : "ghost"} 
             size="sm" 
             className="h-8 px-3"
-            onClick={() => setViewMode("list")}
+            onClick={() => setViewMode("table")}
           >
             <LayoutList className="w-4 h-4 mr-2" />
-            List
+            Columns
+          </Button>
+          <Button 
+            variant={viewMode === "card" ? "secondary" : "ghost"} 
+            size="sm" 
+            className="h-8 px-3"
+            onClick={() => setViewMode("card")}
+          >
+            <LayoutList className="w-4 h-4 mr-2" />
+            Cards
           </Button>
           <Button 
             variant={viewMode === "calendar" ? "secondary" : "ghost"} 
@@ -604,6 +613,63 @@ export default function LargeReservationsPipeline() {
         </div>
       ) : viewMode === "calendar" ? (
         renderCalendarView()
+      ) : viewMode === "table" ? (
+        <div className="bg-card border rounded-lg overflow-hidden flex flex-col flex-1 min-w-0">
+          <div className="overflow-x-auto h-full flex flex-col">
+            <div className="min-w-[1000px] grid grid-cols-12 gap-4 p-4 border-b bg-muted/30 text-xs font-semibold text-muted-foreground uppercase tracking-wider shrink-0">
+              <div className="col-span-2">Date & Time</div>
+              <div className="col-span-2">Client / Org</div>
+              <div className="col-span-2">Location</div>
+              <div className="col-span-2">Guests & Staffing</div>
+              <div className="col-span-2">Contact</div>
+              <div className="col-span-1">Status</div>
+              <div className="col-span-1 text-right">Actions</div>
+            </div>
+            <div className="flex-1 overflow-y-auto divide-y min-w-[1000px]">
+              {sortedOrders.length === 0 ? (
+                <div className="py-12 text-center text-muted-foreground">
+                  <CalendarIcon className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
+                  <p>No reservations found.</p>
+                </div>
+              ) : (
+                sortedOrders.map(order => (
+                  <div key={order.id} className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-muted/10 transition-colors">
+                    <div className="col-span-2">
+                      <div className="font-semibold text-sm">{format(parseSafeDate(order.eventDate), "EEE, MMM d")}</div>
+                      <div className="text-xs text-muted-foreground mt-0.5">{order.timeStart || 'TBD'} - {order.timeFinish || 'TBD'}</div>
+                    </div>
+                    <div className="col-span-2 min-w-0">
+                      <div className="font-medium text-sm truncate">{order.name}</div>
+                      {order.organization && <div className="text-xs text-muted-foreground truncate">{order.organization}</div>}
+                    </div>
+                    <div className="col-span-2 min-w-0">
+                      <div className="text-sm truncate">{locations.find(l => l.id === order.locationId)?.name}</div>
+                    </div>
+                    <div className="col-span-2 min-w-0">
+                      <div className="text-sm font-medium">{order.guestCount} Guests</div>
+                      {order.additionalStaffNeeded && <div className="text-xs text-primary">{order.additionalStaffCount} Extra Staff</div>}
+                    </div>
+                    <div className="col-span-2 min-w-0">
+                      <div className="text-sm truncate">{order.phone || order.email}</div>
+                    </div>
+                    <div className="col-span-1">
+                      <span className={getStatusPillClass(order.status)}>{order.status}</span>
+                    </div>
+                    <div className="col-span-1 text-right">
+                      <Button variant="ghost" size="sm" onClick={() => {
+                        setViewingOrder(order);
+                        setSalesInput(order.totalSales.toString());
+                        setIsEditMode(false);
+                      }}>
+                        View
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pb-12">
           {sortedOrders.length === 0 ? (
@@ -629,7 +695,7 @@ export default function LargeReservationsPipeline() {
                   </div>
                   <div className="text-xs font-medium bg-muted px-2 py-1 rounded-md flex items-center gap-1.5 text-muted-foreground">
                     <CalendarIcon className="w-3.5 h-3.5" />
-                    {format(parseSafeDate(order.eventDate), "MMM d")}
+                    {format(parseSafeDate(order.eventDate), "EEE, MMM d")}
                   </div>
                 </div>
 
@@ -826,10 +892,10 @@ export default function LargeReservationsPipeline() {
                       
                       <div className="grid gap-4 bg-primary/5 p-4 rounded-lg border border-primary/10 text-sm">
                         <div className="flex items-center justify-between">
-                          <Label className="font-semibold text-primary">Additional Staff Needed?</Label>
+                          <Label className="font-semibold text-primary">Additional Staff?</Label>
                           <Switch 
                             checked={editFormData.additionalStaffNeeded} 
-                            onCheckedChange={(checked) => setEditFormData({...editFormData, additionalStaffNeeded: checked})}
+                            onCheckedChange={(checked) => setEditFormData({...editFormData, additionalStaffNeeded: checked, additionalStaffCount: checked && editFormData.additionalStaffCount === 0 ? 1 : editFormData.additionalStaffCount})}
                           />
                         </div>
                         {editFormData.additionalStaffNeeded && (
@@ -1063,10 +1129,10 @@ export default function LargeReservationsPipeline() {
 
             <div className="grid gap-4 bg-primary/5 p-4 rounded-lg border border-primary/10 text-sm">
               <div className="flex items-center justify-between">
-                <Label className="font-semibold text-primary">Additional Staff Needed?</Label>
+                <Label className="font-semibold text-primary">Additional Staff?</Label>
                 <Switch 
                   checked={addFormData.additionalStaffNeeded} 
-                  onCheckedChange={(checked) => setAddFormData({...addFormData, additionalStaffNeeded: checked})}
+                  onCheckedChange={(checked) => setAddFormData({...addFormData, additionalStaffNeeded: checked, additionalStaffCount: checked && addFormData.additionalStaffCount === 0 ? 1 : addFormData.additionalStaffCount})}
                 />
               </div>
               {addFormData.additionalStaffNeeded && (
