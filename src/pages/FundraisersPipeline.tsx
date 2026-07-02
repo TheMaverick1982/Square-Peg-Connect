@@ -713,14 +713,14 @@ export default function FundraisersPipeline() {
           {viewingOrder && (
             <>
               <SheetHeader className="mb-6">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <SheetTitle className="text-2xl">{viewingOrder.organization}</SheetTitle>
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0 flex-1">
+                    <SheetTitle className="text-2xl break-words">{viewingOrder.organization}</SheetTitle>
                     <SheetDescription className="mt-1">
                       Preferred Event Date: <strong className="text-foreground">{format(parseSafeDate(viewingOrder.eventDate), "MMMM d, yyyy")}</strong>
                     </SheetDescription>
                   </div>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1 shrink-0">
                     <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => {
                       setEditFormData({
                         name: viewingOrder.name,
