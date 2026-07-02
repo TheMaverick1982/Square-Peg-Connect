@@ -48,12 +48,20 @@ export function FundraiserCsvImporter({ onImportSuccess }: { onImportSuccess: ()
       skipEmptyLines: true,
       complete: (results) => {
         if (results.data && results.data.length > 0) {
-          setHeaders(Object.keys(results.data[0] as any));
+          const rawHeaders = Object.keys(results.data[0] as any);
+          const validHeaders = rawHeaders.filter(h => h && typeof h === 'string' && h.trim().length > 0);
+          
+          if (validHeaders.length === 0) {
+            toast({ title: "Parse Error", description: "Could not read column headers from CSV. Make sure your file has a header row.", variant: "destructive" });
+            return;
+          }
+
+          setHeaders(validHeaders);
           setCsvData(results.data);
           
           // Auto-guess mapping based on exact/partial matches
           const guessedMapping: Record<string, string> = {};
-          const lowerHeaders = Object.keys(results.data[0] as any).map(h => ({ original: h, lower: h.toLowerCase() }));
+          const lowerHeaders = validHeaders.map(h => ({ original: h, lower: h.toLowerCase() }));
           
           TARGET_FIELDS.forEach(field => {
              const match = lowerHeaders.find(h => 
