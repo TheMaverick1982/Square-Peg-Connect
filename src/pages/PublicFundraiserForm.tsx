@@ -93,6 +93,19 @@ export default function PublicFundraiserForm() {
       status: 'Requested'
     }]);
 
+    if (!error) {
+      const location = locations.find(l => l.id === formData.locationId);
+      await supabase.functions.invoke('send-fundraiser-alert', {
+        body: {
+          formData: {
+            ...formData,
+            eventDate: format(formData.eventDate, 'yyyy-MM-dd')
+          },
+          locationName: location?.name || 'Unknown Location'
+        }
+      });
+    }
+
     setIsSubmitting(false);
 
     if (error) {
