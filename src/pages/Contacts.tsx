@@ -176,7 +176,7 @@ export default function Contacts() {
         </div>
       </div>
 
-      <div className="bg-card border rounded-lg overflow-hidden flex-1 flex flex-col min-w-0">
+      <div className="bg-card border rounded-lg overflow-hidden flex flex-col min-w-0">
         <div className="overflow-x-auto">
           <div className="min-w-[800px] grid grid-cols-12 gap-4 p-4 border-b bg-muted/30 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
             <div className="col-span-4">Contact</div>
@@ -185,7 +185,7 @@ export default function Contacts() {
             <div className="col-span-3">Connections</div>
           </div>
 
-          <div className="divide-y overflow-y-auto min-w-[800px] h-[calc(100vh-300px)]">
+          <div className="divide-y min-w-[800px]">
             {isLoading ? (
               <div className="p-8 text-center text-muted-foreground flex flex-col items-center justify-center h-full">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-3"></div>
