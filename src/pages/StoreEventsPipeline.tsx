@@ -30,6 +30,7 @@ export interface StoreEventOrder {
   address: string;
   organization: string;
   notes?: string;
+  eventLink?: string;
   locationId: string;
   eventDate: string;
   status: "Requested" | "Confirmed" | "Completed";
@@ -63,7 +64,7 @@ export default function StoreEventsPipeline() {
   const [viewingOrder, setViewingOrder] = useState<StoreEventOrder | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editFormData, setEditFormData] = useState({
-    name: "", email: "", phone: "", address: "", organization: "", notes: "", locationId: "", eventDate: new Date()
+    name: "", email: "", phone: "", address: "", organization: "", notes: "", eventLink: "", locationId: "", eventDate: new Date()
   });
   const [isUpdating, setIsUpdating] = useState(false);
 
@@ -71,7 +72,7 @@ export default function StoreEventsPipeline() {
   const [isAdding, setIsAdding] = useState(false);
   
   const [addFormData, setAddFormData] = useState({
-    name: "", email: "", phone: "", address: "", organization: "", notes: "", locationId: ""
+    name: "", email: "", phone: "", address: "", organization: "", notes: "", eventLink: "", locationId: ""
   });
   const [addFormDate, setAddFormDate] = useState<Date | undefined>(undefined);
 
@@ -100,6 +101,7 @@ export default function StoreEventsPipeline() {
         address: row.address,
         organization: row.organization,
         notes: row.notes,
+        eventLink: row.event_link,
         locationId: row.location,
         eventDate: row.event_date,
         status: row.status as "Requested" | "Confirmed" | "Completed",
@@ -213,6 +215,7 @@ export default function StoreEventsPipeline() {
         address: editFormData.address,
         organization: editFormData.organization,
         notes: editFormData.notes,
+        event_link: editFormData.eventLink,
         location: editFormData.locationId,
         event_date: formattedDate
       })
@@ -233,6 +236,7 @@ export default function StoreEventsPipeline() {
       address: editFormData.address,
       organization: editFormData.organization,
       notes: editFormData.notes,
+      eventLink: editFormData.eventLink,
       locationId: editFormData.locationId,
       eventDate: formattedDate
     };
@@ -273,6 +277,7 @@ export default function StoreEventsPipeline() {
       address: addFormData.address,
       organization: addFormData.organization,
       notes: addFormData.notes,
+      event_link: addFormData.eventLink,
       location: loc,
       event_date: formattedDate,
       status: 'Confirmed'
@@ -304,6 +309,8 @@ export default function StoreEventsPipeline() {
         phone: data.phone,
         address: data.address,
         organization: data.organization,
+        notes: data.notes,
+        eventLink: data.event_link,
         locationId: data.location,
         eventDate: data.event_date,
         status: data.status,
@@ -312,7 +319,7 @@ export default function StoreEventsPipeline() {
         createdAt: data.created_at,
       }].sort((a, b) => parseSafeDate(a.eventDate).getTime() - parseSafeDate(b.eventDate).getTime()));
       setIsAddSheetOpen(false);
-      setAddFormData({ name: "", email: "", phone: "", address: "", organization: "", notes: "", locationId: "" });
+      setAddFormData({ name: "", email: "", phone: "", address: "", organization: "", notes: "", eventLink: "", locationId: "" });
       setAddFormDate(undefined);
     }
   };
@@ -733,6 +740,7 @@ export default function StoreEventsPipeline() {
                         address: viewingOrder.address,
                         organization: viewingOrder.organization,
                         notes: viewingOrder.notes || "",
+                        eventLink: viewingOrder.eventLink || "",
                         locationId: viewingOrder.locationId,
                         eventDate: parseSafeDate(viewingOrder.eventDate)
                       });
@@ -799,8 +807,8 @@ export default function StoreEventsPipeline() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Notes & Special Requests</Label>
-                    <Input placeholder="Any details for this event" value={editFormData.notes || ""} onChange={(e) => setEditFormData({...editFormData, notes: e.target.value})} />
+                    <Label>Event Link (Optional)</Label>
+                    <Input placeholder="https://..." value={editFormData.eventLink || ""} onChange={(e) => setEditFormData({...editFormData, eventLink: e.target.value})} />
                   </div>
 
                   <div className="grid gap-4">
@@ -966,27 +974,26 @@ export default function StoreEventsPipeline() {
                   </div>
                 </div>
 
-                {/* Email Confirmation Action */}
-                <div className="bg-muted/30 p-4 rounded-lg border">
-                  <div className="text-center space-y-3">
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center mx-auto text-primary">
-                      <Mail className="w-5 h-5" />
+                  {viewingOrder.eventLink && (
+                    <div className="bg-muted/30 p-4 rounded-lg border">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                            <LinkIcon className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <div className="font-medium text-sm">Event Link</div>
+                            <p className="text-xs text-muted-foreground mt-0.5">External link for this event.</p>
+                          </div>
+                        </div>
+                        <Button variant="outline" asChild>
+                          <a href={viewingOrder.eventLink.startsWith('http') ? viewingOrder.eventLink : `https://${viewingOrder.eventLink}`} target="_blank" rel="noopener noreferrer">
+                            Open Link
+                          </a>
+                        </Button>
+                      </div>
                     </div>
-                    <div>
-                      <div className="font-medium text-sm">Send Confirmation & Tips</div>
-                      <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
-                        Email the non-profit their confirmed date, location details, and success tips from the website.
-                      </p>
-                    </div>
-                    <Button onClick={handleSendConfirmationEmail} disabled={isSendingEmail} className="w-full">
-                      {isSendingEmail ? (
-                        <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Sending Email...</>
-                      ) : (
-                        "Email Non-Profit"
-                      )}
-                    </Button>
-                  </div>
-                </div>
+                  )}
 
                 {/* Financials block when completed */}
                 {viewingOrder.status === "Completed" && (
@@ -1101,7 +1108,12 @@ export default function StoreEventsPipeline() {
 
             <div className="space-y-2">
               <Label>Notes & Special Requests</Label>
-              <Input placeholder="Any details for this event" value={addFormData.notes} onChange={(e) => setAddFormData({...addFormData, notes: e.target.value})} />
+              <Textarea placeholder="Any details for this event" value={addFormData.notes} onChange={(e) => setAddFormData({...addFormData, notes: e.target.value})} className="min-h-[100px]" />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Event Link (Optional)</Label>
+              <Input placeholder="https://..." value={addFormData.eventLink} onChange={(e) => setAddFormData({...addFormData, eventLink: e.target.value})} />
             </div>
 
             <div className="grid gap-4">
