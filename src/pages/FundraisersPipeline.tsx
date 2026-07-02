@@ -303,6 +303,16 @@ export default function FundraisersPipeline() {
     }
   };
 
+  // Extract unique organizations for autofill dropdown
+  const uniqueOrgs = orders.reduce((acc, current) => {
+    const x = acc.find(item => item.organization === current.organization);
+    if (!x) {
+      return acc.concat([current]);
+    } else {
+      return acc;
+    }
+  }, [] as FundraiserOrder[]);
+
   // Filter by location and search
   const filteredOrders = orders.filter(order => {
     if (selectedLocationId && order.locationId !== selectedLocationId) return false;
@@ -972,6 +982,40 @@ export default function FundraisersPipeline() {
           </SheetHeader>
 
           <form onSubmit={handleAddFundraiser} className="space-y-4">
+            {uniqueOrgs.length > 0 && (
+              <div className="space-y-2 mb-4">
+                <Label className="text-muted-foreground text-xs uppercase font-semibold">Autofill from past organization</Label>
+                <Select onValueChange={(val) => {
+                  const existing = uniqueOrgs.find(o => o.id === val);
+                  if (existing) {
+                    setAddFormData({
+                      ...addFormData, 
+                      organization: existing.organization,
+                      payableTo: existing.payableTo || "",
+                      name: existing.name,
+                      email: existing.email,
+                      phone: existing.phone,
+                      address: existing.address
+                    });
+                  }
+                }}>
+                  <SelectTrigger className="bg-muted/30">
+                    <SelectValue placeholder="Select an existing organization..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {uniqueOrgs.map(org => (
+                      <SelectItem key={org.id} value={org.id}>{org.organization}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div className="relative flex py-4 items-center">
+                  <div className="flex-grow border-t border-border"></div>
+                  <span className="flex-shrink-0 mx-4 text-muted-foreground text-xs uppercase">Or enter details</span>
+                  <div className="flex-grow border-t border-border"></div>
+                </div>
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label>Organization Name</Label>
               <Input required value={addFormData.organization} onChange={(e) => setAddFormData({...addFormData, organization: e.target.value})} />
