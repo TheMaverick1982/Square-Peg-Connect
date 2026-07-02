@@ -18,6 +18,8 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Calendar } from "@/components/ui/calendar";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
+import type { DateRange } from "react-day-picker";
 import { useToast } from "@/hooks/use-toast";
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, isToday } from "date-fns";
 import { Search, Filter, Calendar as CalendarIcon, MapPin, Link as LinkIcon, DollarSign, Building, Phone, Mail, Plus, ChevronLeft, ChevronRight, LayoutList, CalendarDays, Edit2, Trash2, Users, Loader2, FileText, Download, Send } from "lucide-react";
@@ -103,6 +105,10 @@ export default function LargeReservationsPipeline() {
 
   const [isSendingDetails, setIsSendingDetails] = useState(false);
 
+  // Export state
+  const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
+  const [exportDateRange, setExportDateRange] = useState<DateRange | undefined>(undefined);
+
   const fetchOrders = async () => {
     setIsLoading(true);
     const { data, error } = await supabase
@@ -143,6 +149,28 @@ export default function LargeReservationsPipeline() {
   }, []);
 
   const handleExportCSV = () => {
+    let dataToExport = sortedOrders;
+
+    if (exportDateRange?.from) {
+      const from = exportDateRange.from;
+      const to = exportDateRange.to || exportDateRange.from;
+      // Normalizing to start/end of day
+      const start = new Date(from);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(to);
+      end.setHours(23, 59, 59, 999);
+
+      dataToExport = dataToExport.filter(o => {
+        const d = parseSafeDate(o.eventDate);
+        return d >= start && d <= end;
+      });
+    }
+
+    if (dataToExport.length === 0) {
+      toast({ title: "No data", description: "There are no reservations in the selected range to export.", variant: "destructive" });
+      return;
+    }
+
     const headers = [
       "Client Name", 
       "Organization", 
@@ -160,7 +188,7 @@ export default function LargeReservationsPipeline() {
       "Created At"
     ];
     
-    const rows = sortedOrders.map(o => [
+    const rows = dataToExport.map(o => [
       o.name,
       o.organization || "",
       locations.find(l => l.id === o.locationId)?.name || "Unknown",
@@ -190,6 +218,7 @@ export default function LargeReservationsPipeline() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    setIsExportDialogOpen(false);
   };
 
   const handleEmailDetailsToLocation = async () => {
@@ -648,7 +677,7 @@ export default function LargeReservationsPipeline() {
         </div>
         
         <div className="flex items-center gap-2">
-          <Button variant="outline" className="gap-2 shadow-sm" onClick={handleExportCSV}>
+          <Button variant="outline" className="gap-2 shadow-sm" onClick={() => setIsExportDialogOpen(true)}>
             <Download className="w-4 h-4" />
             Export CSV
           </Button>
@@ -1329,6 +1358,73 @@ export default function LargeReservationsPipeline() {
           </form>
         </SheetContent>
       </Sheet>
+
+      {/* Export Dialog */}
+      <Dialog open={isExportDialogOpen} onOpenChange={setIsExportDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Export Large Reservations</DialogTitle>
+            <DialogDescription>
+              Select a date range to export, or leave blank to export all matching your current location filters.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Date Range (Optional)</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    id="date"
+                    variant={"outline"}
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !exportDateRange?.from && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {exportDateRange?.from ? (
+                      exportDateRange.to ? (
+                        <>
+                          {format(exportDateRange.from, "LLL dd, y")} -{" "}
+                          {format(exportDateRange.to, "LLL dd, y")}
+                        </>
+                      ) : (
+                        format(exportDateRange.from, "LLL dd, y")
+                      )
+                    ) : (
+                      <span>All time (No range selected)</span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    initialFocus
+                    mode="range"
+                    defaultMonth={exportDateRange?.from}
+                    selected={exportDateRange}
+                    onSelect={setExportDateRange}
+                    numberOfMonths={2}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+            
+            {exportDateRange?.from && (
+              <div className="flex justify-end">
+                <Button variant="ghost" size="sm" onClick={() => setExportDateRange({ from: undefined, to: undefined })} className="text-muted-foreground h-8 text-xs">
+                  Clear range selection
+                </Button>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsExportDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleExportCSV}>Download CSV</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
