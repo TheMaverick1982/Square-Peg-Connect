@@ -35,7 +35,6 @@ export interface StoreEventOrder {
   eventDate: string;
   status: "Requested" | "Confirmed" | "Completed";
   totalSales: number;
-  totalDonated: number;
   createdAt: string;
 }
 
@@ -76,9 +75,8 @@ export default function StoreEventsPipeline() {
   });
   const [addFormDate, setAddFormDate] = useState<Date | undefined>(undefined);
 
-  // Edit state for sales/donated
+  // Edit state for sales
   const [salesInput, setSalesInput] = useState("");
-  const [donatedInput, setDonatedInput] = useState("");
   const [isSendingEmail, setIsSendingEmail] = useState(false);
 
   const fetchOrders = async () => {
@@ -106,7 +104,6 @@ export default function StoreEventsPipeline() {
         eventDate: row.event_date,
         status: row.status as "Requested" | "Confirmed" | "Completed",
         totalSales: parseFloat(row.total_sales || 0),
-        totalDonated: parseFloat(row.total_donated || 0),
         createdAt: row.created_at,
       }));
       setOrders(mappedOrders);
@@ -148,7 +145,6 @@ export default function StoreEventsPipeline() {
       setViewingOrder({ ...viewingOrder, status: newStatus as any });
       if (newStatus === "Completed") {
         setSalesInput(viewingOrder.totalSales.toString());
-        setDonatedInput(viewingOrder.totalDonated.toString());
       }
     }
     
@@ -159,11 +155,10 @@ export default function StoreEventsPipeline() {
     if (!viewingOrder) return;
     
     const sales = parseFloat(salesInput) || 0;
-    const donated = parseFloat(donatedInput) || 0;
 
     const { error } = await supabase
       .from('store_events')
-      .update({ total_sales: sales, total_donated: donated })
+      .update({ total_sales: sales })
       .eq('id', viewingOrder.id);
 
     if (error) {
@@ -171,8 +166,8 @@ export default function StoreEventsPipeline() {
       return;
     }
 
-    setOrders(orders.map(o => o.id === viewingOrder.id ? { ...o, totalSales: sales, totalDonated: donated } : o));
-    setViewingOrder({ ...viewingOrder, totalSales: sales, totalDonated: donated });
+    setOrders(orders.map(o => o.id === viewingOrder.id ? { ...o, totalSales: sales } : o));
+    setViewingOrder({ ...viewingOrder, totalSales: sales });
     toast({ title: "Saved", description: "Financials updated successfully." });
   };
 
@@ -315,7 +310,6 @@ export default function StoreEventsPipeline() {
         eventDate: data.event_date,
         status: data.status,
         totalSales: 0,
-        totalDonated: 0,
         createdAt: data.created_at,
       }].sort((a, b) => parseSafeDate(a.eventDate).getTime() - parseSafeDate(b.eventDate).getTime()));
       setIsAddSheetOpen(false);
@@ -477,7 +471,6 @@ export default function StoreEventsPipeline() {
                           onClick={() => {
                             setViewingOrder(dayOrders[0]);
                             setSalesInput(dayOrders[0].totalSales.toString());
-                            setDonatedInput(dayOrders[0].totalDonated.toString());
                           }}
                           title={dayOrders[0].organization}
                         >
@@ -509,7 +502,6 @@ export default function StoreEventsPipeline() {
                                   onClick={() => {
                                     setViewingOrder(o);
                                     setSalesInput(o.totalSales.toString());
-                                    setDonatedInput(o.totalDonated.toString());
                                   }}
                                   title={`${locations.find(l => l.id === o.locationId)?.name}: ${o.organization}`}
                                 >
@@ -655,7 +647,6 @@ export default function StoreEventsPipeline() {
                   onClick={() => {
                     setViewingOrder(order);
                     setSalesInput(order.totalSales.toString());
-                    setDonatedInput(order.totalDonated.toString());
                   }}
                   className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-muted/10 transition-colors cursor-pointer group"
                 >
@@ -679,7 +670,6 @@ export default function StoreEventsPipeline() {
                     {order.status === "Completed" ? (
                       <>
                         <div className="text-sm font-medium">Sales: ${order.totalSales.toLocaleString()}</div>
-                        <div className="text-xs text-muted-foreground">Donated: ${order.totalDonated.toLocaleString()}</div>
                       </>
                     ) : (
                       <div className="text-sm text-muted-foreground italic">Pending Event</div>
@@ -703,7 +693,6 @@ export default function StoreEventsPipeline() {
                     <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => {
                       setViewingOrder(order);
                       setSalesInput(order.totalSales.toString());
-                      setDonatedInput(order.totalDonated.toString());
                     }}>
                       View
                     </Button>
@@ -957,8 +946,7 @@ export default function StoreEventsPipeline() {
                           <div className="text-right">
                             {pastEvent.status === "Completed" ? (
                               <>
-                                <div className="font-semibold text-primary">${pastEvent.totalDonated.toLocaleString(undefined, { minimumFractionDigits: 2 })} Donated</div>
-                                <div className="text-xs text-muted-foreground">${pastEvent.totalSales.toLocaleString(undefined, { minimumFractionDigits: 2 })} Sales</div>
+                                <div className="text-sm font-semibold">${pastEvent.totalSales.toLocaleString(undefined, { minimumFractionDigits: 2 })} Sales</div>
                               </>
                             ) : (
                               <div className="text-muted-foreground italic text-xs">{pastEvent.status}</div>
@@ -1003,7 +991,7 @@ export default function StoreEventsPipeline() {
                       Event Performance
                     </h3>
                     <div className="bg-muted/10 rounded-xl p-5 border space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 gap-4">
                         <div className="space-y-2">
                           <Label>Total Sales ($)</Label>
                           <Input 
@@ -1011,15 +999,6 @@ export default function StoreEventsPipeline() {
                             step="0.01" 
                             value={salesInput} 
                             onChange={(e) => setSalesInput(e.target.value)} 
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Total Donated ($)</Label>
-                          <Input 
-                            type="number" 
-                            step="0.01" 
-                            value={donatedInput} 
-                            onChange={(e) => setDonatedInput(e.target.value)} 
                           />
                         </div>
                       </div>
