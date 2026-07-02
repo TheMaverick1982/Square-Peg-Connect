@@ -9,11 +9,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger, SheetFooter, SheetClose } from "@/components/ui/sheet";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { Plus, Search, MapPin, Phone, Mail, User, Edit2, History, Gift, CheckCircle2, Send, Loader2 } from "lucide-react";
+import { Plus, Search, MapPin, Phone, Mail, User, Edit2, History, Gift, CheckCircle2, Send, Loader2, Trash2 } from "lucide-react";
 
 // --- Types ---
 type GuestBounceBack = {
@@ -105,6 +106,18 @@ export default function GuestBounceBack() {
   });
 
   // Mutations
+  const deleteGuest = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('guest_bounce_backs').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['guest_bounce_backs'] });
+      toast({ title: "Deleted", description: "Guest bounce back removed successfully." });
+    },
+    onError: (error) => toast({ title: "Error", description: error.message, variant: "destructive" })
+  });
+
   const saveGuest = useMutation({
     mutationFn: async (payload: any) => {
       if (editingGuestId) {
@@ -396,6 +409,30 @@ export default function GuestBounceBack() {
                         <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => openEditGuestSheet(guest)}>
                           <Edit2 className="w-4 h-4 text-muted-foreground hover:text-foreground" />
                         </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-destructive hover:text-destructive hover:bg-destructive/10">
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete this guest?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This action cannot be undone. This will permanently delete the guest bounce back tracker for {guest.name}.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction 
+                                onClick={() => deleteGuest.mutate(guest.id)}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </div>
                     </div>
                   );
