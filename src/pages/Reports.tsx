@@ -75,7 +75,7 @@ export default function Reports() {
   const { data: rawFundraisers = [], isLoading: isLoadingFundraisers } = useQuery({
     queryKey: ['fundraisers_report', selectedLocationId],
     queryFn: async () => {
-      let query = supabase.from('fundraisers').select('*');
+      let query = supabase.from('fundraisers').select('*').is('deleted_at', null);
       if (selectedLocationId) query = query.eq('location', selectedLocationId);
       const { data, error } = await query;
       if (error) throw error;

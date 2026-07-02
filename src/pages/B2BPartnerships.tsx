@@ -133,7 +133,7 @@ export default function B2BPartnerships() {
   const { data: actualFundraisers = [], isLoading: loadingFundraisers } = useQuery({
     queryKey: ['b2b_actual_fundraisers', selectedLocationId],
     queryFn: async () => {
-      let query = supabase.from('fundraisers').select('id, event_date, location');
+      let query = supabase.from('fundraisers').select('id, event_date, location').is('deleted_at', null);
       if (selectedLocationId) {
         query = query.eq('location', selectedLocationId);
       }

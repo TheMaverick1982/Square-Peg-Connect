@@ -86,6 +86,7 @@ export default function FundraisersPipeline() {
     const { data, error } = await supabase
       .from('fundraisers')
       .select('*')
+      .is('deleted_at', null)
       .order('event_date', { ascending: true });
 
     if (error) {
@@ -247,7 +248,7 @@ export default function FundraisersPipeline() {
   };
 
   const handleDeleteFundraiser = async (id: string) => {
-    const { error } = await supabase.from('fundraisers').delete().eq('id', id);
+    const { error } = await supabase.from('fundraisers').update({ deleted_at: new Date().toISOString() }).eq('id', id);
     if (error) {
       toast({ title: "Error", description: "Could not delete the fundraiser.", variant: "destructive" });
       return;
