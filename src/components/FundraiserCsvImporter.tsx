@@ -20,6 +20,7 @@ const TARGET_FIELDS = [
   { id: "address", label: "Mailing Address" },
   { id: "payable_to", label: "Payable To" },
   { id: "notes", label: "Notes" },
+  { id: "location", label: "Location" },
   { id: "total_sales", label: "Total Sales ($)" },
   { id: "total_donated", label: "Total Donated ($)" },
   { id: "status", label: "Status (Confirmed, Completed)" },
@@ -105,6 +106,20 @@ export function FundraiserCsvImporter({ onImportSuccess }: { onImportSuccess: ()
         rawStatus = "Confirmed";
       }
 
+      // Resolve Location
+      let finalLocationId = fallbackLocationId;
+      if (mapping.location && row[mapping.location]) {
+        const rawLoc = String(row[mapping.location]).toLowerCase().trim();
+        const found = locations.find(l => 
+          l.name.toLowerCase() === rawLoc || 
+          rawLoc.includes(l.name.toLowerCase()) || 
+          l.name.toLowerCase().includes(rawLoc)
+        );
+        if (found) {
+          finalLocationId = found.id;
+        }
+      }
+
       return {
         organization: row[mapping.organization] || "Unknown Org",
         event_date: format(parsedDate, 'yyyy-MM-dd'),
@@ -117,7 +132,7 @@ export function FundraiserCsvImporter({ onImportSuccess }: { onImportSuccess: ()
         total_sales: parseFloat(row[mapping.total_sales || ""]?.replace(/[^0-9.-]+/g,"")) || 0,
         total_donated: parseFloat(row[mapping.total_donated || ""]?.replace(/[^0-9.-]+/g,"")) || 0,
         status: rawStatus,
-        location: fallbackLocationId // Defaulting imported rows to the chosen fallback location
+        location: finalLocationId
       };
     });
 
@@ -176,7 +191,7 @@ export function FundraiserCsvImporter({ onImportSuccess }: { onImportSuccess: ()
 
             <div className="grid grid-cols-2 gap-4 items-end mb-2">
               <div className="space-y-1.5">
-                 <Label className="text-xs font-semibold uppercase text-muted-foreground">Assign all to location:</Label>
+                 <Label className="text-xs font-semibold uppercase text-muted-foreground">Fallback Location (if unmapped or missing):</Label>
                  <Select value={fallbackLocationId} onValueChange={setFallbackLocationId}>
                    <SelectTrigger>
                      <SelectValue />
