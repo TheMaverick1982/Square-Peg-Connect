@@ -411,7 +411,7 @@ export default function Reports() {
             </Card>
 
             {/* Module Breakdowns */}
-            <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-4">
               <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="text-sm flex items-center gap-2">
@@ -427,11 +427,17 @@ export default function Reports() {
                     <span className="text-sm text-muted-foreground">Completed</span>
                     <span className="font-semibold">{catering.filter(c => c.status === 'Completed').length}</span>
                   </div>
+                  <div className="flex justify-between items-center border-b pb-2">
+                    <span className="text-sm text-muted-foreground">Total Sales</span>
+                    <span className="font-semibold text-primary">
+                      ${metrics.cateringRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">Avg. Order Value</span>
                     <span className="font-semibold text-primary">
                       ${catering.filter(c => c.status === 'Completed').length > 0 
-                        ? (metrics.cateringRevenue / catering.filter(c => c.status === 'Completed').length).toFixed(2)
+                        ? (metrics.cateringRevenue / catering.filter(c => c.status === 'Completed').length).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
                         : '0.00'}
                     </span>
                   </div>
@@ -453,15 +459,54 @@ export default function Reports() {
                     <span className="text-sm text-muted-foreground">Completed</span>
                     <span className="font-semibold">{fundraisers.filter(c => c.status === 'Completed').length}</span>
                   </div>
+                  <div className="flex justify-between items-center border-b pb-2">
+                    <span className="text-sm text-muted-foreground">Total Sales</span>
+                    <span className="font-semibold text-primary">
+                      ${metrics.fundraiserRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground">Total Donated</span>
                     <span className="font-semibold text-primary">
-                      ${fundraisers.reduce((sum, f) => sum + (Number(f.total_donated) || 0), 0).toLocaleString()}
+                      ${fundraisers.reduce((sum, f) => sum + (Number(f.total_donated) || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </span>
                   </div>
                 </CardContent>
               </Card>
-              <Card className="lg:col-span-2">
+
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Briefcase className="w-4 h-4" /> B2B Partnerships
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex justify-between items-center border-b pb-2">
+                    <span className="text-sm text-muted-foreground">Total Contacts</span>
+                    <span className="font-semibold">{b2bContacts.length}</span>
+                  </div>
+                  <div className="flex justify-between items-center border-b pb-2">
+                    <span className="text-sm text-muted-foreground">Activities Logged</span>
+                    <span className="font-semibold">{filteredB2BActivities.length}</span>
+                  </div>
+                  <div className="flex justify-between items-center border-b pb-2">
+                    <span className="text-sm text-muted-foreground">Total Sales</span>
+                    <span className="font-semibold text-primary">
+                      ${metrics.b2bRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Avg. Per Activity</span>
+                    <span className="font-semibold text-primary">
+                      ${filteredB2BActivities.length > 0 
+                        ? (metrics.b2bRevenue / filteredB2BActivities.length).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                        : '0.00'}
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="sm:col-span-3">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-sm flex items-center gap-2">
                     <PartyPopper className="w-4 h-4" /> Fundraisers by Organization
@@ -469,7 +514,7 @@ export default function Reports() {
                   <CardDescription>Total sales and donations grouped by organization.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
+                  <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2">
                     {Object.values(fundraisers.reduce((acc, f) => {
                       if (!acc[f.organization]) {
                         acc[f.organization] = { name: f.organization, sales: 0, donated: 0, events: 0 };
