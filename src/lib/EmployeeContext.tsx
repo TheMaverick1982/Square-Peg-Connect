@@ -36,17 +36,26 @@ export function EmployeeProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      const email = (auth.user.profile.email || auth.user.profile.preferred_username) as string;
+      const possibleEmail = (
+        auth.user.profile.email || 
+        auth.user.profile.preferred_username || 
+        auth.user.profile.upn || 
+        auth.user.profile.unique_name ||
+        auth.user.profile['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress'] ||
+        auth.user.profile['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/upn'] ||
+        auth.user.profile['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name']
+      ) as string;
       
-      if (!email) {
-        setIsLoading(false);
-        return;
-      }
+      const email = possibleEmail || "unknown";
+      
+      // If we genuinely can't extract an email, we still want them to have a profile
+      // so we use their subject (ID) as a fallback so they aren't stuck loading forever.
+      const lookupKey = email !== "unknown" ? email : auth.user.profile.sub;
       
       const { data, error } = await supabase
         .from("employee_profiles")
         .select("*")
-        .eq("email", email)
+        .eq("email", lookupKey)
         .single();
 
       if (error && error.code !== "PGRST116") {
@@ -56,7 +65,7 @@ export function EmployeeProvider({ children }: { children: React.ReactNode }) {
         
         // Auto-upgrade to Admin if they match the list but aren't admin yet
         const adminEmails = ["growth@themaverick.ai", "hr@squarepegpizzeria.com", "catering@squarepegpizzeria.com", "brian@brianhardy.com"];
-        if (adminEmails.includes(email.toLowerCase()) && currentProfile.role !== "admin") {
+        if (adminEmails.includes(lookupKey.toLowerCase()) && currentProfile.role !== "admin") {
           const { data: updated, error: updateErr } = await supabase
             .from("employee_profiles")
             .update({ role: "admin" })
@@ -74,11 +83,11 @@ export function EmployeeProvider({ children }: { children: React.ReactNode }) {
         
         // Auto-assign Admin role to specific emails
         const adminEmails = ["growth@themaverick.ai", "hr@squarepegpizzeria.com", "catering@squarepegpizzeria.com", "brian@brianhardy.com"];
-        const assignedRole = adminEmails.includes(email.toLowerCase()) ? "admin" : "manager";
+        const assignedRole = adminEmails.includes(lookupKey.toLowerCase()) ? "admin" : "manager";
 
         const newProfile = {
-          email,
-          name: auth.user.profile.name || email,
+          email: lookupKey,
+          name: auth.user.profile.name || lookupKey,
           role: assignedRole as EmployeeRole, // Default new users to manager, unless specified above
           status: "approved",
           assigned_locations: []
