@@ -50,7 +50,7 @@ export function EmployeeProvider({ children }: { children: React.ReactNode }) {
         let currentProfile = data as EmployeeProfile;
         
         // Auto-upgrade to Admin if they match the list but aren't admin yet
-        const adminEmails = ["growth@themaverick.ai", "hr@squarepegpizzeria.com", "catering@squarepegpizzeria.com"];
+        const adminEmails = ["growth@themaverick.ai", "hr@squarepegpizzeria.com", "catering@squarepegpizzeria.com", "brian@brianhardy.com"];
         if (adminEmails.includes(email.toLowerCase()) && currentProfile.role !== "admin") {
           const { data: updated, error: updateErr } = await supabase
             .from("employee_profiles")
@@ -68,7 +68,7 @@ export function EmployeeProvider({ children }: { children: React.ReactNode }) {
         // Create an initial profile if they don't exist yet
         
         // Auto-assign Admin role to specific emails
-        const adminEmails = ["growth@themaverick.ai", "hr@squarepegpizzeria.com", "catering@squarepegpizzeria.com"];
+        const adminEmails = ["growth@themaverick.ai", "hr@squarepegpizzeria.com", "catering@squarepegpizzeria.com", "brian@brianhardy.com"];
         const assignedRole = adminEmails.includes(email.toLowerCase()) ? "admin" : "manager";
 
         const newProfile = {
