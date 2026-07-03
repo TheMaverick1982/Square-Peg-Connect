@@ -14,14 +14,19 @@ export function LocationProvider({ children }: { children: ReactNode }) {
   const { profile, isLoading } = useEmployee();
   const [selectedLocationId, setSelectedLocationId] = useState<string | null>(null);
 
-  // Auto-lock the location if the employee is assigned to a specific one
+  // Auto-lock or default the location if the employee is assigned to specific ones
   useEffect(() => {
     if (!isLoading && profile) {
-      if (profile.role !== "admin" && profile.assigned_location) {
-        setSelectedLocationId(profile.assigned_location);
+      if (profile.role !== "admin") {
+        const locs = profile.assigned_locations?.length > 0 ? profile.assigned_locations : (profile.assigned_location ? [profile.assigned_location] : []);
+        if (locs.length === 1) {
+          setSelectedLocationId(locs[0]);
+        } else if (locs.length > 1 && !locs.includes(selectedLocationId as string)) {
+          setSelectedLocationId(locs[0]);
+        }
       }
     }
-  }, [profile, isLoading]);
+  }, [profile, isLoading, selectedLocationId]);
 
   const selectedLocation = selectedLocationId 
     ? locations.find((l) => l.id === selectedLocationId) 
@@ -29,9 +34,15 @@ export function LocationProvider({ children }: { children: ReactNode }) {
 
   // Intercept setter to prevent managers from viewing other locations
   const handleSetLocation = (id: string | null) => {
-    if (profile?.role !== "admin" && profile?.assigned_location) {
-      // Ignore attempts to change location if locked
-      return;
+    if (profile?.role !== "admin") {
+      const locs = profile?.assigned_locations?.length > 0 ? profile.assigned_locations : (profile?.assigned_location ? [profile.assigned_location] : []);
+      if (locs.length === 1) {
+        return;
+      } else if (locs.length > 1 && id && !locs.includes(id)) {
+        return;
+      } else if (locs.length > 1 && !id) {
+        return;
+      }
     }
     setSelectedLocationId(id);
   };

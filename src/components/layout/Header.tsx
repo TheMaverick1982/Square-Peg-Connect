@@ -40,7 +40,9 @@ export function Header() {
   const auth = useAuth();
   const [isAlertsOpen, setIsAlertsOpen] = useState(false);
   
-  const isLocked = profile?.role !== "admin" && !!profile?.assigned_location;
+  const assignedLocs = profile?.assigned_locations?.length > 0 ? profile.assigned_locations : (profile?.assigned_location ? [profile.assigned_location] : []);
+  const isLocked = profile?.role !== "admin" && assignedLocs.length === 1;
+  const hasAccessToAll = profile?.role === "admin";
 
   // Fetch active alerts based on location
   const { data: alerts = [] } = useQuery({
@@ -135,8 +137,8 @@ export function Header() {
               <SelectValue placeholder="All Locations" />
             </SelectTrigger>
             <SelectContent>
-              {!isLocked && <SelectItem value="all">All Locations</SelectItem>}
-              {locations.map(loc => (
+              {hasAccessToAll && <SelectItem value="all">All Locations</SelectItem>}
+              {locations.filter(loc => hasAccessToAll || assignedLocs.includes(loc.id)).map(loc => (
                 <SelectItem key={loc.id} value={loc.id}>
                   {loc.name}
                 </SelectItem>

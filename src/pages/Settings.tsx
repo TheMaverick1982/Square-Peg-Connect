@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { Shield, ShieldAlert, Store, UserCog, Settings as SettingsIcon } from "lucide-react";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuCheckboxItem } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 function TeamManagementTab() {
@@ -106,24 +107,53 @@ function TeamManagementTab() {
                 </div>
 
                 <div className="col-span-4">
-                  <Select 
-                    value={employee.assigned_location || "all"} 
-                    onValueChange={(val) => updateProfile.mutate({ 
-                      id: employee.id, 
-                      assigned_location: val === "all" ? null : val 
-                    })}
-                    disabled={employee.role === 'admin'}
-                  >
-                    <SelectTrigger className="h-8 text-xs">
-                      <SelectValue placeholder="All Locations (Unrestricted)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all" className="font-medium">All Locations (Unrestricted)</SelectItem>
-                      {locations.map(loc => (
-                        <SelectItem key={loc.id} value={loc.id}>{loc.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button 
+                        variant="outline" 
+                        role="combobox"
+                        className="w-full justify-between h-8 text-xs font-normal bg-background"
+                        disabled={employee.role === 'admin'}
+                      >
+                        {employee.role === 'admin' 
+                          ? "All Locations (Unrestricted)"
+                          : employee.assigned_locations?.length 
+                            ? `${employee.assigned_locations.length} Locations Selected`
+                            : (employee.assigned_location ? locations.find(l => l.id === employee.assigned_location)?.name : "Select Locations...")}
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-[250px]" align="start">
+                      {locations.map(loc => {
+                        const isSelected = employee.assigned_locations?.includes(loc.id) || (!employee.assigned_locations?.length && employee.assigned_location === loc.id);
+                        return (
+                          <DropdownMenuCheckboxItem
+                            key={loc.id}
+                            checked={isSelected}
+                            onCheckedChange={(checked) => {
+                              const currentLocs = employee.assigned_locations?.length 
+                                ? [...employee.assigned_locations] 
+                                : (employee.assigned_location ? [employee.assigned_location] : []);
+                              
+                              let newLocs;
+                              if (checked) {
+                                newLocs = [...currentLocs, loc.id];
+                              } else {
+                                newLocs = currentLocs.filter(id => id !== loc.id);
+                              }
+                              
+                              updateProfile.mutate({
+                                id: employee.id,
+                                assigned_locations: newLocs,
+                                assigned_location: newLocs.length > 0 ? newLocs[0] : null
+                              });
+                            }}
+                          >
+                            {loc.name}
+                          </DropdownMenuCheckboxItem>
+                        );
+                      })}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                   {employee.role === 'admin' && (
                     <div className="text-[10px] text-muted-foreground mt-1 ml-1">
                       Admins inherently have access to all locations.

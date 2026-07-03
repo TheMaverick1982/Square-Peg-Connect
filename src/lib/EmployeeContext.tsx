@@ -10,7 +10,8 @@ export interface EmployeeProfile {
   name: string;
   role: EmployeeRole;
   status: string;
-  assigned_location: string | null;
+  assigned_location: string | null; // Legacy, to be removed eventually
+  assigned_locations: string[];
 }
 
 interface EmployeeContextType {
@@ -46,14 +47,36 @@ export function EmployeeProvider({ children }: { children: React.ReactNode }) {
       if (error && error.code !== "PGRST116") {
         console.error("Error loading employee profile:", error);
       } else if (data) {
-        setProfile(data as EmployeeProfile);
+        let currentProfile = data as EmployeeProfile;
+        
+        // Auto-upgrade to Admin if they match the list but aren't admin yet
+        const adminEmails = ["growth@themaverick.ai", "hr@squarepegpizzeria.com", "catering@squarepegpizzeria.com"];
+        if (adminEmails.includes(email.toLowerCase()) && currentProfile.role !== "admin") {
+          const { data: updated, error: updateErr } = await supabase
+            .from("employee_profiles")
+            .update({ role: "admin" })
+            .eq("id", currentProfile.id)
+            .select()
+            .single();
+          if (updated && !updateErr) {
+            currentProfile = updated as EmployeeProfile;
+          }
+        }
+        
+        setProfile(currentProfile);
       } else {
         // Create an initial profile if they don't exist yet
+        
+        // Auto-assign Admin role to specific emails
+        const adminEmails = ["growth@themaverick.ai", "hr@squarepegpizzeria.com", "catering@squarepegpizzeria.com"];
+        const assignedRole = adminEmails.includes(email.toLowerCase()) ? "admin" : "manager";
+
         const newProfile = {
           email,
           name: auth.user.profile.name || email,
-          role: "manager" as EmployeeRole, // Default new users to manager
+          role: assignedRole as EmployeeRole, // Default new users to manager, unless specified above
           status: "approved",
+          assigned_locations: []
         };
         
         const { data: created, error: insertError } = await supabase
