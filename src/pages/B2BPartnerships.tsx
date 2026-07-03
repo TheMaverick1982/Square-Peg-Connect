@@ -83,6 +83,7 @@ export default function B2BPartnerships() {
   const [viewingContactId, setViewingContactId] = useState<string | null>(null);
   const [editingActivityId, setEditingActivityId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"contacts" | "activities">("contacts");
+  const [sortOrder, setSortOrder] = useState<"needs-followup" | "newest" | "alphabetical">("needs-followup");
 
   // Contact Form State
   const [contactForm, setContactForm] = useState({
@@ -224,6 +225,38 @@ export default function B2BPartnerships() {
     onError: () => toast({ title: "Error", description: "Failed to delete contact.", variant: "destructive" })
   });
 
+  // Enrich contacts with last contact date and follow-up status
+  const enrichedContacts = useMemo(() => {
+    const now = new Date().getTime();
+    return contacts.map(c => {
+      const contactActivities = activities.filter(a => a.contact_id === c.id);
+      let lastActivityDate: string | null = null;
+      let lastActivityTime = 0;
+      
+      contactActivities.forEach(a => {
+        const t = new Date(a.activity_date).getTime();
+        if (t > lastActivityTime) {
+          lastActivityTime = t;
+          lastActivityDate = a.activity_date;
+        }
+      });
+      
+      let daysSinceLastContact = Infinity;
+      if (lastActivityTime > 0) {
+        daysSinceLastContact = Math.floor((now - lastActivityTime) / (1000 * 60 * 60 * 24));
+      }
+      
+      const needsFollowUp = daysSinceLastContact > 30 || lastActivityDate === null;
+      
+      return {
+        ...c,
+        lastActivityDate,
+        daysSinceLastContact,
+        needsFollowUp
+      };
+    });
+  }, [contacts, activities]);
+
   // Derived KPI Calculations
   const dashboardStats = useMemo(() => {
     const now = new Date();
@@ -291,6 +324,7 @@ export default function B2BPartnerships() {
     }).length;
 
     const connectionsRemaining = Math.max(0, quarterlyTarget - activeContacts.length);
+    const fadingConnectionsCount = enrichedContacts.filter(c => c.needsFollowUp).length;
 
     return {
       currentQuarter,
@@ -300,23 +334,42 @@ export default function B2BPartnerships() {
       activeConnectionsCount: activeContacts.length,
       monthlyEvents,
       monthlyFundraisers: actualMonthlyFundraisers,
-      yearlyRevenue
+      yearlyRevenue,
+      fadingConnectionsCount
     };
-  }, [contacts, activities, actualFundraisers, actualStoreEvents]);
+  }, [contacts, activities, actualFundraisers, actualStoreEvents, enrichedContacts]);
 
   const viewingContact = contacts.find(c => c.id === viewingContactId) || null;
   const viewingContactActivities = activities.filter(a => a.contact_id === viewingContactId);
 
-  // Filtering
+  // Filtering and Sorting
   const filteredContacts = useMemo(() => {
-    if (!searchQuery) return contacts;
-    const q = searchQuery.toLowerCase();
-    return contacts.filter(c => 
-      c.organization_name.toLowerCase().includes(q) || 
-      c.contact_name.toLowerCase().includes(q) || 
-      c.category.toLowerCase().includes(q)
-    );
-  }, [contacts, searchQuery]);
+    let result = enrichedContacts;
+    
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(c => 
+        c.organization_name.toLowerCase().includes(q) || 
+        c.contact_name.toLowerCase().includes(q) || 
+        c.category.toLowerCase().includes(q)
+      );
+    }
+    
+    return result.sort((a, b) => {
+      if (sortOrder === "needs-followup") {
+        if (a.needsFollowUp && !b.needsFollowUp) return -1;
+        if (!a.needsFollowUp && b.needsFollowUp) return 1;
+        if (a.needsFollowUp && b.needsFollowUp) {
+           return b.daysSinceLastContact - a.daysSinceLastContact;
+        }
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      } else if (sortOrder === "newest") {
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      } else {
+        return a.organization_name.localeCompare(b.organization_name);
+      }
+    });
+  }, [enrichedContacts, searchQuery, sortOrder]);
 
   const filteredActivities = useMemo(() => {
     if (!searchQuery) return activities;
@@ -381,22 +434,38 @@ export default function B2BPartnerships() {
       )}
 
       {/* KPI Dashboard */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4 lg:gap-6">
         <Card className="bg-primary/5 border-primary/20">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center justify-between">
-              Q{dashboardStats.currentQuarter} Growth Progress
+              Q{dashboardStats.currentQuarter} Growth
               <Target className="w-4 h-4 text-primary" />
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-baseline gap-2 mb-2">
               <span className="text-3xl font-bold">{dashboardStats.activeConnectionsCount}</span>
-              <span className="text-sm text-muted-foreground">/ {dashboardStats.quarterlyTarget} Connections</span>
+              <span className="text-sm text-muted-foreground">/ {dashboardStats.quarterlyTarget}</span>
             </div>
             <Progress value={(dashboardStats.activeConnectionsCount / dashboardStats.quarterlyTarget) * 100} className="h-2" />
-            <p className="text-xs text-muted-foreground mt-3">
-              Requires full contact details + 1 logged activity to count.
+          </CardContent>
+        </Card>
+
+        <Card className="bg-amber-50/50 dark:bg-amber-950/10 border-amber-200 dark:border-amber-900/50">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center justify-between text-amber-800 dark:text-amber-400">
+              Fading Connections
+              <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-500" />
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-baseline gap-2 mb-2">
+              <span className="text-3xl font-bold text-amber-900 dark:text-amber-300">
+                {dashboardStats.fadingConnectionsCount}
+              </span>
+            </div>
+            <p className="text-xs text-amber-700/80 dark:text-amber-400/80 mt-1">
+              Untouched for 30+ days. Follow up to keep relationships warm.
             </p>
           </CardContent>
         </Card>
@@ -404,45 +473,39 @@ export default function B2BPartnerships() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center justify-between">
-              Community Events (This Month)
+              Community Events
               <Activity className="w-4 h-4 text-muted-foreground" />
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-baseline gap-2 mb-2">
               <span className="text-3xl font-bold">{dashboardStats.monthlyEvents}</span>
-              <span className="text-sm text-muted-foreground">/ 2 Min. Required</span>
+              <span className="text-sm text-muted-foreground">/ 2 Min.</span>
             </div>
             <Progress value={Math.min((dashboardStats.monthlyEvents / 2) * 100, 100)} className="h-2" />
-            <p className="text-xs text-muted-foreground mt-3">
-              Happy Hours, Tastings, Business Lunches, etc.
-            </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center justify-between">
-              Fundraisers (This Month)
+              Fundraisers
               <Handshake className="w-4 h-4 text-muted-foreground" />
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-baseline gap-2 mb-2">
               <span className="text-3xl font-bold">{dashboardStats.monthlyFundraisers}</span>
-              <span className="text-sm text-muted-foreground">/ 1 Min. Required</span>
+              <span className="text-sm text-muted-foreground">/ 1 Min.</span>
             </div>
             <Progress value={Math.min((dashboardStats.monthlyFundraisers / 1) * 100, 100)} className="h-2" />
-            <p className="text-xs text-muted-foreground mt-3">
-              School, youth sports, or non-profit fundraisers.
-            </p>
           </CardContent>
         </Card>
 
         <Card className="bg-green-50/50 dark:bg-green-950/10 border-green-200 dark:border-green-900/50">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center justify-between text-green-800 dark:text-green-400">
-              Total Revenue (This Year)
+              Total Revenue
               <span className="text-lg font-bold">💰</span>
             </CardTitle>
           </CardHeader>
@@ -452,9 +515,6 @@ export default function B2BPartnerships() {
                 ${dashboardStats.yearlyRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
             </div>
-            <p className="text-xs text-green-700/80 dark:text-green-400/80 mt-5">
-              Total revenue generated from all logged B2B events this calendar year.
-            </p>
           </CardContent>
         </Card>
       </div>
@@ -471,14 +531,28 @@ export default function B2BPartnerships() {
                 <Activity className="w-4 h-4" /> Activity Feed
               </TabsTrigger>
             </TabsList>
-            <div className="relative">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <Input 
-                placeholder={viewMode === "contacts" ? "Search contacts..." : "Search activities..."} 
-                className="pl-9 w-72 bg-background"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
+            <div className="relative flex gap-2">
+              <div className="relative">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <Input 
+                  placeholder={viewMode === "contacts" ? "Search contacts..." : "Search activities..."} 
+                  className="pl-9 w-72 bg-background"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+              {viewMode === "contacts" && (
+                <Select value={sortOrder} onValueChange={(val: any) => setSortOrder(val)}>
+                  <SelectTrigger className="w-48 bg-background">
+                    <SelectValue placeholder="Sort by" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="needs-followup">Needs Follow-up First</SelectItem>
+                    <SelectItem value="newest">Newest Added</SelectItem>
+                    <SelectItem value="alphabetical">Alphabetical</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
             </div>
           </div>
           
@@ -695,7 +769,14 @@ export default function B2BPartnerships() {
                       return (
                         <div key={contact.id} className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-muted/10 transition-colors">
                           <div className="col-span-3">
-                            <div className="font-semibold text-sm text-foreground">{contact.organization_name}</div>
+                            <div className="flex items-start gap-2 mb-0.5">
+                              <div className="font-semibold text-sm text-foreground">{contact.organization_name}</div>
+                              {contact.needsFollowUp && (
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300 border border-amber-200 dark:border-amber-800 shrink-0">
+                                  Needs Follow-up
+                                </span>
+                              )}
+                            </div>
                             <div className="text-xs text-muted-foreground mt-0.5">{contact.contact_name}</div>
                             {!selectedLocationId && contact.location_id && (
                               <div className="mt-1.5 inline-flex items-center gap-1 text-[10px] font-medium bg-primary/10 text-primary px-1.5 py-0.5 rounded border border-primary/20">
@@ -726,16 +807,22 @@ export default function B2BPartnerships() {
                           </div>
 
                           <div className="col-span-2 text-sm text-muted-foreground flex flex-col gap-1">
-                            {lastAct ? (
+                            {contact.lastActivityDate ? (
                               <>
                                 <div className="flex items-center gap-1.5 font-medium text-foreground">
-                                  <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />
-                                  {format(new Date(lastAct.activity_date), "MMM d, yyyy")}
+                                  {contact.needsFollowUp ? (
+                                    <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
+                                  ) : (
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />
+                                  )}
+                                  {format(new Date(contact.lastActivityDate), "MMM d, yyyy")}
                                 </div>
-                                <div className="text-xs truncate">{lastAct.activity_type}</div>
+                                <div className="text-xs">
+                                  <span className="opacity-70">{contact.daysSinceLastContact} days ago</span>
+                                </div>
                               </>
                             ) : (
-                              <span className="text-xs italic opacity-60">No activity logged</span>
+                              <span className="text-xs font-medium text-amber-600 dark:text-amber-500">Never contacted</span>
                             )}
                           </div>
 
