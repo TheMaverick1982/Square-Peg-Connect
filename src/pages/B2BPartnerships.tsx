@@ -697,6 +697,12 @@ export default function B2BPartnerships() {
                           <div className="col-span-3">
                             <div className="font-semibold text-sm text-foreground">{contact.organization_name}</div>
                             <div className="text-xs text-muted-foreground mt-0.5">{contact.contact_name}</div>
+                            {!selectedLocationId && contact.location_id && (
+                              <div className="mt-1.5 inline-flex items-center gap-1 text-[10px] font-medium bg-primary/10 text-primary px-1.5 py-0.5 rounded border border-primary/20">
+                                <MapPin className="w-2.5 h-2.5" />
+                                {locations.find(l => l.id === contact.location_id)?.name || "Unknown"}
+                              </div>
+                            )}
                           </div>
                           
                           <div className="col-span-3">
@@ -807,6 +813,12 @@ export default function B2BPartnerships() {
                           <div className="font-semibold text-sm text-foreground">
                             {act.b2b_contacts?.organization_name || "Unknown Organization"}
                           </div>
+                          {!selectedLocationId && act.b2b_contacts?.location_id && (
+                            <div className="mt-1.5 inline-flex items-center gap-1 text-[10px] font-medium bg-primary/10 text-primary px-1.5 py-0.5 rounded border border-primary/20">
+                              <MapPin className="w-2.5 h-2.5" />
+                              {locations.find(l => l.id === act.b2b_contacts?.location_id)?.name || "Unknown"}
+                            </div>
+                          )}
                         </div>
 
                         <div className="col-span-3">
