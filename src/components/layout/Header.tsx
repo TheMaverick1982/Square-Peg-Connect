@@ -262,14 +262,14 @@ export function Header() {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button className="w-8 h-8 shrink-0 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-primary font-bold text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
-              {auth.user?.profile?.name?.charAt(0).toUpperCase() || "SP"}
+              {profile?.name?.charAt(0).toUpperCase() || auth.user?.profile?.name?.charAt(0).toUpperCase() || "SP"}
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuLabel>
               <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium leading-none">{auth.user?.profile?.name || "Square Peg User"}</p>
-                <p className="text-xs leading-none text-muted-foreground">{auth.user?.profile?.email || "user@squarepeg.com"}</p>
+                <p className="text-sm font-medium leading-none">{profile?.name || auth.user?.profile?.name || "Square Peg User"}</p>
+                <p className="text-xs leading-none text-muted-foreground">{profile?.email || (auth.user?.profile?.email || auth.user?.profile?.preferred_username as string) || "user@squarepeg.com"}</p>
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />

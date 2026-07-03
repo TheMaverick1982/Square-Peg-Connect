@@ -31,12 +31,17 @@ export function EmployeeProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     async function loadProfile() {
-      if (!auth.isAuthenticated || !auth.user?.profile?.email) {
+      if (!auth.isAuthenticated || !auth.user?.profile) {
         setIsLoading(false);
         return;
       }
 
-      const email = auth.user.profile.email;
+      const email = (auth.user.profile.email || auth.user.profile.preferred_username) as string;
+      
+      if (!email) {
+        setIsLoading(false);
+        return;
+      }
       
       const { data, error } = await supabase
         .from("employee_profiles")
@@ -94,7 +99,7 @@ export function EmployeeProvider({ children }: { children: React.ReactNode }) {
     }
 
     loadProfile();
-  }, [auth.isAuthenticated, auth.user?.profile?.email]);
+  }, [auth.isAuthenticated, auth.user?.profile?.email, auth.user?.profile?.preferred_username]);
 
   return (
     <EmployeeContext.Provider value={{ profile, isLoading }}>
