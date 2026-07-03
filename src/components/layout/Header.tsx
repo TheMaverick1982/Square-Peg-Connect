@@ -1,4 +1,4 @@
-import { MapPin, Plus, Search, Bell, LogOut, User, Menu, UtensilsCrossed, PartyPopper, Handshake, CheckSquare } from "lucide-react";
+import { ChevronDown, MapPin, Plus, Search, Bell, LogOut, User, Menu, UtensilsCrossed, PartyPopper, Handshake, CheckSquare } from "lucide-react";
 import { useLocationContext } from "@/lib/LocationContext";
 import { useEmployee } from "@/lib/EmployeeContext";
 import { locations } from "@/lib/data";
@@ -130,23 +130,38 @@ export function Header() {
 
         <div className="flex items-center text-sm font-medium text-muted-foreground border border-border rounded-md px-2 sm:px-3 py-1.5 bg-muted/50 w-full max-w-[150px] sm:max-w-none">
           <MapPin className="w-4 h-4 mr-1 sm:mr-2 text-primary shrink-0" />
-          <Select 
-            value={selectedLocationId || "all"} 
-            onValueChange={(val) => !isLocked && setSelectedLocationId(val === "all" ? null : val)}
-            disabled={isLocked}
-          >
-            <SelectTrigger className="w-full sm:w-[180px] border-0 bg-transparent p-0 h-auto focus:ring-0 shadow-none text-foreground font-semibold disabled:opacity-100 truncate">
-              <SelectValue placeholder="All Locations" />
-            </SelectTrigger>
-            <SelectContent>
-              {hasAccessToAll && <SelectItem value="all">All Locations</SelectItem>}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button 
+                variant="ghost" 
+                className="w-full sm:w-[180px] border-0 bg-transparent p-0 h-auto focus:ring-0 shadow-none text-foreground font-semibold disabled:opacity-100 justify-start hover:bg-transparent" 
+                disabled={isLocked}
+              >
+                <span className="truncate">
+                  {!selectedLocationId 
+                    ? "All Locations" 
+                    : locations.find(l => l.id === selectedLocationId)?.name || "Select Location"}
+                </span>
+                {!isLocked && <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-[200px]" align="start">
+              {hasAccessToAll && (
+                <DropdownMenuItem onClick={() => setSelectedLocationId(null)} className="font-medium">
+                  All Locations
+                </DropdownMenuItem>
+              )}
               {locations.filter(loc => hasAccessToAll || assignedLocs.includes(loc.id)).map(loc => (
-                <SelectItem key={loc.id} value={loc.id}>
+                <DropdownMenuItem 
+                  key={loc.id} 
+                  onClick={() => setSelectedLocationId(loc.id)}
+                  className={selectedLocationId === loc.id ? "bg-primary/10 text-primary font-medium" : ""}
+                >
                   {loc.name}
-                </SelectItem>
+                </DropdownMenuItem>
               ))}
-            </SelectContent>
-          </Select>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
