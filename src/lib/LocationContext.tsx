@@ -18,7 +18,9 @@ export function LocationProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!isLoading && profile) {
       if (profile.role !== "admin") {
-        const locs = profile.assigned_locations?.length > 0 ? profile.assigned_locations : (profile.assigned_location ? [profile.assigned_location] : []);
+        const locs = Array.isArray(profile.assigned_locations) && profile.assigned_locations.length > 0 
+          ? profile.assigned_locations 
+          : (profile.assigned_location ? [profile.assigned_location] : []);
         if (locs.length === 1) {
           setSelectedLocationId(locs[0]);
         } else if (locs.length > 1 && !locs.includes(selectedLocationId as string)) {
@@ -35,7 +37,9 @@ export function LocationProvider({ children }: { children: ReactNode }) {
   // Intercept setter to prevent managers from viewing other locations
   const handleSetLocation = (id: string | null) => {
     if (profile?.role !== "admin") {
-      const locs = profile?.assigned_locations?.length > 0 ? profile.assigned_locations : (profile?.assigned_location ? [profile.assigned_location] : []);
+      const locs = Array.isArray(profile?.assigned_locations) && profile.assigned_locations.length > 0 
+        ? profile.assigned_locations 
+        : (profile?.assigned_location ? [profile.assigned_location] : []);
       if (locs.length === 1) {
         return;
       } else if (locs.length > 1 && id && !locs.includes(id)) {

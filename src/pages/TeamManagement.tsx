@@ -121,20 +121,21 @@ export default function TeamManagement() {
                       >
                         {employee.role === 'admin' 
                           ? "All Locations (Unrestricted)"
-                          : employee.assigned_locations?.length 
+                          : Array.isArray(employee.assigned_locations) && employee.assigned_locations.length 
                             ? `${employee.assigned_locations.length} Locations Selected`
                             : (employee.assigned_location ? locations.find(l => l.id === employee.assigned_location)?.name : "Select Locations...")}
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent className="w-[250px]" align="start">
                       {locations.map(loc => {
-                        const isSelected = employee.assigned_locations?.includes(loc.id) || (!employee.assigned_locations?.length && employee.assigned_location === loc.id);
+                        const isSelected = (Array.isArray(employee.assigned_locations) && employee.assigned_locations.includes(loc.id)) || 
+                                           (!Array.isArray(employee.assigned_locations) || employee.assigned_locations.length === 0) && employee.assigned_location === loc.id;
                         return (
                           <DropdownMenuCheckboxItem
                             key={loc.id}
                             checked={isSelected}
                             onCheckedChange={(checked) => {
-                              const currentLocs = employee.assigned_locations?.length 
+                              const currentLocs = Array.isArray(employee.assigned_locations) && employee.assigned_locations.length 
                                 ? [...employee.assigned_locations] 
                                 : (employee.assigned_location ? [employee.assigned_location] : []);
                               

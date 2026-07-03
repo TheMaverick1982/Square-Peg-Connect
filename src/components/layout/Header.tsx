@@ -40,7 +40,9 @@ export function Header() {
   const auth = useAuth();
   const [isAlertsOpen, setIsAlertsOpen] = useState(false);
   
-  const assignedLocs = profile?.assigned_locations?.length > 0 ? profile.assigned_locations : (profile?.assigned_location ? [profile.assigned_location] : []);
+  const assignedLocs = Array.isArray(profile?.assigned_locations) && profile.assigned_locations.length > 0 
+    ? profile.assigned_locations 
+    : (profile?.assigned_location ? [profile.assigned_location] : []);
   const isLocked = profile?.role !== "admin" && assignedLocs.length === 1;
   const hasAccessToAll = profile?.role === "admin";
 
