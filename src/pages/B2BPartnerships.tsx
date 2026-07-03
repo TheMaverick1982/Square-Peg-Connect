@@ -10,12 +10,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger, SheetFooter, SheetClose } from "@/components/ui/sheet";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { AlertCircle, Handshake, Plus, Activity, Search, MapPin, Building2, Phone, Mail, Calendar, Target, CheckCircle2, Eye, User, Edit2, DollarSign, Trash2 } from "lucide-react";
+import { AlertCircle, Handshake, Plus, Activity, Search, MapPin, Building2, Phone, Mail, Calendar, Target, CheckCircle2, Eye, User, Edit2, DollarSign, Trash2, MessageSquare } from "lucide-react";
 
 // --- Constants ---
 const CATEGORIES: Record<string, string[]> = {
@@ -102,7 +103,9 @@ export default function B2BPartnerships() {
     activity_type: "",
     activity_date: format(new Date(), "yyyy-MM-dd"),
     revenue: "",
-    notes: ""
+    notes: "",
+    createReminder: false,
+    reminderDate: format(new Date(), "yyyy-MM-dd")
   });
 
   // Fetch Data
@@ -179,15 +182,30 @@ export default function B2BPartnerships() {
   });
 
   const createActivity = useMutation({
-    mutationFn: async (newActivity: any) => {
-      const { data, error } = await supabase.from('b2b_activities').insert([newActivity]).select();
+    mutationFn: async ({ payload, reminder }: { payload: any, reminder: string | null }) => {
+      const { data, error } = await supabase.from('b2b_activities').insert([payload]).select();
       if (error) throw error;
+      
+      if (reminder) {
+        const contact = contacts.find(c => c.id === payload.contact_id);
+        const reminderPayload = {
+          title: `Follow up: ${contact?.organization_name || 'B2B Contact'}`,
+          description: `Follow up after ${payload.activity_type} on ${format(new Date(payload.activity_date), "MMM d")}. Notes: ${payload.notes || 'None'}`,
+          due_date: reminder,
+          location_id: contact?.location_id,
+          b2b_contact_id: payload.contact_id
+        };
+        const { error: reminderError } = await supabase.from('reminders').insert([reminderPayload]);
+        if (reminderError) console.error("Failed to create reminder:", reminderError);
+      }
+      
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['b2b_activities'] });
+      queryClient.invalidateQueries({ queryKey: ['all_reminders'] });
       setIsActivitySheetOpen(false);
-      setActivityForm({ activity_type: "", activity_date: format(new Date(), "yyyy-MM-dd"), revenue: "", notes: "" });
+      setActivityForm({ activity_type: "", activity_date: format(new Date(), "yyyy-MM-dd"), revenue: "", notes: "", createReminder: false, reminderDate: format(new Date(), "yyyy-MM-dd") });
       setSelectedContactForActivity("");
       toast({ title: "Activity Logged", description: "The activity has been successfully recorded." });
     },
@@ -205,7 +223,7 @@ export default function B2BPartnerships() {
       queryClient.invalidateQueries({ queryKey: ['b2b_activities'] });
       setIsActivitySheetOpen(false);
       setEditingActivityId(null);
-      setActivityForm({ activity_type: "", activity_date: format(new Date(), "yyyy-MM-dd"), revenue: "", notes: "" });
+      setActivityForm({ activity_type: "", activity_date: format(new Date(), "yyyy-MM-dd"), revenue: "", notes: "", createReminder: false, reminderDate: format(new Date(), "yyyy-MM-dd") });
       setSelectedContactForActivity("");
       toast({ title: "Activity Updated", description: "The activity details have been updated." });
     },
@@ -383,7 +401,7 @@ export default function B2BPartnerships() {
 
   const openNewActivitySheet = (contactId?: string) => {
     setEditingActivityId(null);
-    setActivityForm({ activity_type: "", activity_date: format(new Date(), "yyyy-MM-dd"), revenue: "", notes: "" });
+    setActivityForm({ activity_type: "", activity_date: format(new Date(), "yyyy-MM-dd"), revenue: "", notes: "", createReminder: false, reminderDate: format(new Date(), "yyyy-MM-dd") });
     setSelectedContactForActivity(contactId || "");
     setIsActivitySheetOpen(true);
   };
@@ -395,7 +413,9 @@ export default function B2BPartnerships() {
       activity_type: act.activity_type,
       activity_date: format(new Date(act.activity_date), "yyyy-MM-dd"),
       revenue: act.revenue !== null ? act.revenue.toString() : "",
-      notes: act.notes || ""
+      notes: act.notes || "",
+      createReminder: false,
+      reminderDate: format(new Date(), "yyyy-MM-dd")
     });
     setIsActivitySheetOpen(true);
   };
@@ -704,20 +724,44 @@ export default function B2BPartnerships() {
                       onChange={(e) => setActivityForm({ ...activityForm, notes: e.target.value })} 
                     />
                   </div>
+                  {!editingActivityId && (
+                    <div className="grid gap-3 pt-4 border-t mt-2">
+                      <div className="flex items-center space-x-2">
+                        <Checkbox 
+                          id="create-reminder" 
+                          checked={activityForm.createReminder}
+                          onCheckedChange={(checked) => setActivityForm({ ...activityForm, createReminder: checked === true })}
+                        />
+                        <Label htmlFor="create-reminder" className="font-normal cursor-pointer">Create a follow-up task?</Label>
+                      </div>
+                      {activityForm.createReminder && (
+                        <div className="grid gap-2 pl-6">
+                          <Label className="text-xs text-muted-foreground">Follow-up Date</Label>
+                          <Input 
+                            type="date" 
+                            value={activityForm.reminderDate} 
+                            onChange={(e) => setActivityForm({ ...activityForm, reminderDate: e.target.value })} 
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <SheetFooter className="mt-8">
                   <SheetClose asChild><Button variant="outline">Cancel</Button></SheetClose>
                   <Button 
                     onClick={() => {
                       const payload = {
-                        ...activityForm,
+                        activity_type: activityForm.activity_type,
+                        activity_date: activityForm.activity_date,
                         revenue: activityForm.revenue ? parseFloat(activityForm.revenue) : null,
+                        notes: activityForm.notes,
                         contact_id: selectedContactForActivity
                       };
                       if (editingActivityId) {
                         updateActivity.mutate({ ...payload, id: editingActivityId });
                       } else {
-                        createActivity.mutate(payload);
+                        createActivity.mutate({ payload, reminder: activityForm.createReminder ? activityForm.reminderDate : null });
                       }
                     }}
                     disabled={!selectedContactForActivity || !activityForm.activity_type}
@@ -827,6 +871,9 @@ export default function B2BPartnerships() {
                           </div>
 
                           <div className="col-span-1 flex justify-end items-center gap-1">
+                            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => openNewActivitySheet(contact.id)} title="Log Call/Text">
+                              <MessageSquare className="w-4 h-4 text-muted-foreground hover:text-primary" />
+                            </Button>
                             <Button variant="ghost" size="icon" onClick={() => setViewingContactId(contact.id)}>
                               <Eye className="w-4 h-4 text-muted-foreground hover:text-foreground" />
                             </Button>
