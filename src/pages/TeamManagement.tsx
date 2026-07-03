@@ -9,10 +9,12 @@ import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { Shield, ShieldAlert, Store, UserCog } from "lucide-react";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuCheckboxItem } from "@/components/ui/dropdown-menu";
+import { useEmployee } from "@/lib/EmployeeContext";
 
 export default function TeamManagement() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { profile, isLoading: isProfileLoading } = useEmployee();
 
   const { data: employees = [], isLoading } = useQuery({
     queryKey: ['employee_profiles'],
@@ -44,6 +46,21 @@ export default function TeamManagement() {
       toast({ title: "Update failed", description: error.message, variant: "destructive" });
     }
   });
+
+  if (isProfileLoading) return <div>Loading...</div>;
+
+  if (profile?.role !== 'admin') {
+    return (
+      <div className="flex flex-col items-center justify-center h-full space-y-4 max-w-md mx-auto text-center">
+        <ShieldAlert className="w-12 h-12 text-destructive" />
+        <h2 className="text-2xl font-bold">Access Restricted</h2>
+        <p className="text-muted-foreground">
+          You must be logged in as an Administrator to view or modify team management settings. 
+          If you believe you should have access, please ensure you are logged in with an authorized email.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full space-y-6">

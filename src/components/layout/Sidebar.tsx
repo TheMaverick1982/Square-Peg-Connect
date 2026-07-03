@@ -14,13 +14,16 @@ import {
   BarChart3,
   Settings,
   ShieldCheck,
-  Store
+  Store,
+  Lock
 } from "lucide-react";
 import { useEmployee } from "@/lib/EmployeeContext";
+import { useToast } from "@/hooks/use-toast";
 
 export function SidebarContent() {
   const { profile } = useEmployee();
   const isAdmin = profile?.role === "admin";
+  const { toast } = useToast();
 
   return (
     <>
@@ -73,15 +76,25 @@ export function SidebarContent() {
           Guest Bounce Back
         </NavLink>
 
-        {isAdmin && (
-          <>
-            <div className="sidebar-group-title">Administration</div>
-            <NavLink to="/team" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
-              <ShieldCheck className="w-4 h-4" />
-              Team Management
-            </NavLink>
-          </>
-        )}
+        <div className="sidebar-group-title">Administration</div>
+        <NavLink 
+          to={isAdmin ? "/team" : "#"} 
+          onClick={(e) => {
+            if (!isAdmin) {
+              e.preventDefault();
+              toast({ 
+                title: "Access Restricted", 
+                description: "You must be logged in as an Administrator to view Team Management.", 
+                variant: "destructive" 
+              });
+            }
+          }}
+          className={({ isActive }) => `sidebar-link ${isActive && isAdmin ? 'active' : ''} ${!isAdmin ? 'opacity-50 hover:bg-transparent hover:text-muted-foreground' : ''}`}
+        >
+          <ShieldCheck className="w-4 h-4" />
+          Team Management
+          {!isAdmin && <Lock className="w-3 h-3 ml-auto text-muted-foreground" />}
+        </NavLink>
 
         <div className="sidebar-group-title">Marketing</div>
         <NavLink to="/campaigns" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
