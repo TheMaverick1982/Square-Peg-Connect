@@ -37,7 +37,7 @@ const CATEGORIES: Record<string, string[]> = {
 };
 
 const ACTIVITY_TYPES = [
-  "Happy Hour", "Fundraiser", "Employee Appreciation Event", 
+  "Called or Texted", "Happy Hour", "Fundraiser", "Employee Appreciation Event", 
   "Team Celebration", "Catering Tasting", "Business Lunch", 
   "Community Event", "Networking Event"
 ];
@@ -105,7 +105,8 @@ export default function B2BPartnerships() {
     revenue: "",
     notes: "",
     createReminder: false,
-    reminderDate: format(new Date(), "yyyy-MM-dd")
+    reminderDate: format(new Date(), "yyyy-MM-dd"),
+    reminderNotes: ""
   });
 
   // Fetch Data
@@ -182,7 +183,7 @@ export default function B2BPartnerships() {
   });
 
   const createActivity = useMutation({
-    mutationFn: async ({ payload, reminder }: { payload: any, reminder: string | null }) => {
+    mutationFn: async ({ payload, reminder, reminderNotes }: { payload: any, reminder: string | null, reminderNotes: string | null }) => {
       const { data, error } = await supabase.from('b2b_activities').insert([payload]).select();
       if (error) throw error;
       
@@ -190,7 +191,7 @@ export default function B2BPartnerships() {
         const contact = contacts.find(c => c.id === payload.contact_id);
         const reminderPayload = {
           title: `Follow up: ${contact?.organization_name || 'B2B Contact'}`,
-          description: `Follow up after ${payload.activity_type} on ${format(new Date(payload.activity_date), "MMM d")}. Notes: ${payload.notes || 'None'}`,
+          description: reminderNotes || `Follow up after ${payload.activity_type} on ${format(new Date(payload.activity_date), "MMM d")}.`,
           due_date: reminder,
           location_id: contact?.location_id,
           b2b_contact_id: payload.contact_id
@@ -205,7 +206,7 @@ export default function B2BPartnerships() {
       queryClient.invalidateQueries({ queryKey: ['b2b_activities'] });
       queryClient.invalidateQueries({ queryKey: ['all_reminders'] });
       setIsActivitySheetOpen(false);
-      setActivityForm({ activity_type: "", activity_date: format(new Date(), "yyyy-MM-dd"), revenue: "", notes: "", createReminder: false, reminderDate: format(new Date(), "yyyy-MM-dd") });
+      setActivityForm({ activity_type: "", activity_date: format(new Date(), "yyyy-MM-dd"), revenue: "", notes: "", createReminder: false, reminderDate: format(new Date(), "yyyy-MM-dd"), reminderNotes: "" });
       setSelectedContactForActivity("");
       toast({ title: "Activity Logged", description: "The activity has been successfully recorded." });
     },
@@ -223,7 +224,7 @@ export default function B2BPartnerships() {
       queryClient.invalidateQueries({ queryKey: ['b2b_activities'] });
       setIsActivitySheetOpen(false);
       setEditingActivityId(null);
-      setActivityForm({ activity_type: "", activity_date: format(new Date(), "yyyy-MM-dd"), revenue: "", notes: "", createReminder: false, reminderDate: format(new Date(), "yyyy-MM-dd") });
+      setActivityForm({ activity_type: "", activity_date: format(new Date(), "yyyy-MM-dd"), revenue: "", notes: "", createReminder: false, reminderDate: format(new Date(), "yyyy-MM-dd"), reminderNotes: "" });
       setSelectedContactForActivity("");
       toast({ title: "Activity Updated", description: "The activity details have been updated." });
     },
@@ -401,7 +402,7 @@ export default function B2BPartnerships() {
 
   const openNewActivitySheet = (contactId?: string) => {
     setEditingActivityId(null);
-    setActivityForm({ activity_type: "", activity_date: format(new Date(), "yyyy-MM-dd"), revenue: "", notes: "", createReminder: false, reminderDate: format(new Date(), "yyyy-MM-dd") });
+    setActivityForm({ activity_type: "", activity_date: format(new Date(), "yyyy-MM-dd"), revenue: "", notes: "", createReminder: false, reminderDate: format(new Date(), "yyyy-MM-dd"), reminderNotes: "" });
     setSelectedContactForActivity(contactId || "");
     setIsActivitySheetOpen(true);
   };
@@ -415,7 +416,8 @@ export default function B2BPartnerships() {
       revenue: act.revenue !== null ? act.revenue.toString() : "",
       notes: act.notes || "",
       createReminder: false,
-      reminderDate: format(new Date(), "yyyy-MM-dd")
+      reminderDate: format(new Date(), "yyyy-MM-dd"),
+      reminderNotes: ""
     });
     setIsActivitySheetOpen(true);
   };
@@ -735,13 +737,24 @@ export default function B2BPartnerships() {
                         <Label htmlFor="create-reminder" className="font-normal cursor-pointer">Create a follow-up task?</Label>
                       </div>
                       {activityForm.createReminder && (
-                        <div className="grid gap-2 pl-6">
-                          <Label className="text-xs text-muted-foreground">Follow-up Date</Label>
-                          <Input 
-                            type="date" 
-                            value={activityForm.reminderDate} 
-                            onChange={(e) => setActivityForm({ ...activityForm, reminderDate: e.target.value })} 
-                          />
+                        <div className="grid gap-3 pl-6 pt-2">
+                          <div className="grid gap-2">
+                            <Label className="text-xs text-muted-foreground">Follow-up Date</Label>
+                            <Input 
+                              type="date" 
+                              value={activityForm.reminderDate} 
+                              onChange={(e) => setActivityForm({ ...activityForm, reminderDate: e.target.value })} 
+                            />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label className="text-xs text-muted-foreground">Task Notes / Details</Label>
+                            <Textarea 
+                              rows={2} 
+                              placeholder="What needs to be done?"
+                              value={activityForm.reminderNotes} 
+                              onChange={(e) => setActivityForm({ ...activityForm, reminderNotes: e.target.value })} 
+                            />
+                          </div>
                         </div>
                       )}
                     </div>
@@ -761,7 +774,11 @@ export default function B2BPartnerships() {
                       if (editingActivityId) {
                         updateActivity.mutate({ ...payload, id: editingActivityId });
                       } else {
-                        createActivity.mutate({ payload, reminder: activityForm.createReminder ? activityForm.reminderDate : null });
+                        createActivity.mutate({ 
+                          payload, 
+                          reminder: activityForm.createReminder ? activityForm.reminderDate : null,
+                          reminderNotes: activityForm.createReminder ? activityForm.reminderNotes : null
+                        });
                       }
                     }}
                     disabled={!selectedContactForActivity || !activityForm.activity_type}
