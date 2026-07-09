@@ -275,11 +275,12 @@ export function Header() {
               <div className="flex flex-col space-y-1">
                 <p className="text-sm font-medium leading-none">{profile?.name || auth.user?.profile?.name || "Square Peg User"}</p>
                 <p className="text-xs leading-none text-muted-foreground break-all">{
-                  profile?.email || 
-                  auth.user?.profile?.email as string || 
-                  auth.user?.profile?.preferred_username as string || 
-                  auth.user?.profile?.['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress'] as string ||
-                  "user@squarepeg.com"
+                  ([
+                    profile?.email,
+                    auth.user?.profile?.email,
+                    auth.user?.profile?.preferred_username,
+                    auth.user?.profile?.['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress']
+                  ].find(e => typeof e === 'string' && e.includes('@')) as string) || "user@squarepeg.com"
                 }</p>
               </div>
             </DropdownMenuLabel>

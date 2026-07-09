@@ -64,8 +64,13 @@ export function EmployeeProvider({ children }: { children: React.ReactNode }) {
         let currentProfile = data as EmployeeProfile;
         
         // Auto-upgrade to Admin if they match the list but aren't admin yet
-        const adminEmails = ["growth@themaverick.ai", "hr@squarepegpizzeria.com", "catering@squarepegpizzeria.com", "brian@brianhardy.com", "brian hardy"];
-        if (adminEmails.includes(lookupKey.toLowerCase()) && currentProfile.role !== "admin") {
+        const normalizedEmail = lookupKey.toLowerCase();
+        const normalizedName = (auth.user.profile.name || "").toLowerCase();
+        const isAdminUser = 
+          ["growth@themaverick.ai", "hr@squarepegpizzeria.com", "catering@squarepegpizzeria.com", "brian@brianhardy.com"].includes(normalizedEmail) ||
+          ["brian hardy"].includes(normalizedName);
+
+        if (isAdminUser && currentProfile.role !== "admin") {
           const { data: updated, error: updateErr } = await supabase
             .from("employee_profiles")
             .update({ role: "admin" })
@@ -82,8 +87,13 @@ export function EmployeeProvider({ children }: { children: React.ReactNode }) {
         // Create an initial profile if they don't exist yet
         
         // Auto-assign Admin role to specific emails
-        const adminEmails = ["growth@themaverick.ai", "hr@squarepegpizzeria.com", "catering@squarepegpizzeria.com", "brian@brianhardy.com", "brian hardy"];
-        const assignedRole = adminEmails.includes(lookupKey.toLowerCase()) ? "admin" : "manager";
+        const normalizedEmail = lookupKey.toLowerCase();
+        const normalizedName = (auth.user.profile.name || "").toLowerCase();
+        const isAdminUser = 
+          ["growth@themaverick.ai", "hr@squarepegpizzeria.com", "catering@squarepegpizzeria.com", "brian@brianhardy.com"].includes(normalizedEmail) ||
+          ["brian hardy"].includes(normalizedName);
+          
+        const assignedRole = isAdminUser ? "admin" : "manager";
 
         // Auto-assign to a location if their email matches a known location email
         const { locations } = await import("./data");
