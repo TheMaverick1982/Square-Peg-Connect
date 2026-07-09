@@ -160,6 +160,11 @@ export function Header() {
                   {loc.name}
                 </DropdownMenuItem>
               ))}
+              {!hasAccessToAll && assignedLocs.length === 0 && (
+                <DropdownMenuItem disabled className="text-muted-foreground italic">
+                  No locations assigned
+                </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
