@@ -151,6 +151,7 @@ export default function TeamManagement() {
                           <DropdownMenuCheckboxItem
                             key={loc.id}
                             checked={isSelected}
+                            onSelect={(e) => e.preventDefault()}
                             onCheckedChange={(checked) => {
                               const currentLocs = Array.isArray(employee.assigned_locations) && employee.assigned_locations.length 
                                 ? [...employee.assigned_locations] 

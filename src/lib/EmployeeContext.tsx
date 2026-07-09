@@ -85,12 +85,18 @@ export function EmployeeProvider({ children }: { children: React.ReactNode }) {
         const adminEmails = ["growth@themaverick.ai", "hr@squarepegpizzeria.com", "catering@squarepegpizzeria.com", "brian@brianhardy.com", "brian hardy"];
         const assignedRole = adminEmails.includes(lookupKey.toLowerCase()) ? "admin" : "manager";
 
+        // Auto-assign to a location if their email matches a known location email
+        const { locations } = await import("./data");
+        const matchingLocation = locations.find(l => l.email?.toLowerCase() === lookupKey.toLowerCase());
+        const initialLocations = matchingLocation ? [matchingLocation.id] : [];
+
         const newProfile = {
           email: lookupKey,
           name: auth.user.profile.name || lookupKey,
           role: assignedRole as EmployeeRole, // Default new users to manager, unless specified above
           status: "approved",
-          assigned_locations: []
+          assigned_locations: initialLocations,
+          assigned_location: initialLocations.length > 0 ? initialLocations[0] : null
         };
         
         const { data: created, error: insertError } = await supabase
