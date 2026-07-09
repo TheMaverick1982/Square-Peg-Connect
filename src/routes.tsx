@@ -1,5 +1,6 @@
 import { AppLayout } from "./components/layout/AppLayout";
 import Dashboard from "./pages/Dashboard";
+import MasterCalendar from "./pages/MasterCalendar";
 import CateringPipeline from "./pages/CateringPipeline";
 import FundraisersPipeline from "./pages/FundraisersPipeline";
 import B2BPartnerships from "./pages/B2BPartnerships";
@@ -82,6 +83,7 @@ export const routes = [
     element: <ProtectedRoute><AppLayout /></ProtectedRoute>,
     children: [
       { index: true, element: <Dashboard /> },
+      { path: "master-calendar", element: <MasterCalendar /> },
       { path: "contacts", element: <Contacts /> },
       { path: "catering", element: <CateringPipeline /> },
       { path: "events", element: <EventsDashboard /> },

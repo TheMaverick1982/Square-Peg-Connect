@@ -15,7 +15,8 @@ import {
   Settings,
   ShieldCheck,
   Store,
-  Lock
+  Lock,
+  CalendarRange
 } from "lucide-react";
 import { useEmployee } from "@/lib/EmployeeContext";
 import { useToast } from "@/hooks/use-toast";
@@ -42,6 +43,10 @@ export function SidebarContent() {
         <NavLink to="/" end className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
           <LayoutDashboard className="w-4 h-4" />
           Dashboard
+        </NavLink>
+        <NavLink to="/master-calendar" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
+          <CalendarRange className="w-4 h-4" />
+          Master Calendar
         </NavLink>
         <NavLink to="/contacts" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
           <Users className="w-4 h-4" />

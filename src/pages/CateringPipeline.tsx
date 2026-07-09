@@ -19,8 +19,13 @@ import {
 } from "@/components/ui/sheet";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { Search, Filter, Plus, Calendar as CalendarIcon, Users, MapPin, UtensilsCrossed, Link as LinkIcon, MessageSquare, Phone, Mail, FileText, ArrowDownUp, Trash2 } from "lucide-react";
+import { Search, Filter, Plus, Calendar as CalendarIcon, Users, MapPin, UtensilsCrossed, Link as LinkIcon, MessageSquare, Phone, Mail, FileText, ArrowDownUp, Trash2, Download } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import type { DateRange } from "react-day-picker";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 import { QuoteBuilder } from "@/components/QuoteBuilder";
 
 type TabState = "all" | "upcoming" | "unopened" | "past";
@@ -39,6 +44,10 @@ export default function CateringPipeline() {
   const [isNewSheetOpen, setIsNewSheetOpen] = useState(false);
   const [viewingOrder, setViewingOrder] = useState<CateringOrder | null>(null);
   
+  // Export states
+  const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
+  const [exportDateRange, setExportDateRange] = useState<DateRange | undefined>(undefined);
+
   // Form state
   const [formData, setFormData] = useState({
     contactName: "",
@@ -233,6 +242,75 @@ export default function CateringPipeline() {
 
 
 
+  const handleExportCSV = () => {
+    let dataToExport = sortedOrders;
+
+    if (exportDateRange?.from) {
+      const from = exportDateRange.from;
+      const to = exportDateRange.to || exportDateRange.from;
+      // Normalizing to start/end of day
+      const start = new Date(from);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(to);
+      end.setHours(23, 59, 59, 999);
+
+      dataToExport = dataToExport.filter(o => {
+        // use eventDate for the filtering logic
+        const d = new Date(o.eventDate);
+        return d >= start && d <= end;
+      });
+    }
+
+    if (dataToExport.length === 0) {
+      toast({ title: "No data", description: "There are no catering orders in the selected range to export.", variant: "destructive" });
+      return;
+    }
+
+    const headers = [
+      "Contact Name", 
+      "Event/Company", 
+      "Location", 
+      "Event Date", 
+      "Guest Count", 
+      "Email", 
+      "Phone", 
+      "Notes", 
+      "Quote Total",
+      "Status",
+      "Created At"
+    ];
+    
+    const rows = dataToExport.map(o => [
+      o.contactName,
+      o.eventName || "",
+      locations.find(l => l.id === o.locationId)?.name || "Unknown",
+      format(new Date(o.eventDate), "yyyy-MM-dd"),
+      o.guestCount,
+      o.email || "",
+      o.phone || "",
+      o.notes || "",
+      o.totalAmount || 0,
+      o.status,
+      format(new Date(o.createdAt), "yyyy-MM-dd")
+    ]);
+    
+    const csvContent = [
+      headers.join(","),
+      ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(","))
+    ].join("\n");
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `catering_export_${format(new Date(), "yyyy-MM-dd")}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    setIsExportDialogOpen(false);
+  };
+
   const handleDeleteOrder = async (orderId: string) => {
     const { error } = await supabase
       .from('catering_requests')
@@ -280,6 +358,10 @@ export default function CateringPipeline() {
         </div>
         
         <div className="flex items-center gap-2">
+          <Button variant="outline" className="gap-2 shadow-sm" onClick={() => setIsExportDialogOpen(true)}>
+            <Download className="w-4 h-4" />
+            Export CSV
+          </Button>
           <Button variant="outline" className="gap-2 shadow-sm" onClick={handleCopyLink}>
             <LinkIcon className="w-4 h-4" />
             Copy Public Link
@@ -673,6 +755,65 @@ export default function CateringPipeline() {
           )}
         </SheetContent>
       </Sheet>
+      {/* Export Dialog */}
+      <Dialog open={isExportDialogOpen} onOpenChange={setIsExportDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Export Catering Orders</DialogTitle>
+            <DialogDescription>
+              Select a date range to export, or leave blank to export all matching records.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label>Event Date Range (Optional)</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    id="date"
+                    variant={"outline"}
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !exportDateRange && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {exportDateRange?.from ? (
+                      exportDateRange.to ? (
+                        <>
+                          {format(exportDateRange.from, "LLL dd, y")} -{" "}
+                          {format(exportDateRange.to, "LLL dd, y")}
+                        </>
+                      ) : (
+                        format(exportDateRange.from, "LLL dd, y")
+                      )
+                    ) : (
+                      <span>All time</span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="center">
+                  <Calendar
+                    initialFocus
+                    mode="range"
+                    defaultMonth={exportDateRange?.from}
+                    selected={exportDateRange}
+                    onSelect={setExportDateRange}
+                    numberOfMonths={2}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsExportDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleExportCSV} className="gap-2">
+              <Download className="w-4 h-4" />
+              Download CSV
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
