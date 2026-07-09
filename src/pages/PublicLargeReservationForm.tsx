@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -25,7 +26,8 @@ export default function PublicLargeReservationForm() {
     phone: "",
     organization: "",
     guestCount: "",
-    notes: ""
+    notes: "",
+    requiresRoom: false
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -65,6 +67,7 @@ export default function PublicLargeReservationForm() {
       time_finish: formData.timeFinish,
       guest_count: parseInt(formData.guestCount) || 0,
       notes: formData.notes,
+      requires_room: formData.requiresRoom,
       status: 'Requested'
     };
 
@@ -232,6 +235,21 @@ export default function PublicLargeReservationForm() {
                 <Label htmlFor="guestCount">How many guests?</Label>
                 <Input id="guestCount" type="number" min="1" required value={formData.guestCount} onChange={e => setFormData({...formData, guestCount: e.target.value})} />
               </div>
+              {/* Location-specific room requirement */}
+              {(formData.locationId === "loc-7" || formData.locationId === "loc-5") && (
+                <div className="grid gap-4 bg-muted/20 p-4 rounded-lg border">
+                  <div className="flex items-center justify-between">
+                    <Label className="font-semibold text-primary">
+                      {formData.locationId === "loc-7" ? "Banquet Room Required?" : "Private Dining Room Required?"}
+                    </Label>
+                    <Switch 
+                      checked={formData.requiresRoom} 
+                      onCheckedChange={(checked) => setFormData({...formData, requiresRoom: checked})}
+                    />
+                  </div>
+                </div>
+              )}
+
               <div className="grid gap-2">
                 <Label htmlFor="notes">Order Notes</Label>
                 <Textarea id="notes" placeholder="Any specific details we should know?" rows={4} value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})} />

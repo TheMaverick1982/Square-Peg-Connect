@@ -41,6 +41,9 @@ export interface LargeReservationOrder {
   additionalStaffCount: number;
   status: "Requested" | "Confirmed" | "Completed";
   totalSales: number;
+  requiresRoom?: boolean;
+  depositPaid?: boolean;
+  depositAmount?: number;
   createdAt: string;
 }
 
@@ -83,7 +86,8 @@ export default function LargeReservationsPipeline() {
   const [editFormData, setEditFormData] = useState({
     name: "", email: "", phone: "", organization: "", notes: "", 
     locationId: "", eventDate: new Date(), timeStart: "", timeFinish: "", 
-    guestCount: 0, additionalStaffNeeded: false, additionalStaffCount: 0
+    guestCount: 0, additionalStaffNeeded: false, additionalStaffCount: 0,
+    requiresRoom: false, depositPaid: false, depositAmount: 0
   });
   const [isUpdating, setIsUpdating] = useState(false);
 
@@ -92,7 +96,8 @@ export default function LargeReservationsPipeline() {
   
   const [addFormData, setAddFormData] = useState({
     name: "", email: "", phone: "", organization: "", notes: "", locationId: "",
-    timeStart: "", timeFinish: "", guestCount: 0, additionalStaffNeeded: false, additionalStaffCount: 0
+    timeStart: "", timeFinish: "", guestCount: 0, additionalStaffNeeded: false, additionalStaffCount: 0,
+    requiresRoom: false, depositPaid: false, depositAmount: 0
   });
   const [addFormDate, setAddFormDate] = useState<Date | undefined>(undefined);
 
@@ -137,6 +142,9 @@ export default function LargeReservationsPipeline() {
         additionalStaffCount: row.additional_staff_count || 0,
         status: row.status as "Requested" | "Confirmed" | "Completed",
         totalSales: parseFloat(row.total_sales || 0),
+        requiresRoom: row.requires_room || false,
+        depositPaid: row.deposit_paid || false,
+        depositAmount: parseFloat(row.deposit_amount || 0),
         createdAt: row.created_at,
       }));
       setOrders(mappedOrders);
@@ -352,7 +360,10 @@ export default function LargeReservationsPipeline() {
         time_finish: editFormData.timeFinish,
         guest_count: editFormData.guestCount,
         additional_staff_needed: editFormData.additionalStaffNeeded,
-        additional_staff_count: editFormData.additionalStaffCount
+        additional_staff_count: editFormData.additionalStaffCount,
+        requires_room: editFormData.requiresRoom,
+        deposit_paid: editFormData.depositPaid,
+        deposit_amount: editFormData.depositAmount
       })
       .eq('id', viewingOrder.id);
 
@@ -376,7 +387,10 @@ export default function LargeReservationsPipeline() {
       timeFinish: editFormData.timeFinish,
       guestCount: editFormData.guestCount,
       additionalStaffNeeded: editFormData.additionalStaffNeeded,
-      additionalStaffCount: editFormData.additionalStaffCount
+      additionalStaffCount: editFormData.additionalStaffCount,
+      requiresRoom: editFormData.requiresRoom,
+      depositPaid: editFormData.depositPaid,
+      depositAmount: editFormData.depositAmount
     };
 
     setOrders(orders.map(o => o.id === viewingOrder.id ? updatedOrder : o));
@@ -421,6 +435,9 @@ export default function LargeReservationsPipeline() {
       guest_count: addFormData.guestCount,
       additional_staff_needed: addFormData.additionalStaffNeeded,
       additional_staff_count: addFormData.additionalStaffCount,
+      requires_room: addFormData.requiresRoom,
+      deposit_paid: addFormData.depositPaid,
+      deposit_amount: addFormData.depositAmount,
       status: 'Confirmed'
     }]).select().single();
 
@@ -456,12 +473,15 @@ export default function LargeReservationsPipeline() {
         guestCount: data.guest_count || 0,
         additionalStaffNeeded: data.additional_staff_needed || false,
         additionalStaffCount: data.additional_staff_count || 0,
+        requiresRoom: data.requires_room || false,
+        depositPaid: data.deposit_paid || false,
+        depositAmount: parseFloat(data.deposit_amount || 0),
         status: data.status,
         totalSales: 0,
         createdAt: data.created_at,
       }].sort((a, b) => parseSafeDate(a.eventDate).getTime() - parseSafeDate(b.eventDate).getTime()));
       setIsAddSheetOpen(false);
-      setAddFormData({ name: "", email: "", phone: "", organization: "", notes: "", locationId: "", timeStart: "", timeFinish: "", guestCount: 0, additionalStaffNeeded: false, additionalStaffCount: 0 });
+      setAddFormData({ name: "", email: "", phone: "", organization: "", notes: "", locationId: "", timeStart: "", timeFinish: "", guestCount: 0, additionalStaffNeeded: false, additionalStaffCount: 0, requiresRoom: false, depositPaid: false, depositAmount: 0 });
       setAddFormDate(undefined);
     }
   };
@@ -800,9 +820,14 @@ export default function LargeReservationsPipeline() {
               ) : (
                 sortedOrders.map(order => (
                   <div key={order.id} className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-muted/10 transition-colors">
-                    <div className="col-span-2">
+                    <div className="col-span-2 min-w-0">
                       <div className="font-semibold text-sm">{format(parseSafeDate(order.eventDate), "EEEE, MMMM d, yyyy")}</div>
                       <div className="text-xs text-muted-foreground mt-0.5">{formatTime12Hour(order.timeStart) || 'TBD'} - {formatTime12Hour(order.timeFinish) || 'TBD'}</div>
+                      {order.requiresRoom && (
+                        <div className="text-[10px] bg-muted/50 border border-border mt-1 w-fit px-1.5 py-0.5 rounded">
+                           {order.locationId === "loc-7" ? "Banquet Room" : "Private Dining"} Required
+                        </div>
+                      )}
                     </div>
                     <div className="col-span-2 min-w-0">
                       <div className="font-medium text-sm truncate">{order.name}</div>
@@ -810,6 +835,9 @@ export default function LargeReservationsPipeline() {
                     </div>
                     <div className="col-span-2 min-w-0">
                       <div className="text-sm truncate">{locations.find(l => l.id === order.locationId)?.name}</div>
+                      {order.depositPaid && (
+                        <div className="text-xs text-green-600 font-medium mt-0.5">Deposit: ${order.depositAmount}</div>
+                      )}
                     </div>
                     <div className="col-span-2 min-w-0">
                       <div className="text-sm font-medium">{order.guestCount} Guests</div>
@@ -889,6 +917,20 @@ export default function LargeReservationsPipeline() {
                       <span className="truncate">{formatTime12Hour(order.timeStart)} {order.timeFinish ? `- ${formatTime12Hour(order.timeFinish)}` : ''}</span>
                     </div>
                   )}
+                  {order.requiresRoom && (
+                    <div className="flex items-center text-sm text-muted-foreground">
+                      <Building className="w-4 h-4 mr-2 shrink-0 text-foreground/40" />
+                      <span className="truncate">
+                        {order.locationId === "loc-7" ? "Banquet Room" : "Private Dining"} Required
+                      </span>
+                    </div>
+                  )}
+                  {order.depositPaid && (
+                    <div className="flex items-center text-sm text-green-600 font-medium">
+                      <DollarSign className="w-4 h-4 mr-2 shrink-0 opacity-70" />
+                      <span className="truncate">Deposit Paid (${order.depositAmount})</span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="mt-4 pt-4 border-t flex justify-between items-center text-sm text-muted-foreground">
@@ -941,7 +983,10 @@ export default function LargeReservationsPipeline() {
                           timeFinish: viewingOrder.timeFinish,
                           guestCount: viewingOrder.guestCount,
                           additionalStaffNeeded: viewingOrder.additionalStaffNeeded,
-                          additionalStaffCount: viewingOrder.additionalStaffCount
+                          additionalStaffCount: viewingOrder.additionalStaffCount,
+                          requiresRoom: viewingOrder.requiresRoom || false,
+                          depositPaid: viewingOrder.depositPaid || false,
+                          depositAmount: viewingOrder.depositAmount || 0
                         });
                         setIsEditMode(true);
                         setIsStaffEditMode(false);
@@ -1083,6 +1128,34 @@ export default function LargeReservationsPipeline() {
                         )}
                       </div>
 
+                      {(editFormData.locationId === "loc-7" || editFormData.locationId === "loc-5") && (
+                        <div className="grid gap-4 bg-muted/20 p-4 rounded-lg border text-sm">
+                          <div className="flex items-center justify-between">
+                            <Label className="font-semibold text-foreground">
+                              {editFormData.locationId === "loc-7" ? "Banquet Room Required?" : "Private Dining Room Required?"}
+                            </Label>
+                            <Switch 
+                              checked={editFormData.requiresRoom} 
+                              onCheckedChange={(checked) => setEditFormData({...editFormData, requiresRoom: checked})}
+                            />
+                          </div>
+                          
+                          <div className="flex items-center justify-between pt-2 border-t border-border/50">
+                            <Label className="font-semibold text-foreground">Deposit Paid?</Label>
+                            <Switch 
+                              checked={editFormData.depositPaid} 
+                              onCheckedChange={(checked) => setEditFormData({...editFormData, depositPaid: checked})}
+                            />
+                          </div>
+                          {editFormData.depositPaid && (
+                            <div className="space-y-2">
+                              <Label>Deposit Amount ($)</Label>
+                              <Input type="number" step="0.01" min="0" value={editFormData.depositAmount} onChange={(e) => setEditFormData({...editFormData, depositAmount: parseFloat(e.target.value) || 0})} />
+                            </div>
+                          )}
+                        </div>
+                      )}
+
                       <div className="space-y-2">
                         <Label>Notes & Requests</Label>
                         <Textarea rows={4} value={editFormData.notes} onChange={(e) => setEditFormData({...editFormData, notes: e.target.value})} />
@@ -1157,6 +1230,32 @@ export default function LargeReservationsPipeline() {
                            </div>
                         </div>
                       </div>
+
+                      {(viewingOrder.locationId === "loc-7" || viewingOrder.locationId === "loc-5") && (
+                        <div className="space-y-4">
+                          <h3 className="text-sm font-semibold border-b pb-2">Room & Deposit</h3>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <Label className="text-xs text-muted-foreground block">
+                                {viewingOrder.locationId === "loc-7" ? "Banquet Room Required" : "Private Dining Required"}
+                              </Label>
+                              <div className="text-sm font-medium">
+                                {viewingOrder.requiresRoom ? "Yes" : "No"}
+                              </div>
+                            </div>
+                            <div>
+                              <Label className="text-xs text-muted-foreground block">Deposit Status</Label>
+                              <div className="text-sm font-medium">
+                                {viewingOrder.depositPaid ? (
+                                  <span className="text-green-600">Paid (${viewingOrder.depositAmount})</span>
+                                ) : (
+                                  <span className="text-muted-foreground">Pending / Not Paid</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
 
                       {viewingOrder.notes && (
                         <div className="space-y-3">
@@ -1428,6 +1527,34 @@ export default function LargeReservationsPipeline() {
                 </div>
               )}
             </div>
+
+            {(addFormData.locationId === "loc-7" || addFormData.locationId === "loc-5") && (
+              <div className="grid gap-4 bg-muted/20 p-4 rounded-lg border text-sm">
+                <div className="flex items-center justify-between">
+                  <Label className="font-semibold text-foreground">
+                    {addFormData.locationId === "loc-7" ? "Banquet Room Required?" : "Private Dining Room Required?"}
+                  </Label>
+                  <Switch 
+                    checked={addFormData.requiresRoom} 
+                    onCheckedChange={(checked) => setAddFormData({...addFormData, requiresRoom: checked})}
+                  />
+                </div>
+                
+                <div className="flex items-center justify-between pt-2 border-t border-border/50">
+                  <Label className="font-semibold text-foreground">Deposit Paid?</Label>
+                  <Switch 
+                    checked={addFormData.depositPaid} 
+                    onCheckedChange={(checked) => setAddFormData({...addFormData, depositPaid: checked})}
+                  />
+                </div>
+                {addFormData.depositPaid && (
+                  <div className="space-y-2">
+                    <Label>Deposit Amount ($)</Label>
+                    <Input type="number" step="0.01" min="0" value={addFormData.depositAmount} onChange={(e) => setAddFormData({...addFormData, depositAmount: parseFloat(e.target.value) || 0})} />
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label>Notes & Requests</Label>
