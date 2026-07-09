@@ -349,6 +349,18 @@ export default function CateringPipeline() {
     toast({ title: "Status Updated", description: `Order status changed to ${newStatus}.` });
   };
 
+  // Extract unique contacts for autofill dropdown
+  const uniqueContacts = orders.reduce((acc, current) => {
+    // Let's group by email, or contactName if no email
+    const key = current.email || current.contactName;
+    const x = acc.find(item => (item.email || item.contactName) === key);
+    if (!x && key) {
+      return acc.concat([current]);
+    } else {
+      return acc;
+    }
+  }, [] as CateringOrder[]);
+
   return (
     <div className="flex flex-col h-full space-y-6">
       <div className="flex items-center justify-between">
@@ -381,6 +393,40 @@ export default function CateringPipeline() {
                 </SheetDescription>
               </SheetHeader>
               <form onSubmit={handleSubmit} className="space-y-6 mt-6">
+                {uniqueContacts.length > 0 && (
+                  <div className="space-y-2 mb-4">
+                    <Label className="text-muted-foreground text-xs uppercase font-semibold">Autofill from past contact</Label>
+                    <Select onValueChange={(val) => {
+                      const existing = uniqueContacts.find(o => o.id === val);
+                      if (existing) {
+                        setFormData({
+                          ...formData, 
+                          contactName: existing.contactName,
+                          email: existing.email || "",
+                          phone: existing.phone || "",
+                          eventName: existing.eventName || "",
+                          notes: existing.notes || "",
+                        });
+                      }
+                    }}>
+                      <SelectTrigger className="bg-muted/30">
+                        <SelectValue placeholder="Select an existing contact..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {uniqueContacts.map(contact => (
+                          <SelectItem key={contact.id} value={contact.id}>
+                            {contact.contactName} {contact.eventName ? `(${contact.eventName})` : ''}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <div className="relative flex py-4 items-center">
+                      <div className="flex-grow border-t border-border"></div>
+                      <span className="flex-shrink-0 mx-4 text-muted-foreground text-xs uppercase">Or enter details</span>
+                      <div className="flex-grow border-t border-border"></div>
+                    </div>
+                  </div>
+                )}
                 <div className="space-y-4">
                   <h3 className="text-sm font-medium border-b pb-2">Contact Details</h3>
                   <div className="grid gap-2">
@@ -737,6 +783,42 @@ export default function CateringPipeline() {
                       <div className="text-muted-foreground">Notes:</div>
                       <div className="col-span-2 whitespace-pre-wrap">{viewingOrder.notes || "—"}</div>
                     </div>
+                  </div>
+                </div>
+
+                {/* Past Activity */}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-semibold border-b pb-2 flex items-center gap-2">
+                    <CalendarIcon className="w-4 h-4 text-muted-foreground" />
+                    Past Activity for {viewingOrder.contactName}
+                  </h3>
+                  <div className="space-y-3">
+                    {orders
+                      .filter(o => (o.email === viewingOrder.email || o.contactName === viewingOrder.contactName) && o.id !== viewingOrder.id)
+                      .sort((a, b) => new Date(b.eventDate).getTime() - new Date(a.eventDate).getTime())
+                      .map(pastEvent => (
+                        <div key={pastEvent.id} className="bg-muted/10 p-3 rounded-lg border text-sm flex justify-between items-center">
+                          <div>
+                            <div className="font-medium">{format(new Date(pastEvent.eventDate), "MMM d, yyyy")}</div>
+                            <div className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                              <MapPin className="w-3 h-3" />
+                              {locations.find(l => l.id === pastEvent.locationId)?.name || 'Unknown Location'}
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            {pastEvent.status === "Completed" ? (
+                              <div className="font-semibold text-primary">${pastEvent.totalAmount.toLocaleString()} Sales</div>
+                            ) : (
+                              <div className="text-muted-foreground italic text-xs">{pastEvent.status}</div>
+                            )}
+                          </div>
+                        </div>
+                    ))}
+                    {orders.filter(o => (o.email === viewingOrder.email || o.contactName === viewingOrder.contactName) && o.id !== viewingOrder.id).length === 0 && (
+                      <div className="text-sm text-muted-foreground italic bg-muted/10 p-4 rounded-lg border text-center">
+                        No previous activity found.
+                      </div>
+                    )}
                   </div>
                 </div>
 

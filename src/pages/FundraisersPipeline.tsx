@@ -178,23 +178,6 @@ export default function FundraisersPipeline() {
       }
     }
 
-    // Automatically trigger accounting email if moved to 'Completed'
-    if (newStatus === "Completed" && updatedOrder) {
-      const location = locations.find(l => l.id === updatedOrder.locationId);
-      if (location) {
-        supabase.functions.invoke('send-fundraiser-accounting-alert', {
-          body: { order: updatedOrder, location }
-        }).then(({ error: fnError, data: fnData }) => {
-          if (fnError || fnData?.error) {
-            console.error("Failed to send accounting alert:", fnError || fnData?.error);
-            toast({ title: "Email Alert Failed", description: "Status updated, but accounting notification email failed to send.", variant: "destructive" });
-          } else {
-             toast({ title: "Accounting Notified", description: "Email sent to accounting for check payment." });
-          }
-        });
-      }
-    }
-
     setOrders(orders.map(o => o.id === orderId ? { ...o, status: newStatus as any } : o));
     
     if (viewingOrder && viewingOrder.id === orderId) {
@@ -224,8 +207,27 @@ export default function FundraisersPipeline() {
       return;
     }
 
-    setOrders(orders.map(o => o.id === viewingOrder.id ? { ...o, totalSales: sales, totalDonated: donated } : o));
-    setViewingOrder({ ...viewingOrder, totalSales: sales, totalDonated: donated });
+    const updatedOrder = { ...viewingOrder, totalSales: sales, totalDonated: donated };
+
+    // Trigger accounting email if we are saving financials on a Completed order
+    if (updatedOrder.status === "Completed") {
+      const location = locations.find(l => l.id === updatedOrder.locationId);
+      if (location) {
+        supabase.functions.invoke('send-fundraiser-accounting-alert', {
+          body: { order: updatedOrder, location }
+        }).then(({ error: fnError, data: fnData }) => {
+          if (fnError || fnData?.error) {
+            console.error("Failed to send accounting alert:", fnError || fnData?.error);
+            toast({ title: "Alert Failed", description: "Financials saved, but accounting notification failed to send.", variant: "destructive" });
+          } else {
+             toast({ title: "Accounting Notified", description: "Email sent to accounting for check payment." });
+          }
+        });
+      }
+    }
+
+    setOrders(orders.map(o => o.id === viewingOrder.id ? updatedOrder : o));
+    setViewingOrder(updatedOrder);
     toast({ title: "Saved", description: "Financials updated successfully." });
   };
 

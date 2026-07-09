@@ -491,6 +491,17 @@ export default function LargeReservationsPipeline() {
     }
   });
 
+  // Extract unique organizations for autofill dropdown
+  const uniqueOrgs = orders.reduce((acc, current) => {
+    const key = current.organization || current.name;
+    const x = acc.find(item => (item.organization || item.name) === key);
+    if (!x && key) {
+      return acc.concat([current]);
+    } else {
+      return acc;
+    }
+  }, [] as LargeReservationOrder[]);
+
   const getStatusPillClass = (status: string) => {
     switch (status) {
       case "Requested": return "status-pill waiting";
@@ -1213,6 +1224,42 @@ export default function LargeReservationsPipeline() {
 
                     </div>
 
+                    {/* Past Activity */}
+                    <div className="space-y-4">
+                      <h3 className="text-sm font-semibold border-b pb-2 flex items-center gap-2">
+                        <CalendarIcon className="w-4 h-4 text-muted-foreground" />
+                        Past Activity for {viewingOrder.organization || viewingOrder.name}
+                      </h3>
+                      <div className="space-y-3">
+                        {orders
+                          .filter(o => (o.email === viewingOrder.email || (o.organization === viewingOrder.organization && o.organization)) && o.id !== viewingOrder.id)
+                          .sort((a, b) => new Date(b.eventDate).getTime() - new Date(a.eventDate).getTime())
+                          .map(pastEvent => (
+                            <div key={pastEvent.id} className="bg-muted/10 p-3 rounded-lg border text-sm flex justify-between items-center">
+                              <div>
+                                <div className="font-medium">{format(new Date(pastEvent.eventDate), "MMM d, yyyy")}</div>
+                                <div className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                                  <MapPin className="w-3 h-3" />
+                                  {locations.find(l => l.id === pastEvent.locationId)?.name || 'Unknown Location'}
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                {pastEvent.status === "Completed" ? (
+                                  <div className="font-semibold text-primary">${pastEvent.totalSales.toLocaleString()} Sales</div>
+                                ) : (
+                                  <div className="text-muted-foreground italic text-xs">{pastEvent.status}</div>
+                                )}
+                              </div>
+                            </div>
+                        ))}
+                        {orders.filter(o => (o.email === viewingOrder.email || (o.organization === viewingOrder.organization && o.organization)) && o.id !== viewingOrder.id).length === 0 && (
+                          <div className="text-sm text-muted-foreground italic bg-muted/10 p-4 rounded-lg border text-center">
+                            No previous activity found.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
                     {viewingOrder.status === "Completed" && (
                       <div className="space-y-4 mt-8">
                         <h3 className="text-sm font-semibold border-b pb-2 flex items-center gap-2">
@@ -1252,6 +1299,41 @@ export default function LargeReservationsPipeline() {
           </SheetHeader>
 
           <form onSubmit={handleAddReservation} className="space-y-6">
+            {uniqueOrgs.length > 0 && (
+              <div className="space-y-2 mb-4">
+                <Label className="text-muted-foreground text-xs uppercase font-semibold">Autofill from past client</Label>
+                <Select onValueChange={(val) => {
+                  const existing = uniqueOrgs.find(o => o.id === val);
+                  if (existing) {
+                    setAddFormData({
+                      ...addFormData, 
+                      organization: existing.organization || "",
+                      name: existing.name || "",
+                      email: existing.email || "",
+                      phone: existing.phone || "",
+                      notes: existing.notes || "",
+                    });
+                  }
+                }}>
+                  <SelectTrigger className="bg-muted/30">
+                    <SelectValue placeholder="Select an existing client..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {uniqueOrgs.map(org => (
+                      <SelectItem key={org.id} value={org.id}>
+                        {org.organization ? `${org.organization} (${org.name})` : org.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div className="relative flex py-4 items-center">
+                  <div className="flex-grow border-t border-border"></div>
+                  <span className="flex-shrink-0 mx-4 text-muted-foreground text-xs uppercase">Or enter details</span>
+                  <div className="flex-grow border-t border-border"></div>
+                </div>
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label>Client Name</Label>
               <Input required value={addFormData.name} onChange={(e) => setAddFormData({...addFormData, name: e.target.value})} />
