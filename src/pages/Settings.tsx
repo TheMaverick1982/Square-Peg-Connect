@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { locations } from "@/lib/data";
@@ -7,9 +7,163 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { Shield, ShieldAlert, Store, UserCog, Settings as SettingsIcon } from "lucide-react";
+import { Shield, ShieldAlert, Store, UserCog, Settings as SettingsIcon, UploadCloud, FileArchive, Trash2, Link as LinkIcon, Loader2 } from "lucide-react";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuCheckboxItem } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+
+function MarketingAssetsTab() {
+  const { toast } = useToast();
+  const [isUploading, setIsUploading] = useState(false);
+  const [fundraiserAsset, setFundraiserAsset] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const fetchAssets = async () => {
+    setIsLoading(true);
+    const { data, error } = await supabase.storage.from('marketing-assets').list('fundraisers');
+    if (!error && data) {
+      const pack = data.find(f => f.name === 'fundraiser-promo-pack.zip');
+      if (pack) {
+        const { data: urlData } = supabase.storage.from('marketing-assets').getPublicUrl(`fundraisers/${pack.name}`);
+        setFundraiserAsset({ ...pack, publicUrl: urlData.publicUrl });
+      } else {
+        setFundraiserAsset(null);
+      }
+    }
+    setIsLoading(false);
+  };
+
+  useEffect(() => {
+    fetchAssets();
+  }, []);
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Enforce .zip
+    if (!file.name.endsWith('.zip') && file.type !== 'application/zip' && file.type !== 'application/x-zip-compressed') {
+      toast({ title: "Invalid File", description: "Please upload a .zip file containing your assets.", variant: "destructive" });
+      return;
+    }
+
+    setIsUploading(true);
+    
+    // Always overwrite the same filename so the link stays constant
+    const filePath = 'fundraisers/fundraiser-promo-pack.zip';
+
+    const { error } = await supabase.storage
+      .from('marketing-assets')
+      .upload(filePath, file, { upsert: true });
+
+    setIsUploading(false);
+
+    if (error) {
+      toast({ title: "Upload Failed", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Upload Successful", description: "Fundraiser promo pack updated." });
+      fetchAssets();
+    }
+    
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleDelete = async () => {
+    const { error } = await supabase.storage.from('marketing-assets').remove(['fundraisers/fundraiser-promo-pack.zip']);
+    if (error) {
+      toast({ title: "Delete Failed", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Deleted", description: "Promo pack removed." });
+      setFundraiserAsset(null);
+    }
+  };
+
+  const handleCopyLink = () => {
+    if (fundraiserAsset?.publicUrl) {
+      navigator.clipboard.writeText(fundraiserAsset.publicUrl);
+      toast({ title: "Link Copied", description: "Asset download link copied to clipboard." });
+    }
+  };
+
+  return (
+    <div className="bg-card border rounded-lg p-6 max-w-3xl">
+      <div className="mb-6 border-b pb-4">
+        <h3 className="text-lg font-semibold">Fundraiser Promotional Pack</h3>
+        <p className="text-sm text-muted-foreground mt-1">
+          Upload a <span className="font-semibold text-foreground">.zip</span> file containing the flyers and social assets for Tuesday Fundraisers. 
+          When a fundraiser is confirmed, this file will be automatically linked in their email.
+        </p>
+      </div>
+
+      {isLoading ? (
+        <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+          <Loader2 className="w-6 h-6 animate-spin mb-2 text-primary" />
+          <p className="text-sm">Checking assets...</p>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {fundraiserAsset ? (
+            <div className="flex items-center justify-between bg-muted/20 border p-4 rounded-lg">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                  <FileArchive className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="font-semibold text-sm">fundraiser-promo-pack.zip</div>
+                  <div className="text-xs text-muted-foreground mt-0.5">
+                    Updated {format(new Date(fundraiserAsset.updated_at || fundraiserAsset.created_at), "MMM d, yyyy")} • {(fundraiserAsset.metadata?.size / 1024 / 1024).toFixed(2)} MB
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" className="h-8 gap-2" onClick={handleCopyLink}>
+                  <LinkIcon className="w-3.5 h-3.5" />
+                  Copy Link
+                </Button>
+                <Button variant="outline" size="sm" className="h-8 gap-2 text-destructive hover:bg-destructive/10 border-destructive/20 hover:text-destructive" onClick={handleDelete}>
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Remove
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-8 border-2 border-dashed rounded-lg bg-muted/10">
+              <UploadCloud className="w-10 h-10 text-muted-foreground/40 mx-auto mb-3" />
+              <h4 className="text-sm font-semibold">No Promo Pack Uploaded</h4>
+              <p className="text-xs text-muted-foreground mt-1 mb-4 max-w-sm mx-auto">
+                Upload a .zip file with your flyers. The system will generate a permanent link.
+              </p>
+            </div>
+          )}
+
+          <div className="flex items-center justify-center">
+            <input 
+              type="file" 
+              accept=".zip,application/zip" 
+              className="hidden" 
+              ref={fileInputRef} 
+              onChange={handleUpload} 
+            />
+            <Button 
+              onClick={() => fileInputRef.current?.click()} 
+              disabled={isUploading}
+              className="w-full sm:w-auto"
+            >
+              {isUploading ? (
+                <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Uploading...</>
+              ) : (
+                <><UploadCloud className="w-4 h-4 mr-2" /> {fundraiserAsset ? "Replace Promo Pack" : "Upload Promo Pack (.zip)"}</>
+              )}
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function TeamManagementTab() {
   const { toast } = useToast();
@@ -199,6 +353,12 @@ export default function Settings() {
           >
             Locations
           </TabsTrigger>
+          <TabsTrigger 
+            value="assets" 
+            className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:shadow-none rounded-none h-12 px-6"
+          >
+            Marketing Assets
+          </TabsTrigger>
           {isAdmin && (
             <TabsTrigger 
               value="team" 
@@ -271,6 +431,10 @@ export default function Settings() {
               </div>
             </div>
           </div>
+        </TabsContent>
+
+        <TabsContent value="assets" className="flex-1 mt-6">
+          <MarketingAssetsTab />
         </TabsContent>
 
         {isAdmin && (
