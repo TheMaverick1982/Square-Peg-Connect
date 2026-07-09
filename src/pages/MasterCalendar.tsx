@@ -25,6 +25,7 @@ export default function MasterCalendar() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [filterLocation, setFilterLocation] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [filterType, setFilterType] = useState<string>("all");
   
   const [events, setEvents] = useState<UnifiedEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -136,6 +137,7 @@ export default function MasterCalendar() {
   const filteredEvents = events.filter(e => {
     if (selectedLocationId && e.locationId !== selectedLocationId) return false;
     if (filterLocation !== "all" && e.locationId !== filterLocation) return false;
+    if (filterType !== "all" && e.type !== filterType) return false;
     if (filterStatus !== "all") {
       if (filterStatus === "confirmed" && e.status !== "Confirmed" && e.status !== "Completed" && e.type !== "Entertainment") return false;
       if (filterStatus === "requested" && e.status !== "Requested" && e.status !== "Waiting on you" && e.status !== "Waiting on the customer") return false;
@@ -246,6 +248,20 @@ export default function MasterCalendar() {
             {locations.map(loc => (
               <SelectItem key={loc.id} value={loc.id}>{loc.name}</SelectItem>
             ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={filterType} onValueChange={setFilterType}>
+          <SelectTrigger className="w-[180px] bg-background">
+            <SelectValue placeholder="All Event Types" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Event Types</SelectItem>
+            <SelectItem value="Entertainment">Entertainment</SelectItem>
+            <SelectItem value="Fundraiser">Fundraisers</SelectItem>
+            <SelectItem value="StoreEvent">Store Events</SelectItem>
+            <SelectItem value="LargeReservation">Large Reservations</SelectItem>
+            <SelectItem value="Catering">Catering</SelectItem>
           </SelectContent>
         </Select>
 
