@@ -3,9 +3,10 @@ import { useLocationContext } from "@/lib/LocationContext";
 import { locations } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, startOfMonth, endOfMonth, isSameMonth, isSameDay, addMonths, subMonths, isToday, parseISO } from "date-fns";
-import { ChevronLeft, ChevronRight, LayoutList, CalendarDays, Loader2, Filter } from "lucide-react";
+import { ChevronLeft, ChevronRight, LayoutList, CalendarDays, Loader2, Filter, MapPin, Users, Mail, Phone, Building, FileText, DollarSign, CalendarIcon, Clock, CheckCircle2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
 type EventType = "Entertainment" | "Fundraiser" | "StoreEvent" | "LargeReservation" | "Catering";
 
@@ -20,6 +21,20 @@ interface UnifiedEvent {
   originalData: any;
 }
 
+const formatTime12Hour = (time24: string | undefined | null) => {
+  if (!time24) return "";
+  try {
+    const [hours, minutes] = time24.split(':');
+    let h = parseInt(hours, 10);
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    h = h % 12;
+    h = h ? h : 12; // 0 becomes 12
+    return `${h}:${minutes} ${ampm}`;
+  } catch (e) {
+    return time24;
+  }
+};
+
 export default function MasterCalendar() {
   const { selectedLocationId } = useLocationContext();
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -29,6 +44,7 @@ export default function MasterCalendar() {
   
   const [events, setEvents] = useState<UnifiedEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [viewingEvent, setViewingEvent] = useState<UnifiedEvent | null>(null);
 
   // Determine if the user is an admin based on context logic equivalent 
   // (Assuming we check if selectedLocationId is null or we can toggle to "all")
@@ -198,7 +214,8 @@ export default function MasterCalendar() {
                   {dayEvents.map(e => (
                     <div 
                       key={e.id}
-                      className={`text-xs px-1.5 py-1 rounded border font-medium truncate cursor-pointer ${getEventStyle(e.type)}`}
+                      onClick={() => setViewingEvent(e)}
+                      className={`text-xs px-1.5 py-1 rounded border font-medium truncate cursor-pointer hover:opacity-80 transition-opacity ${getEventStyle(e.type)}`}
                       title={`${e.title} (${e.type})`}
                     >
                       {filterLocation === "all" && <span className="font-bold mr-1">{locations.find(l => l.id === e.locationId)?.name?.substring(0,3)}</span>}
@@ -295,6 +312,155 @@ export default function MasterCalendar() {
       ) : (
         renderCalendar()
       )}
+
+      {/* View Event Sheet */}
+      <Sheet open={!!viewingEvent} onOpenChange={(open) => !open && setViewingEvent(null)}>
+        <SheetContent className="sm:max-w-md w-full overflow-y-auto border-l-0 shadow-2xl">
+          {viewingEvent && (
+            <>
+              <div className="flex items-start justify-between pb-6 border-b shrink-0">
+                <div className="min-w-0 flex-1">
+                  <SheetTitle className="text-2xl break-words">{viewingEvent.title}</SheetTitle>
+                  <SheetDescription className="mt-1">
+                    <span className={`inline-flex px-2 py-0.5 rounded text-xs font-semibold mr-2 ${getEventStyle(viewingEvent.type)}`}>
+                      {viewingEvent.type.replace(/([A-Z])/g, ' $1').trim()}
+                    </span>
+                    <strong className="text-foreground">{format(viewingEvent.date, "EEEE, MMMM do, yyyy")}</strong>
+                  </SheetDescription>
+                </div>
+              </div>
+
+              <div className="py-6 space-y-6">
+                <div className="grid grid-cols-2 gap-6 bg-muted/10 p-5 rounded-xl border border-border/50">
+                  {viewingEvent.status && (
+                    <div>
+                      <span className="text-xs text-muted-foreground mb-1 block">Status</span>
+                      <div className="font-medium text-sm flex items-center h-8">
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${
+                          viewingEvent.status === "Completed" || viewingEvent.status === "Confirmed" 
+                            ? "bg-green-100 text-green-700 border-green-200" 
+                            : "bg-amber-100 text-amber-700 border-amber-200"
+                        } border`}>
+                          {viewingEvent.status}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                  <div>
+                    <span className="text-xs text-muted-foreground mb-1 block">Location</span>
+                    <div className="font-medium text-sm flex items-center h-8">
+                      {locations.find(l => l.id === viewingEvent.locationId)?.name || "Unknown"}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Common fields based on type */}
+                {viewingEvent.type === "Entertainment" && (
+                  <>
+                    <div className="space-y-4">
+                      <h3 className="text-sm font-semibold border-b pb-2">Timing</h3>
+                      <div className="grid gap-3">
+                        <div className="flex items-center text-sm">
+                          <Clock className="w-4 h-4 text-muted-foreground mr-3 shrink-0" />
+                          <span>{format(new Date(viewingEvent.originalData.start_date), "h:mm a")} - {format(new Date(viewingEvent.originalData.end_date), "h:mm a")}</span>
+                        </div>
+                      </div>
+                    </div>
+                    {viewingEvent.details && (
+                      <div className="space-y-3">
+                        <h3 className="text-sm font-semibold border-b pb-2 flex items-center gap-2">
+                          <FileText className="w-4 h-4 text-muted-foreground" />
+                          Details
+                        </h3>
+                        <div className="bg-amber-50/50 p-4 rounded-lg border border-amber-100/50 text-sm text-foreground/80 whitespace-pre-wrap">
+                          {viewingEvent.details}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {["Fundraiser", "StoreEvent", "LargeReservation", "Catering"].includes(viewingEvent.type) && (
+                  <div className="space-y-4">
+                    <h3 className="text-sm font-semibold border-b pb-2">Client Details</h3>
+                    <div className="grid gap-3">
+                      {viewingEvent.originalData.organization && (
+                        <div className="flex items-center text-sm">
+                          <Building className="w-4 h-4 text-muted-foreground mr-3 shrink-0" />
+                          <span>{viewingEvent.originalData.organization}</span>
+                        </div>
+                      )}
+                      {(viewingEvent.originalData.email || viewingEvent.originalData.phone) && (
+                        <>
+                          <div className="flex items-center text-sm">
+                            <Mail className="w-4 h-4 text-muted-foreground mr-3 shrink-0" />
+                            <a href={`mailto:${viewingEvent.originalData.email}`} className="hover:underline">{viewingEvent.originalData.email || "No email"}</a>
+                          </div>
+                          <div className="flex items-center text-sm">
+                            <Phone className="w-4 h-4 text-muted-foreground mr-3 shrink-0" />
+                            <a href={`tel:${viewingEvent.originalData.phone}`} className="hover:underline">{viewingEvent.originalData.phone || "No phone"}</a>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {["LargeReservation", "Catering"].includes(viewingEvent.type) && (
+                  <div className="space-y-4">
+                    <h3 className="text-sm font-semibold border-b pb-2">Event Timing & Guests</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      {viewingEvent.originalData.time_start && (
+                        <div>
+                          <span className="text-xs text-muted-foreground block">Time</span>
+                          <div className="text-sm font-medium">
+                            {formatTime12Hour(viewingEvent.originalData.time_start)} {viewingEvent.originalData.time_finish ? `- ${formatTime12Hour(viewingEvent.originalData.time_finish)}` : ''}
+                          </div>
+                        </div>
+                      )}
+                      <div>
+                        <span className="text-xs text-muted-foreground block">Guest Count</span>
+                        <div className="text-sm font-medium flex items-center gap-1.5">
+                          <Users className="w-4 h-4 text-muted-foreground" />
+                          {viewingEvent.originalData.guest_count || 0}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {viewingEvent.originalData.notes && (
+                  <div className="space-y-3">
+                    <h3 className="text-sm font-semibold border-b pb-2 flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-muted-foreground" />
+                      Notes
+                    </h3>
+                    <div className="bg-amber-50/50 p-4 rounded-lg border border-amber-100/50 text-sm text-foreground/80 whitespace-pre-wrap">
+                      {viewingEvent.originalData.notes}
+                    </div>
+                  </div>
+                )}
+
+                {(viewingEvent.originalData.total_sales > 0 || viewingEvent.originalData.quote_total > 0) && (
+                  <div className="space-y-4 mt-8">
+                    <h3 className="text-sm font-semibold border-b pb-2 flex items-center gap-2">
+                      <DollarSign className="w-4 h-4 text-muted-foreground" />
+                      Financials
+                    </h3>
+                    <div className="bg-muted/10 rounded-xl p-5 border space-y-4">
+                      <div className="flex justify-between items-center text-sm">
+                        <span className="text-muted-foreground">Total:</span>
+                        <span className="font-semibold text-lg">${Number(viewingEvent.originalData.total_sales || viewingEvent.originalData.quote_total).toFixed(2)}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+              </div>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
