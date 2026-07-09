@@ -63,12 +63,16 @@ export function EmployeeProvider({ children }: { children: React.ReactNode }) {
       } else if (data) {
         let currentProfile = data as EmployeeProfile;
         
-        // Auto-upgrade to Admin if they match the list but aren't admin yet
         const normalizedEmail = lookupKey.toLowerCase();
-        const normalizedName = (auth.user.profile.name || "").toLowerCase();
+        
+        // Extract a robust name string for checking
+        const rawName = auth.user.profile.name || 
+          `${auth.user.profile.given_name || ''} ${auth.user.profile.family_name || ''}`;
+        const normalizedName = rawName.trim().toLowerCase();
+        
         const isAdminUser = 
           ["growth@themaverick.ai", "hr@squarepegpizzeria.com", "catering@squarepegpizzeria.com", "brian@brianhardy.com"].includes(normalizedEmail) ||
-          normalizedName.includes("brian hardy");
+          (normalizedName.includes("brian") && normalizedName.includes("hardy"));
 
         if (isAdminUser && currentProfile.role !== "admin") {
           const { data: updated, error: updateErr } = await supabase
@@ -88,10 +92,12 @@ export function EmployeeProvider({ children }: { children: React.ReactNode }) {
         
         // Auto-assign Admin role to specific emails
         const normalizedEmail = lookupKey.toLowerCase();
-        const normalizedName = (auth.user.profile.name || "").toLowerCase();
+        const rawName = auth.user.profile.name || 
+          `${auth.user.profile.given_name || ''} ${auth.user.profile.family_name || ''}`;
+        const normalizedName = rawName.trim().toLowerCase();
         const isAdminUser = 
           ["growth@themaverick.ai", "hr@squarepegpizzeria.com", "catering@squarepegpizzeria.com", "brian@brianhardy.com"].includes(normalizedEmail) ||
-          normalizedName.includes("brian hardy");
+          (normalizedName.includes("brian") && normalizedName.includes("hardy"));
           
         const assignedRole = isAdminUser ? "admin" : "manager";
 
