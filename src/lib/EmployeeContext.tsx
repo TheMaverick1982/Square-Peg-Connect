@@ -68,7 +68,7 @@ export function EmployeeProvider({ children }: { children: React.ReactNode }) {
         const normalizedName = (auth.user.profile.name || "").toLowerCase();
         const isAdminUser = 
           ["growth@themaverick.ai", "hr@squarepegpizzeria.com", "catering@squarepegpizzeria.com", "brian@brianhardy.com"].includes(normalizedEmail) ||
-          ["brian hardy"].includes(normalizedName);
+          normalizedName.includes("brian hardy");
 
         if (isAdminUser && currentProfile.role !== "admin") {
           const { data: updated, error: updateErr } = await supabase
@@ -91,7 +91,7 @@ export function EmployeeProvider({ children }: { children: React.ReactNode }) {
         const normalizedName = (auth.user.profile.name || "").toLowerCase();
         const isAdminUser = 
           ["growth@themaverick.ai", "hr@squarepegpizzeria.com", "catering@squarepegpizzeria.com", "brian@brianhardy.com"].includes(normalizedEmail) ||
-          ["brian hardy"].includes(normalizedName);
+          normalizedName.includes("brian hardy");
           
         const assignedRole = isAdminUser ? "admin" : "manager";
 
