@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { 
   Sheet, 
   SheetContent, 
@@ -36,6 +37,7 @@ export interface FundraiserOrder {
   status: "Requested" | "Confirmed" | "Completed";
   totalSales: number;
   totalDonated: number;
+  checkSent: boolean;
   createdAt: string;
 }
 
@@ -107,9 +109,24 @@ export default function FundraisersPipeline() {
         status: row.status as "Requested" | "Confirmed" | "Completed",
         totalSales: parseFloat(row.total_sales || 0),
         totalDonated: parseFloat(row.total_donated || 0),
+        checkSent: Boolean(row.check_sent),
         createdAt: row.created_at,
       }));
       setOrders(mappedOrders);
+
+      // Handle ?id= param for direct linking
+      const params = new URLSearchParams(window.location.search);
+      const directId = params.get('id');
+      if (directId) {
+        const order = mappedOrders.find(o => o.id === directId);
+        if (order) {
+          setViewingOrder(order);
+          if (order.status === "Completed") {
+            setSalesInput(order.totalSales.toString());
+            setDonatedInput(order.totalDonated.toString());
+          }
+        }
+      }
     }
     setIsLoading(false);
   };
@@ -161,6 +178,23 @@ export default function FundraisersPipeline() {
       }
     }
 
+    // Automatically trigger accounting email if moved to 'Completed'
+    if (newStatus === "Completed" && updatedOrder) {
+      const location = locations.find(l => l.id === updatedOrder.locationId);
+      if (location) {
+        supabase.functions.invoke('send-fundraiser-accounting-alert', {
+          body: { order: updatedOrder, location }
+        }).then(({ error: fnError, data: fnData }) => {
+          if (fnError || fnData?.error) {
+            console.error("Failed to send accounting alert:", fnError || fnData?.error);
+            toast({ title: "Email Alert Failed", description: "Status updated, but accounting notification email failed to send.", variant: "destructive" });
+          } else {
+             toast({ title: "Accounting Notified", description: "Email sent to accounting for check payment." });
+          }
+        });
+      }
+    }
+
     setOrders(orders.map(o => o.id === orderId ? { ...o, status: newStatus as any } : o));
     
     if (viewingOrder && viewingOrder.id === orderId) {
@@ -193,6 +227,24 @@ export default function FundraisersPipeline() {
     setOrders(orders.map(o => o.id === viewingOrder.id ? { ...o, totalSales: sales, totalDonated: donated } : o));
     setViewingOrder({ ...viewingOrder, totalSales: sales, totalDonated: donated });
     toast({ title: "Saved", description: "Financials updated successfully." });
+  };
+
+  const handleToggleCheckSent = async (checked: boolean) => {
+    if (!viewingOrder) return;
+
+    const { error } = await supabase
+      .from('fundraisers')
+      .update({ check_sent: checked })
+      .eq('id', viewingOrder.id);
+
+    if (error) {
+      toast({ title: "Error", description: "Could not update check status.", variant: "destructive" });
+      return;
+    }
+
+    setOrders(orders.map(o => o.id === viewingOrder.id ? { ...o, checkSent: checked } : o));
+    setViewingOrder({ ...viewingOrder, checkSent: checked });
+    toast({ title: "Saved", description: `Check marked as ${checked ? 'sent' : 'not sent'}.` });
   };
 
   const handleSendConfirmationEmail = async () => {
@@ -316,11 +368,13 @@ export default function FundraisersPipeline() {
         address: data.address,
         organization: data.organization,
         payableTo: data.payable_to,
+        notes: data.notes,
         locationId: data.location,
         eventDate: data.event_date,
         status: data.status,
         totalSales: 0,
         totalDonated: 0,
+        checkSent: false,
         createdAt: data.created_at,
       }].sort((a, b) => parseSafeDate(a.eventDate).getTime() - parseSafeDate(b.eventDate).getTime()));
       setIsAddSheetOpen(false);
@@ -688,7 +742,12 @@ export default function FundraisersPipeline() {
                     {order.status === "Completed" ? (
                       <>
                         <div className="text-sm font-medium">Sales: ${order.totalSales.toLocaleString()}</div>
-                        <div className="text-xs text-muted-foreground">Donated: ${order.totalDonated.toLocaleString()}</div>
+                        <div className="flex items-center justify-between pr-4">
+                          <div className="text-xs text-muted-foreground">Donated: ${order.totalDonated.toLocaleString()}</div>
+                          <div className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${order.checkSent ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                            {order.checkSent ? 'Check Sent' : 'Check Pending'}
+                          </div>
+                        </div>
                       </>
                     ) : (
                       <div className="text-sm text-muted-foreground italic">Pending Event</div>
@@ -1046,6 +1105,17 @@ export default function FundraisersPipeline() {
                       <Button className="w-full" onClick={handleSaveFinancials}>
                         Save Financials
                       </Button>
+                      
+                      <div className="pt-4 mt-2 border-t flex items-center justify-between">
+                        <div className="space-y-0.5">
+                          <Label className="text-base font-semibold">Check Sent?</Label>
+                          <p className="text-sm text-muted-foreground">Mark if accounting has mailed the check.</p>
+                        </div>
+                        <Switch 
+                          checked={viewingOrder.checkSent} 
+                          onCheckedChange={handleToggleCheckSent} 
+                        />
+                      </div>
                     </div>
                   </div>
                 )}
