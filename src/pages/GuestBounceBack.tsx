@@ -27,18 +27,22 @@ type GuestBounceBack = {
   visit_1_date: string | null;
   visit_1_given: string | null;
   visit_1_notes: string | null;
+  visit_1_location_id: string | null;
   
   visit_2_date: string | null;
   visit_2_given: string | null;
   visit_2_notes: string | null;
+  visit_2_location_id: string | null;
   
   visit_3_date: string | null;
   visit_3_given: string | null;
   visit_3_notes: string | null;
+  visit_3_location_id: string | null;
   
   visit_4_date: string | null;
   visit_4_given: string | null;
   visit_4_notes: string | null;
+  visit_4_location_id: string | null;
   
   created_at: string;
 };
@@ -78,27 +82,28 @@ export default function GuestBounceBack() {
     visit_1_date: format(new Date(), "yyyy-MM-dd"),
     visit_1_given: "",
     visit_1_notes: "",
+    visit_1_location_id: "",
     visit_2_date: "",
     visit_2_given: "",
     visit_2_notes: "",
+    visit_2_location_id: "",
     visit_3_date: "",
     visit_3_given: "",
     visit_3_notes: "",
+    visit_3_location_id: "",
     visit_4_date: "",
     visit_4_given: "",
     visit_4_notes: "",
+    visit_4_location_id: "",
   };
 
   const [form, setForm] = useState(defaultFormState);
 
   // Fetch Data
   const { data: guests = [], isLoading } = useQuery({
-    queryKey: ['guest_bounce_backs', selectedLocationId],
+    queryKey: ['guest_bounce_backs'],
     queryFn: async () => {
       let query = supabase.from('guest_bounce_backs').select('*').order('created_at', { ascending: false });
-      if (selectedLocationId) {
-        query = query.eq('location_id', selectedLocationId);
-      }
       const { data, error } = await query;
       if (error) throw error;
       return data as GuestBounceBack[];
@@ -195,15 +200,19 @@ export default function GuestBounceBack() {
       visit_1_date: guest.visit_1_date ? format(new Date(guest.visit_1_date), "yyyy-MM-dd") : "",
       visit_1_given: guest.visit_1_given || "",
       visit_1_notes: guest.visit_1_notes || "",
+      visit_1_location_id: guest.visit_1_location_id || "",
       visit_2_date: guest.visit_2_date ? format(new Date(guest.visit_2_date), "yyyy-MM-dd") : "",
       visit_2_given: guest.visit_2_given || "",
       visit_2_notes: guest.visit_2_notes || "",
+      visit_2_location_id: guest.visit_2_location_id || "",
       visit_3_date: guest.visit_3_date ? format(new Date(guest.visit_3_date), "yyyy-MM-dd") : "",
       visit_3_given: guest.visit_3_given || "",
       visit_3_notes: guest.visit_3_notes || "",
+      visit_3_location_id: guest.visit_3_location_id || "",
       visit_4_date: guest.visit_4_date ? format(new Date(guest.visit_4_date), "yyyy-MM-dd") : "",
       visit_4_given: guest.visit_4_given || "",
       visit_4_notes: guest.visit_4_notes || "",
+      visit_4_location_id: guest.visit_4_location_id || "",
     });
     setIsSheetOpen(true);
   };
@@ -364,8 +373,14 @@ export default function GuestBounceBack() {
 
                   return (
                     <div key={guest.id} className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-muted/10 transition-colors">
-                      <div className="col-span-3">
+                      <div className="col-span-3 flex flex-col items-start gap-1">
                         <div className="font-semibold text-sm text-foreground">{guest.name}</div>
+                        {guest.location_id && (
+                          <div className="inline-flex items-center gap-1 text-[10px] font-medium bg-primary/10 text-primary px-1.5 py-0.5 rounded border border-primary/20">
+                            <MapPin className="w-2.5 h-2.5" />
+                            {locations.find(l => l.id === guest.location_id)?.name || "Unknown"}
+                          </div>
+                        )}
                       </div>
                       
                       <div className="col-span-3 space-y-1">
