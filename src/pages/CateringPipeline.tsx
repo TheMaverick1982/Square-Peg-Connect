@@ -340,6 +340,25 @@ export default function CateringPipeline() {
       return;
     }
 
+    const updatedOrder = orders.find(o => o.id === orderId);
+
+    // Automatically trigger internal confirmation email to the location if moved to 'Confirmed'
+    if (newStatus === "Confirmed" && updatedOrder) {
+      const location = locations.find(l => l.id === updatedOrder.locationId);
+      if (location && location.email) {
+        supabase.functions.invoke('send-catering-internal-alert', {
+          body: { order: updatedOrder, location }
+        }).then(({ error: fnError, data: fnData }) => {
+          if (fnError || fnData?.error) {
+            console.error("Failed to send internal alert:", fnError || fnData?.error);
+            toast({ title: "Email Alert Failed", description: "Status updated, but internal notification email failed to send.", variant: "destructive" });
+          } else {
+             toast({ title: "Location Notified", description: "Internal confirmation email sent to the store." });
+          }
+        });
+      }
+    }
+
     setOrders(orders.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
     
     if (viewingOrder && viewingOrder.id === orderId) {
