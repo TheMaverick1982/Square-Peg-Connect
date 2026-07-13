@@ -10,11 +10,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger, SheetFooter, SheetClose } from "@/components/ui/sheet";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import type { DateRange } from "react-day-picker";
+import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { Plus, Search, MapPin, Phone, Mail, User, Edit2, History, Gift, CheckCircle2, Send, Loader2, Trash2 } from "lucide-react";
+import { Plus, Search, MapPin, Phone, Mail, User, Edit2, History, Gift, CheckCircle2, Send, Loader2, Trash2, Download, Calendar as CalendarIcon } from "lucide-react";
 
 // --- Types ---
 type GuestBounceBack = {
@@ -56,6 +61,84 @@ export default function GuestBounceBack() {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [editingGuestId, setEditingGuestId] = useState<string | null>(null);
   const [isSendingReport, setIsSendingReport] = useState(false);
+  const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
+  const [exportDateRange, setExportDateRange] = useState<DateRange | undefined>(undefined);
+
+  const handleExportCSV = () => {
+    let dataToExport = filteredGuests;
+
+    if (exportDateRange?.from) {
+      const from = exportDateRange.from;
+      const to = exportDateRange.to || exportDateRange.from;
+      const start = new Date(from);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(to);
+      end.setHours(23, 59, 59, 999);
+
+      dataToExport = dataToExport.filter(g => {
+        const d = new Date(g.created_at);
+        return d >= start && d <= end;
+      });
+    }
+
+    if (dataToExport.length === 0) {
+      toast({ title: "No data", description: "There are no guests in the selected range to export.", variant: "destructive" });
+      return;
+    }
+
+    const headers = [
+      "Guest Name", 
+      "Primary Location", 
+      "Email", 
+      "Phone", 
+      "Current Stage",
+      "Visit 1 Date", "Visit 1 Given", "Visit 1 Notes",
+      "Visit 2 Date", "Visit 2 Given", "Visit 2 Notes",
+      "Visit 3 Date", "Visit 3 Given", "Visit 3 Notes",
+      "Visit 4 Date", "Visit 4 Given", "Visit 4 Notes",
+      "Created At"
+    ];
+    
+    const rows = dataToExport.map(g => {
+      const locName = locations.find(l => l.id === g.location_id)?.name || "Unknown";
+      return [
+        g.name,
+        locName,
+        g.email || "",
+        g.phone || "",
+        getCurrentStage(g),
+        g.visit_1_date ? format(new Date(g.visit_1_date), "yyyy-MM-dd") : "",
+        g.visit_1_given || "",
+        g.visit_1_notes || "",
+        g.visit_2_date ? format(new Date(g.visit_2_date), "yyyy-MM-dd") : "",
+        g.visit_2_given || "",
+        g.visit_2_notes || "",
+        g.visit_3_date ? format(new Date(g.visit_3_date), "yyyy-MM-dd") : "",
+        g.visit_3_given || "",
+        g.visit_3_notes || "",
+        g.visit_4_date ? format(new Date(g.visit_4_date), "yyyy-MM-dd") : "",
+        g.visit_4_given || "",
+        g.visit_4_notes || "",
+        format(new Date(g.created_at), "yyyy-MM-dd")
+      ];
+    });
+    
+    const csvContent = [
+      headers.join(","),
+      ...rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(","))
+    ].join("\n");
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `bounce_back_export_${format(new Date(), "yyyy-MM-dd")}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    setIsExportDialogOpen(false);
+  };
 
   const handleSendTestReport = async () => {
     const testEmail = prompt("Enter your email address to receive a test copy of the report:", "your-email@example.com");
@@ -234,6 +317,10 @@ export default function GuestBounceBack() {
           <p className="text-muted-foreground mt-1">Track return visits and measure the success of comeback incentives.</p>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="outline" className="gap-2 shadow-sm" onClick={() => setIsExportDialogOpen(true)}>
+            <Download className="w-4 h-4" />
+            Export CSV
+          </Button>
           <Button variant="outline" className="gap-2 shadow-sm" onClick={handleSendTestReport} disabled={isSendingReport}>
             {isSendingReport ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
             Email Report to Me
@@ -619,6 +706,66 @@ export default function GuestBounceBack() {
           </SheetFooter>
         </SheetContent>
       </Sheet>
+
+      {/* Export Dialog */}
+      <Dialog open={isExportDialogOpen} onOpenChange={setIsExportDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Export Guest Data</DialogTitle>
+            <DialogDescription>
+              Select a date range (based on when the guest was added) to export, or leave blank to export all matching records.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label>Date Added (Optional)</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    id="date"
+                    variant={"outline"}
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !exportDateRange && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {exportDateRange?.from ? (
+                      exportDateRange.to ? (
+                        <>
+                          {format(exportDateRange.from, "LLL dd, y")} -{" "}
+                          {format(exportDateRange.to, "LLL dd, y")}
+                        </>
+                      ) : (
+                        format(exportDateRange.from, "LLL dd, y")
+                      )
+                    ) : (
+                      <span>All time</span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="center">
+                  <Calendar
+                    initialFocus
+                    mode="range"
+                    defaultMonth={exportDateRange?.from}
+                    selected={exportDateRange}
+                    onSelect={setExportDateRange}
+                    numberOfMonths={2}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsExportDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleExportCSV} className="gap-2">
+              <Download className="w-4 h-4" />
+              Download CSV
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
