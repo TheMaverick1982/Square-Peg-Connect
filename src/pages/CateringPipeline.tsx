@@ -57,6 +57,7 @@ export default function CateringPipeline() {
     eventDate: "",
     guestCount: "",
     locationId: "",
+    orderPreference: "",
     notes: ""
   });
 
@@ -95,7 +96,8 @@ export default function CateringPipeline() {
         createdAt: row.created_at,
         quoteItems: row.quote_items || [],
         quoteTotal: row.quote_total || 0,
-        paymentLink: row.payment_link
+        paymentLink: row.payment_link,
+        orderPreference: row.order_preference
       }));
       setOrders(mappedOrders);
     }
@@ -131,6 +133,7 @@ export default function CateringPipeline() {
         event_date: formData.eventDate,
         guest_count: parseInt(formData.guestCount, 10),
         location: formData.locationId,
+        order_preference: formData.orderPreference,
         notes: formData.notes,
         status: 'Confirmed'
       }
@@ -160,7 +163,8 @@ export default function CateringPipeline() {
         createdAt: row.created_at,
         quoteItems: [],
         quoteTotal: 0,
-        paymentLink: ""
+        paymentLink: "",
+        orderPreference: row.order_preference
       };
       setOrders([newOrder, ...orders]);
     }
@@ -176,6 +180,7 @@ export default function CateringPipeline() {
       eventDate: "",
       guestCount: "",
       locationId: "",
+      orderPreference: "",
       notes: ""
     });
 
@@ -474,6 +479,19 @@ export default function CateringPipeline() {
                         {locations.map(loc => (
                           <SelectItem key={loc.id} value={loc.id}>{loc.name}</SelectItem>
                         ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="orderPreference">Order Preference</Label>
+                    <Select value={formData.orderPreference} onValueChange={(val) => setFormData({ ...formData, orderPreference: val })} required>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select preference..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="In-restaurant dining">In-restaurant dining</SelectItem>
+                        <SelectItem value="Pick-up catering">Pick-up catering</SelectItem>
+                        <SelectItem value="Food truck private service">Food truck private service</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -796,6 +814,11 @@ export default function CateringPipeline() {
                     <div className="grid grid-cols-3 gap-2 py-1 border-t border-border/50">
                       <div className="text-muted-foreground">Location:</div>
                       <div className="col-span-2 font-medium">{locations.find(l => l.id === viewingOrder.locationId)?.name || "Unknown"}</div>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2 py-1 border-t border-border/50">
+                      <div className="text-muted-foreground">Order Preference:</div>
+                      <div className="col-span-2 font-medium">{viewingOrder.orderPreference || "Not specified"}</div>
                     </div>
 
                     <div className="grid grid-cols-3 gap-2 py-1 border-t border-border/50">

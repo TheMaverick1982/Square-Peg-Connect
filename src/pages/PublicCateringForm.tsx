@@ -22,6 +22,7 @@ export default function PublicCateringForm() {
     eventDate: "",
     guestCount: "",
     locationId: "",
+    orderPreference: "",
     notes: ""
   });
 
@@ -40,6 +41,7 @@ export default function PublicCateringForm() {
         event_date: form.eventDate,
         guest_count: parseInt(form.guestCount || "0", 10),
         location: form.locationId,
+        order_preference: form.orderPreference,
         notes: form.notes,
         status: "Requested"
       }]).select().single();
@@ -58,6 +60,7 @@ export default function PublicCateringForm() {
           eventDate: form.eventDate,
           guestCount: form.guestCount,
           location: locationName,
+          orderPreference: form.orderPreference,
           notes: form.notes
         }
       });
@@ -197,24 +200,44 @@ export default function PublicCateringForm() {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="location">Preferred Location *</Label>
-              <Select
-                value={form.locationId}
-                onValueChange={(val) => setForm({ ...form, locationId: val })}
-                required
-              >
-                <SelectTrigger id="location">
-                  <SelectValue placeholder="Select a location..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {locations.map((loc) => (
-                    <SelectItem key={loc.id} value={loc.id}>
-                      {loc.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <Label htmlFor="location">Preferred Location *</Label>
+                <Select
+                  value={form.locationId}
+                  onValueChange={(val) => setForm({ ...form, locationId: val })}
+                  required
+                >
+                  <SelectTrigger id="location">
+                    <SelectValue placeholder="Select a location..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {locations.map((loc) => (
+                      <SelectItem key={loc.id} value={loc.id}>
+                        {loc.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="orderPreference">Where would you prefer your order? *</Label>
+                <Select
+                  value={form.orderPreference}
+                  onValueChange={(val) => setForm({ ...form, orderPreference: val })}
+                  required
+                >
+                  <SelectTrigger id="orderPreference">
+                    <SelectValue placeholder="Select preference..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="In-restaurant dining">In-restaurant dining</SelectItem>
+                    <SelectItem value="Pick-up catering">Pick-up catering</SelectItem>
+                    <SelectItem value="Food truck private service">Food truck private service</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             <div className="space-y-2">

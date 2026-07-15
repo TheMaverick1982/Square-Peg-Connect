@@ -49,6 +49,7 @@ export interface CateringOrder {
   quoteTotal?: number;
   paymentLink?: string;
   quoteNotes?: string;
+  orderPreference?: string;
 }
 
 export interface FundraiserEvent {
