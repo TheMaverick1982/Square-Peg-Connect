@@ -226,46 +226,60 @@ export default function Automations() {
                   <Loader2 className="w-6 h-6 animate-spin" />
                 </div>
               ) : (
-                <div className="grid gap-4 max-w-4xl mx-auto">
-                  {templates.map(template => (
-                    <div key={template.id} className={`border rounded-lg p-5 transition-colors ${template.is_active ? 'bg-card' : 'bg-muted/30 opacity-75'}`}>
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-4">
-                          <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg ${template.is_active ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
-                            {template.days_after}d
-                          </div>
-                          <div>
-                            <h4 className="font-semibold text-lg">{template.name}</h4>
-                            <div className="text-sm text-muted-foreground mt-0.5 flex gap-2 items-center">
-                              <span>Target: <strong>{template.event_type === 'all' ? 'All Events' : template.event_type}</strong></span>
-                              <span>•</span>
-                              <span>Subject: "{template.subject}"</span>
+                <div className="grid gap-6 max-w-5xl mx-auto">
+                  {Object.entries({
+                    "Catering": templates.filter(t => t.event_type === "Catering Event"),
+                    "Large Reservations": templates.filter(t => t.event_type === "Large Reservation"),
+                    "Tuesday Fundraisers": templates.filter(t => t.event_type === "Tuesday Fundraiser"),
+                    "Global (All Events)": templates.filter(t => t.event_type === "all"),
+                  }).map(([groupName, groupTemplates]) => {
+                    if (groupTemplates.length === 0) return null;
+                    return (
+                      <div key={groupName} className="space-y-3">
+                        <h4 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground border-b pb-1">{groupName} Sequences</h4>
+                        <div className="grid gap-3">
+                          {groupTemplates.map(template => (
+                            <div key={template.id} className={`border rounded-lg p-5 transition-colors ${template.is_active ? 'bg-card' : 'bg-muted/30 opacity-75'}`}>
+                              <div className="flex items-start justify-between">
+                                <div className="flex items-center gap-4">
+                                  <div className={`w-12 h-12 shrink-0 rounded-full flex items-center justify-center font-bold text-lg ${template.is_active ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
+                                    {template.days_after}d
+                                  </div>
+                                  <div>
+                                    <h4 className="font-semibold text-lg">{template.name}</h4>
+                                    <div className="text-sm text-muted-foreground mt-0.5 flex flex-wrap gap-2 items-center">
+                                      <span>Subject: "{template.subject}"</span>
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-4 shrink-0">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs font-medium text-muted-foreground hidden sm:inline">{template.is_active ? 'Active' : 'Paused'}</span>
+                                    <Switch 
+                                      checked={template.is_active} 
+                                      onCheckedChange={(checked) => toggleTemplateStatus.mutate({ id: template.id, is_active: checked })}
+                                    />
+                                  </div>
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    onClick={() => {
+                                      setEditingTemplate(template);
+                                      setIsSheetOpen(true);
+                                    }}
+                                  >
+                                    <Edit2 className="w-4 h-4 sm:mr-2" />
+                                    <span className="hidden sm:inline">Edit</span>
+                                  </Button>
+                                </div>
+                              </div>
                             </div>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-4">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-medium text-muted-foreground">{template.is_active ? 'Active' : 'Paused'}</span>
-                            <Switch 
-                              checked={template.is_active} 
-                              onCheckedChange={(checked) => toggleTemplateStatus.mutate({ id: template.id, is_active: checked })}
-                            />
-                          </div>
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            onClick={() => {
-                              setEditingTemplate(template);
-                              setIsSheetOpen(true);
-                            }}
-                          >
-                            <Edit2 className="w-4 h-4 mr-2" />
-                            Edit
-                          </Button>
+                          ))}
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
+                  
                   {templates.length === 0 && (
                     <div className="text-center py-12 border border-dashed rounded-lg">
                       <p className="text-muted-foreground">No nurture templates found.</p>
