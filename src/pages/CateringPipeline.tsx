@@ -724,15 +724,15 @@ export default function CateringPipeline() {
                   <div>
                     <h4 className="font-semibold">Message Lead</h4>
                     <p className="text-sm text-muted-foreground mt-1 mb-4">
-                      Continue the conversation securely through the Vendasta Business App Inbox.
+                      Continue the conversation securely through the internal Inbox.
                     </p>
                   </div>
                   <Button 
                     className="w-full sm:w-auto gap-2" 
-                    onClick={() => window.open('https://the-maverick-ai.smblogin.com/account/location/AG-D5HZKZ2TNH/inbox', '_blank', 'noopener,noreferrer')}
+                    onClick={() => toast({ title: "Internal Inbox", description: "This feature is being rolled out natively soon." })}
                   >
-                    Open in Vendasta Inbox
-                    <LinkIcon className="w-4 h-4 ml-1 opacity-70" />
+                    Open Inbox
+                    <MessageSquare className="w-4 h-4 ml-1 opacity-70" />
                   </Button>
                 </div>
 

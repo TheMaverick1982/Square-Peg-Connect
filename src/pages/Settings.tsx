@@ -394,8 +394,8 @@ export default function Settings() {
               
               <div className="flex items-center justify-between border-b pb-4 mb-4">
                 <div>
-                  <div className="font-medium">Vendasta</div>
-                  <div className="text-sm text-muted-foreground">Connected for SSO and Form automation</div>
+                  <div className="font-medium">Resend</div>
+                  <div className="text-sm text-muted-foreground">Connected for automated email delivery</div>
                 </div>
                 <div className="px-3 py-1 bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 text-xs font-medium rounded-full">
                   Connected
@@ -418,13 +418,13 @@ export default function Settings() {
               <div className="overflow-x-auto">
                 <div className="min-w-[600px] grid grid-cols-12 gap-4 p-4 border-b bg-muted/30 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                   <div className="col-span-4">Location Name</div>
-                  <div className="col-span-8">Location ID</div>
+                  <div className="col-span-8">Location Code</div>
                 </div>
                 <div className="divide-y min-w-[600px]">
                   {locations.map(loc => (
                     <div key={loc.id} className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-muted/5">
                       <div className="col-span-4 font-medium text-sm">{loc.name}</div>
-                      <div className="col-span-8 text-sm text-muted-foreground">Internal ID: {loc.id} | Vendasta ID: {loc.vendestaId}</div>
+                      <div className="col-span-8 text-sm text-muted-foreground">Internal ID: {loc.id}</div>
                     </div>
                   ))}
                 </div>
