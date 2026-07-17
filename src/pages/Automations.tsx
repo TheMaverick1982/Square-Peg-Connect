@@ -149,7 +149,7 @@ export default function Automations() {
   };
 
   return (
-    <div className="flex flex-col h-full space-y-6">
+    <div className="flex flex-col space-y-6 pb-12">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Nurture Automations</h1>
@@ -210,7 +210,7 @@ export default function Automations() {
         </div>
       </div>
 
-      <div className="bg-card border rounded-xl flex-1 flex flex-col min-h-0 overflow-hidden">
+      <div className="bg-card border rounded-xl flex flex-col">
         {activeTab === "builder" ? (
           <>
             <div className="px-6 py-4 border-b bg-muted/20 flex justify-between items-center">
@@ -220,7 +220,7 @@ export default function Automations() {
                 New Sequence
               </Button>
             </div>
-            <div className="flex-1 overflow-auto p-6">
+            <div className="p-6">
               {loadingTemplates ? (
                 <div className="flex justify-center items-center h-32 text-muted-foreground">
                   <Loader2 className="w-6 h-6 animate-spin" />
@@ -299,7 +299,7 @@ export default function Automations() {
                 Refresh
               </Button>
             </div>
-            <div className="flex-1 overflow-auto">
+            <div className="">
               {loadingLogs ? (
                 <div className="p-8 text-center text-muted-foreground">Loading logs...</div>
               ) : logs.length === 0 ? (
