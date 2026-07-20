@@ -112,6 +112,23 @@ export default function Automations() {
     }
   });
 
+  const sendTestEmail = useMutation({
+    mutationFn: async ({ email, subject, body_html }: { email: string, subject: string, body_html: string }) => {
+      const { data, error } = await supabase.functions.invoke('send-test-nurture-email', {
+        body: { toEmail: email, subject, bodyHtml: body_html }
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: () => {
+      toast({ title: "Test Email Sent", description: "Check your inbox for the preview." });
+    },
+    onError: (err: any) => {
+      toast({ title: "Failed to send test", description: err.message, variant: "destructive" });
+    }
+  });
+
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingTemplate) return;
@@ -419,6 +436,41 @@ export default function Automations() {
                   checked={editingTemplate.is_active} 
                   onCheckedChange={(checked) => setEditingTemplate({...editingTemplate, is_active: checked})}
                 />
+              </div>
+
+              <div className="border border-dashed p-4 rounded-lg flex flex-col sm:flex-row gap-4 items-end sm:items-center justify-between">
+                <div className="w-full">
+                  <Label>Send Test Preview</Label>
+                  <p className="text-xs text-muted-foreground mb-2">Send this draft to yourself to see how it looks.</p>
+                  <div className="flex gap-2">
+                    <Input 
+                      type="email" 
+                      id="testEmail" 
+                      placeholder="your@email.com" 
+                      className="max-w-[250px]"
+                    />
+                    <Button 
+                      type="button" 
+                      variant="secondary"
+                      disabled={sendTestEmail.isPending}
+                      onClick={() => {
+                        const emailInput = document.getElementById('testEmail') as HTMLInputElement;
+                        if (!emailInput.value) {
+                          toast({ title: "Email required", description: "Please enter an email address for the test.", variant: "destructive" });
+                          return;
+                        }
+                        sendTestEmail.mutate({
+                          email: emailInput.value,
+                          subject: editingTemplate.subject || "No Subject",
+                          body_html: editingTemplate.body_html || ""
+                        });
+                      }}
+                    >
+                      {sendTestEmail.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Mail className="w-4 h-4 mr-2" />}
+                      Send Test
+                    </Button>
+                  </div>
+                </div>
               </div>
 
               <SheetFooter className="mt-6">
