@@ -27,6 +27,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { QuoteBuilder } from "@/components/QuoteBuilder";
+import { EmailLogs } from "@/components/EmailLogs";
 
 type TabState = "all" | "upcoming" | "unopened" | "past";
 
@@ -862,6 +863,15 @@ export default function CateringPipeline() {
                       </div>
                     )}
                   </div>
+                </div>
+
+                {/* Email Automations Log */}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-semibold border-b pb-2 flex items-center gap-2">
+                    <Mail className="w-4 h-4 text-muted-foreground" />
+                    Communication History
+                  </h3>
+                  <EmailLogs eventId={viewingOrder.id} eventType="Catering Event" />
                 </div>
 
                 {/* Quote Builder */}

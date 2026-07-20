@@ -21,6 +21,7 @@ import { useToast } from "@/hooks/use-toast";
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, isToday, isTuesday } from "date-fns";
 import { Search, Filter, Calendar as CalendarIcon, MapPin, Link as LinkIcon, DollarSign, Building, Phone, Mail, FileText, Plus, ChevronLeft, ChevronRight, LayoutList, CalendarDays, ArrowDownUp, Loader2, Edit2, Trash2, History } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { EmailLogs } from "@/components/EmailLogs";
 import { FundraiserCsvImporter } from "@/components/FundraiserCsvImporter";
 
 export interface FundraiserOrder {
@@ -1052,6 +1053,15 @@ export default function FundraisersPipeline() {
                       </div>
                     )}
                   </div>
+                </div>
+
+                {/* Email Automations Log */}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-semibold border-b pb-2 flex items-center gap-2">
+                    <Mail className="w-4 h-4 text-muted-foreground" />
+                    Communication History
+                  </h3>
+                  <EmailLogs eventId={viewingOrder.id} eventType="Tuesday Fundraiser" />
                 </div>
 
                 {/* Email Confirmation Action */}

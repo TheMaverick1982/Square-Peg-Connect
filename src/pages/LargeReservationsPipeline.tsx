@@ -24,6 +24,7 @@ import { useToast } from "@/hooks/use-toast";
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, isToday } from "date-fns";
 import { Search, Filter, Calendar as CalendarIcon, MapPin, Link as LinkIcon, DollarSign, Building, Phone, Mail, Plus, ChevronLeft, ChevronRight, LayoutList, CalendarDays, Edit2, Trash2, Users, Loader2, FileText, Download, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { EmailLogs } from "@/components/EmailLogs";
 
 export interface LargeReservationOrder {
   id: string;
@@ -1357,6 +1358,15 @@ export default function LargeReservationsPipeline() {
                           </div>
                         )}
                       </div>
+                    </div>
+
+                    {/* Email Automations Log */}
+                    <div className="space-y-4">
+                      <h3 className="text-sm font-semibold border-b pb-2 flex items-center gap-2">
+                        <Mail className="w-4 h-4 text-muted-foreground" />
+                        Communication History
+                      </h3>
+                      <EmailLogs eventId={viewingOrder.id} eventType="Large Reservation" />
                     </div>
 
                     {viewingOrder.status === "Completed" && (
