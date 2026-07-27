@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/sheet";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { Search, Filter, Plus, Calendar as CalendarIcon, Users, MapPin, UtensilsCrossed, Link as LinkIcon, MessageSquare, Phone, Mail, FileText, ArrowDownUp, Trash2, Download } from "lucide-react";
+import { Search, Filter, Plus, Calendar as CalendarIcon, Users, MapPin, UtensilsCrossed, Link as LinkIcon, MessageSquare, Phone, Mail, FileText, ArrowDownUp, Trash2, Download, DollarSign } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import type { DateRange } from "react-day-picker";
@@ -45,6 +45,9 @@ export default function CateringPipeline() {
   const [isNewSheetOpen, setIsNewSheetOpen] = useState(false);
   const [viewingOrder, setViewingOrder] = useState<CateringOrder | null>(null);
   
+  // Financial tracking state
+  const [salesInput, setSalesInput] = useState("");
+
   // Export states
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
   const [exportDateRange, setExportDateRange] = useState<DateRange | undefined>(undefined);
@@ -334,6 +337,26 @@ export default function CateringPipeline() {
     toast({ title: "Order Deleted", description: "The catering request has been removed." });
   };
 
+  const handleSaveFinancials = async () => {
+    if (!viewingOrder) return;
+    
+    const sales = parseFloat(salesInput) || 0;
+
+    const { error } = await supabase
+      .from('catering_requests')
+      .update({ quote_total: sales })
+      .eq('id', viewingOrder.id);
+
+    if (error) {
+      toast({ title: "Error", description: "Could not save financials.", variant: "destructive" });
+      return;
+    }
+
+    setOrders(orders.map(o => o.id === viewingOrder.id ? { ...o, totalAmount: sales } : o));
+    setViewingOrder({ ...viewingOrder, totalAmount: sales });
+    toast({ title: "Saved", description: "Financials updated successfully." });
+  };
+
   const updateOrderStatus = async (orderId: string, newStatus: CateringStatus) => {
     const { error } = await supabase
       .from('catering_requests')
@@ -369,6 +392,9 @@ export default function CateringPipeline() {
     
     if (viewingOrder && viewingOrder.id === orderId) {
       setViewingOrder({ ...viewingOrder, status: newStatus });
+      if (newStatus === "Completed") {
+        setSalesInput(viewingOrder.totalAmount?.toString() || "0");
+      }
     }
     
     toast({ title: "Status Updated", description: `Order status changed to ${newStatus}.` });
@@ -874,7 +900,31 @@ export default function CateringPipeline() {
                   <EmailLogs eventId={viewingOrder.id} eventType="Catering Event" />
                 </div>
 
-                {/* Quote Builder */}
+                {viewingOrder.status === "Completed" && (
+                  <div className="space-y-4 mt-8">
+                    <h3 className="text-sm font-semibold border-b pb-2 flex items-center gap-2">
+                      <DollarSign className="w-4 h-4 text-muted-foreground" />
+                      Event Performance
+                    </h3>
+                    <div className="bg-muted/10 rounded-xl p-5 border space-y-4">
+                      <div className="space-y-2">
+                        <Label>Total Sales ($)</Label>
+                        <Input 
+                          type="number" 
+                          step="0.01" 
+                          value={salesInput} 
+                          onChange={(e) => setSalesInput(e.target.value)} 
+                        />
+                      </div>
+                      <Button className="w-full" onClick={handleSaveFinancials}>
+                        Save Financials
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Quote Builder Hidden for now */}
+                {/* 
                 <QuoteBuilder 
                   key={viewingOrder.id}
                   order={viewingOrder} 
@@ -883,6 +933,7 @@ export default function CateringPipeline() {
                     setOrders(orders.map(o => o.id === updated.id ? updated : o));
                   }} 
                 />
+                */}
 
               </div>
             </>
