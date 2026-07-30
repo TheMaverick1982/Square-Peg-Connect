@@ -35,7 +35,7 @@ export interface FundraiserOrder {
   notes?: string;
   locationId: string;
   eventDate: string;
-  status: "Requested" | "Confirmed" | "Completed";
+  status: "Requested" | "Confirmed" | "Completed" | "Cancelled";
   totalSales: number;
   totalDonated: number;
   checkSent: boolean;
@@ -107,7 +107,7 @@ export default function FundraisersPipeline() {
         notes: row.notes,
         locationId: row.location,
         eventDate: row.event_date,
-        status: row.status as "Requested" | "Confirmed" | "Completed",
+        status: row.status as "Requested" | "Confirmed" | "Completed" | "Cancelled",
         totalSales: parseFloat(row.total_sales || 0),
         totalDonated: parseFloat(row.total_donated || 0),
         checkSent: Boolean(row.check_sent),
@@ -426,6 +426,7 @@ export default function FundraisersPipeline() {
       case "Requested": return "status-pill waiting";
       case "Confirmed": return "status-pill confirmed";
       case "Completed": return "status-pill complete";
+      case "Cancelled": return "status-pill cancelled bg-red-100 text-red-800 border-red-200";
       default: return "status-pill waiting";
     }
   };
@@ -769,6 +770,7 @@ export default function FundraisersPipeline() {
                         <SelectItem value="Requested">Requested</SelectItem>
                         <SelectItem value="Confirmed">Confirmed</SelectItem>
                         <SelectItem value="Completed">Completed</SelectItem>
+                        <SelectItem value="Cancelled">Cancelled</SelectItem>
                       </SelectContent>
                     </Select>
                     <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => {
@@ -952,6 +954,7 @@ export default function FundraisersPipeline() {
                         <SelectItem value="Requested">Requested</SelectItem>
                         <SelectItem value="Confirmed">Confirmed</SelectItem>
                         <SelectItem value="Completed">Completed</SelectItem>
+                        <SelectItem value="Cancelled">Cancelled</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

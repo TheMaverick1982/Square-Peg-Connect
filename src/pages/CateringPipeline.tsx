@@ -236,6 +236,7 @@ export default function CateringPipeline() {
       case "Waiting on you": return "status-pill followup";
       case "Confirmed": return "status-pill confirmed";
       case "Completed": return "status-pill complete";
+      case "Cancelled": return "status-pill cancelled bg-red-100 text-red-800 border-red-200";
       default: return "status-pill followup";
     }
   };
@@ -687,6 +688,7 @@ export default function CateringPipeline() {
                         <SelectItem value="Waiting on the customer">Waiting on the customer</SelectItem>
                         <SelectItem value="Confirmed">Confirmed</SelectItem>
                         <SelectItem value="Completed">Completed</SelectItem>
+                        <SelectItem value="Cancelled">Cancelled</SelectItem>
                       </SelectContent>
                     </Select>
                     <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => setViewingOrder(order)}>
@@ -780,6 +782,7 @@ export default function CateringPipeline() {
                         <SelectItem value="Waiting on the customer">Waiting on the customer</SelectItem>
                         <SelectItem value="Confirmed">Confirmed</SelectItem>
                         <SelectItem value="Completed">Completed</SelectItem>
+                        <SelectItem value="Cancelled">Cancelled</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

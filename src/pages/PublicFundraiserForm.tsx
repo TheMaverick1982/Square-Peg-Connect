@@ -177,7 +177,7 @@ export default function PublicFundraiserForm() {
                   <SelectValue placeholder="Select a location..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {locations.map(loc => (
+                  {locations.filter(loc => loc.id !== "loc-9").map(loc => (
                     <SelectItem key={loc.id} value={loc.id}>{loc.name}</SelectItem>
                   ))}
                 </SelectContent>

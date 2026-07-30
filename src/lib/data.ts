@@ -19,7 +19,7 @@ export const locations: Location[] = [
   { id: "loc-9", name: "Berlin", vendestaId: "ven-berlin-009", address: "555 Farmington Ave, Berlin, CT 06037", phone: "(860) 828-5555", email: "berlin@squarepegpizzeria.com" },
 ];
 
-export type CateringStatus = "Requested" | "Waiting on you" | "Waiting on the customer" | "Confirmed" | "Completed";
+export type CateringStatus = "Requested" | "Waiting on you" | "Waiting on the customer" | "Confirmed" | "Completed" | "Cancelled";
 
 export interface Contact {
   id: string;

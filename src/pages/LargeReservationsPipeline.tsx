@@ -40,7 +40,7 @@ export interface LargeReservationOrder {
   notes?: string;
   additionalStaffNeeded: boolean;
   additionalStaffCount: number;
-  status: "Requested" | "Confirmed" | "Completed";
+  status: "Requested" | "Confirmed" | "Completed" | "Cancelled";
   totalSales: number;
   requiresRoom?: boolean;
   depositPaid?: boolean;
@@ -141,7 +141,7 @@ export default function LargeReservationsPipeline() {
         guestCount: row.guest_count || 0,
         additionalStaffNeeded: row.additional_staff_needed || false,
         additionalStaffCount: row.additional_staff_count || 0,
-        status: row.status as "Requested" | "Confirmed" | "Completed",
+        status: row.status as "Requested" | "Confirmed" | "Completed" | "Cancelled",
         totalSales: parseFloat(row.total_sales || 0),
         requiresRoom: row.requires_room || false,
         depositPaid: row.deposit_paid || false,
@@ -528,6 +528,7 @@ export default function LargeReservationsPipeline() {
       case "Requested": return "status-pill waiting";
       case "Confirmed": return "status-pill confirmed";
       case "Completed": return "status-pill complete";
+      case "Cancelled": return "status-pill cancelled bg-red-100 text-red-800 border-red-200";
       default: return "status-pill waiting";
     }
   };
@@ -1184,6 +1185,7 @@ export default function LargeReservationsPipeline() {
                               <SelectItem value="Requested">Requested</SelectItem>
                               <SelectItem value="Confirmed">Confirmed</SelectItem>
                               <SelectItem value="Completed">Completed</SelectItem>
+                              <SelectItem value="Cancelled">Cancelled</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
