@@ -1,9 +1,13 @@
 node_modules/
 dist/
 .pnpm-store/
+.local/
+.cache/
 .npm/
 .vite/
 .vibe/
-.cache/
-.local/
-.vibe-archive.tar.gz
+.tanstack/
+.nitro/
+.output/
+.vibe-archive-*.tar.gz
+.vibe-bundle-*.tar.gz

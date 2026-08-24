@@ -1,6 +1,13 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { locations } from "@/lib/data";
+
+declare global {
+  interface Window {
+    fbq?: (...args: any[]) => void;
+  }
+}
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,6 +33,33 @@ export default function PublicCateringForm() {
     notes: ""
   });
 
+  const [utmData, setUtmData] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    
+    const params = new URLSearchParams(window.location.search);
+    const utmKeys = ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term"];
+    const currentUtms: Record<string, string> = {};
+    
+    let hasNewUtms = false;
+    utmKeys.forEach(key => {
+      const val = params.get(key);
+      if (val) {
+        currentUtms[key] = val;
+        sessionStorage.setItem(key, val);
+        hasNewUtms = true;
+      } else {
+        const stored = sessionStorage.getItem(key);
+        if (stored) {
+          currentUtms[key] = stored;
+        }
+      }
+    });
+    
+    setUtmData(currentUtms);
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -43,7 +77,12 @@ export default function PublicCateringForm() {
         location: form.locationId,
         order_preference: form.orderPreference,
         notes: form.notes,
-        status: "Requested"
+        status: "Requested",
+        utm_source: utmData.utm_source || null,
+        utm_medium: utmData.utm_medium || null,
+        utm_campaign: utmData.utm_campaign || null,
+        utm_content: utmData.utm_content || null,
+        utm_term: utmData.utm_term || null
       }]).select().single();
 
       if (dbError) throw dbError;
@@ -64,6 +103,11 @@ export default function PublicCateringForm() {
           notes: form.notes
         }
       });
+      
+      // 3. Fire Meta Pixel Lead event
+      if (typeof window !== 'undefined' && window.fbq) {
+        window.fbq('track', 'Lead');
+      }
 
       setIsSuccess(true);
     } catch (err: any) {

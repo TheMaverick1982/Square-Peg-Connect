@@ -20,7 +20,7 @@ export const vibeConfig = {
   },
   supabase: {
     url: "https://tsrnpmkipdbtwyrlfbuy.supabase.co",
-    publishableKey: "sb_publishable_Hw7PhZvwSR0qMcV7nkfXJw_VBGgsV7k",
+    publishableKey: "sb_publishable_UMd0Ij8NxKSCoP_13XA3vQ_58KxPUOP",
   },
   crm: {
     apiBaseUrl: "",
