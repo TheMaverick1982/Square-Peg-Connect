@@ -11,3 +11,5 @@ dist/
 .output/
 .vibe-archive-*.tar.gz
 .vibe-bundle-*.tar.gz
+.vibe-write-*
+*.tsbuildinfo

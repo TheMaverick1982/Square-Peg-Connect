@@ -25,4 +25,10 @@ export const vibeConfig = {
   crm: {
     apiBaseUrl: "",
   },
+  businessnav: {
+    scriptUrl: "",
+    partnerId: "",
+    marketId: "",
+    accountId: "",
+  },
 } as const;
