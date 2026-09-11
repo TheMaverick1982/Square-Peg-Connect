@@ -101,7 +101,8 @@ export default function CateringPipeline() {
         quoteItems: row.quote_items || [],
         quoteTotal: row.quote_total || 0,
         paymentLink: row.payment_link,
-        orderPreference: row.order_preference
+        orderPreference: row.order_preference,
+        heardAboutUs: row.heard_about_us
       }));
       setOrders(mappedOrders);
     }
@@ -168,7 +169,8 @@ export default function CateringPipeline() {
         quoteItems: [],
         quoteTotal: 0,
         paymentLink: "",
-        orderPreference: row.order_preference
+        orderPreference: row.order_preference,
+        heardAboutUs: row.heard_about_us
       };
       setOrders([newOrder, ...orders]);
     }
@@ -849,6 +851,11 @@ export default function CateringPipeline() {
                     <div className="grid grid-cols-3 gap-2 py-1 border-t border-border/50">
                       <div className="text-muted-foreground">Order Preference:</div>
                       <div className="col-span-2 font-medium">{viewingOrder.orderPreference || "Not specified"}</div>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2 py-1 border-t border-border/50">
+                      <div className="text-muted-foreground">Heard About Us:</div>
+                      <div className="col-span-2 font-medium">{viewingOrder.heardAboutUs || "—"}</div>
                     </div>
 
                     <div className="grid grid-cols-3 gap-2 py-1 border-t border-border/50">

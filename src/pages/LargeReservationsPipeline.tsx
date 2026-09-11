@@ -45,6 +45,7 @@ export interface LargeReservationOrder {
   requiresRoom?: boolean;
   depositPaid?: boolean;
   depositAmount?: number;
+  heardAboutUs?: string;
   createdAt: string;
 }
 
@@ -146,6 +147,7 @@ export default function LargeReservationsPipeline() {
         requiresRoom: row.requires_room || false,
         depositPaid: row.deposit_paid || false,
         depositAmount: parseFloat(row.deposit_amount || 0),
+        heardAboutUs: row.heard_about_us || "",
         createdAt: row.created_at,
       }));
       setOrders(mappedOrders);
@@ -477,6 +479,7 @@ export default function LargeReservationsPipeline() {
         requiresRoom: data.requires_room || false,
         depositPaid: data.deposit_paid || false,
         depositAmount: parseFloat(data.deposit_amount || 0),
+        heardAboutUs: data.heard_about_us || "",
         status: data.status,
         totalSales: 0,
         createdAt: data.created_at,
@@ -1255,6 +1258,18 @@ export default function LargeReservationsPipeline() {
                                   <span className="text-muted-foreground">Pending / Not Paid</span>
                                 )}
                               </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {viewingOrder.heardAboutUs && (
+                        <div className="space-y-4">
+                          <h3 className="text-sm font-semibold border-b pb-2">Lead Attribution</h3>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <Label className="text-xs text-muted-foreground block">How did you hear about us?</Label>
+                              <div className="text-sm font-medium">{viewingOrder.heardAboutUs}</div>
                             </div>
                           </div>
                         </div>

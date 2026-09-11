@@ -30,7 +30,8 @@ export default function PublicCateringForm() {
     guestCount: "",
     locationId: "",
     orderPreference: "",
-    notes: ""
+    notes: "",
+    heardAboutUs: ""
   });
 
   const [utmData, setUtmData] = useState<Record<string, string>>({});
@@ -77,6 +78,7 @@ export default function PublicCateringForm() {
         location: form.locationId,
         order_preference: form.orderPreference,
         notes: form.notes,
+        heard_about_us: form.heardAboutUs,
         status: "Requested",
         utm_source: utmData.utm_source || null,
         utm_medium: utmData.utm_medium || null,
@@ -100,7 +102,8 @@ export default function PublicCateringForm() {
           guestCount: form.guestCount,
           location: locationName,
           orderPreference: form.orderPreference,
-          notes: form.notes
+          notes: form.notes,
+          heardAboutUs: form.heardAboutUs
         }
       });
       
@@ -293,6 +296,26 @@ export default function PublicCateringForm() {
                 value={form.notes}
                 onChange={(e) => setForm({ ...form, notes: e.target.value })}
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="heardAboutUs">How did you hear about us? (Optional)</Label>
+              <Select
+                value={form.heardAboutUs}
+                onValueChange={(val) => setForm({ ...form, heardAboutUs: val })}
+              >
+                <SelectTrigger id="heardAboutUs">
+                  <SelectValue placeholder="Select an option..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Social Media">Social Media</SelectItem>
+                  <SelectItem value="Word of Mouth / Friend">Word of Mouth / Friend</SelectItem>
+                  <SelectItem value="Google Search">Google Search</SelectItem>
+                  <SelectItem value="Attended a Previous Event">Attended a Previous Event</SelectItem>
+                  <SelectItem value="Walk-in / Drove By">Walk-in / Drove By</SelectItem>
+                  <SelectItem value="Other">Other</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <Button type="submit" className="w-full" disabled={isSubmitting}>

@@ -50,6 +50,7 @@ export interface CateringOrder {
   paymentLink?: string;
   quoteNotes?: string;
   orderPreference?: string;
+  heardAboutUs?: string;
 }
 
 export interface FundraiserEvent {

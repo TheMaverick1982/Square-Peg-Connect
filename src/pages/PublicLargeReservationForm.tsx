@@ -27,7 +27,8 @@ export default function PublicLargeReservationForm() {
     organization: "",
     guestCount: "",
     notes: "",
-    requiresRoom: false
+    requiresRoom: false,
+    heardAboutUs: ""
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -67,6 +68,7 @@ export default function PublicLargeReservationForm() {
       time_finish: formData.timeFinish,
       guest_count: parseInt(formData.guestCount) || 0,
       notes: formData.notes,
+      heard_about_us: formData.heardAboutUs,
       requires_room: formData.requiresRoom,
       status: 'Requested'
     };
@@ -99,7 +101,8 @@ export default function PublicLargeReservationForm() {
           eventDate: orderData.event_date,
           timeStart: orderData.time_start,
           timeFinish: orderData.time_finish,
-          guestCount: orderData.guest_count
+          guestCount: orderData.guest_count,
+          heardAboutUs: orderData.heard_about_us
         },
         location
       }
@@ -253,6 +256,26 @@ export default function PublicLargeReservationForm() {
               <div className="grid gap-2">
                 <Label htmlFor="notes">Order Notes</Label>
                 <Textarea id="notes" placeholder="Any specific details we should know?" rows={4} value={formData.notes} onChange={e => setFormData({...formData, notes: e.target.value})} />
+              </div>
+              
+              <div className="grid gap-2">
+                <Label htmlFor="heardAboutUs">How did you hear about us? (Optional)</Label>
+                <Select
+                  value={formData.heardAboutUs}
+                  onValueChange={(val) => setFormData({ ...formData, heardAboutUs: val })}
+                >
+                  <SelectTrigger id="heardAboutUs">
+                    <SelectValue placeholder="Select an option..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Social Media">Social Media</SelectItem>
+                    <SelectItem value="Word of Mouth / Friend">Word of Mouth / Friend</SelectItem>
+                    <SelectItem value="Google Search">Google Search</SelectItem>
+                    <SelectItem value="Attended a Previous Event">Attended a Previous Event</SelectItem>
+                    <SelectItem value="Walk-in / Drove By">Walk-in / Drove By</SelectItem>
+                    <SelectItem value="Other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </form>
           )}
