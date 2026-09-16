@@ -23,6 +23,7 @@ import { Search, Filter, Calendar as CalendarIcon, MapPin, Link as LinkIcon, Dol
 import { cn } from "@/lib/utils";
 import { EmailLogs } from "@/components/EmailLogs";
 import { FundraiserCsvImporter } from "@/components/FundraiserCsvImporter";
+import { ShareFormDialog } from "@/components/ShareFormDialog";
 
 export interface FundraiserOrder {
   id: string;
@@ -135,18 +136,6 @@ export default function FundraisersPipeline() {
   useEffect(() => {
     fetchOrders();
   }, []);
-
-  const handleCopyLink = () => {
-    // Dynamically extract the base path from the current URL to ensure it works
-    // correctly through the Vibe proxy sandbox without stripping the UUIDs.
-    const basePath = window.location.pathname.replace(/\/tuesday-fundraisers$/, '');
-    const url = `${window.location.origin}${basePath}/public/fundraisers`;
-    navigator.clipboard.writeText(url);
-    toast({
-      title: "Link Copied",
-      description: "Public fundraiser booking link copied to clipboard.",
-    });
-  };
 
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
     const { error } = await supabase
@@ -618,10 +607,7 @@ export default function FundraisersPipeline() {
         </div>
         
         <div className="flex items-center gap-2">
-          <Button variant="outline" className="gap-2 shadow-sm" onClick={handleCopyLink}>
-            <LinkIcon className="w-4 h-4" />
-            Copy Booking Link
-          </Button>
+          <ShareFormDialog formTitle="Fundraisers Form" formPath="/public/fundraisers" />
           <FundraiserCsvImporter onImportSuccess={fetchOrders} />
           <Button className="gap-2 shadow-sm" onClick={() => setIsAddSheetOpen(true)}>
             <Plus className="w-4 h-4" />

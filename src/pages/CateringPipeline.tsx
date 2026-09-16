@@ -28,6 +28,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 import { QuoteBuilder } from "@/components/QuoteBuilder";
 import { EmailLogs } from "@/components/EmailLogs";
+import { ShareFormDialog } from "@/components/ShareFormDialog";
 
 type TabState = "all" | "upcoming" | "unopened" | "past";
 
@@ -243,17 +244,6 @@ export default function CateringPipeline() {
     }
   };
 
-  const handleCopyLink = () => {
-    const url = `${window.location.origin}/public/catering`;
-    navigator.clipboard.writeText(url);
-    toast({
-      title: "Link Copied",
-      description: "Public catering form link copied to clipboard.",
-    });
-  };
-
-
-
   const handleExportCSV = () => {
     let dataToExport = sortedOrders;
 
@@ -428,10 +418,7 @@ export default function CateringPipeline() {
             <Download className="w-4 h-4" />
             Export CSV
           </Button>
-          <Button variant="outline" className="gap-2 shadow-sm" onClick={handleCopyLink}>
-            <LinkIcon className="w-4 h-4" />
-            Copy Public Link
-          </Button>
+          <ShareFormDialog formTitle="Catering Intake Form" formPath="/public/catering" />
           <Sheet open={isNewSheetOpen} onOpenChange={setIsNewSheetOpen}>
             <SheetTrigger asChild>
               <Button className="gap-2 shadow-sm">

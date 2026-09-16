@@ -25,6 +25,7 @@ import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInte
 import { Search, Filter, Calendar as CalendarIcon, MapPin, Link as LinkIcon, DollarSign, Building, Phone, Mail, Plus, ChevronLeft, ChevronRight, LayoutList, CalendarDays, Edit2, Trash2, Users, Loader2, FileText, Download, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EmailLogs } from "@/components/EmailLogs";
+import { ShareFormDialog } from "@/components/ShareFormDialog";
 
 export interface LargeReservationOrder {
   id: string;
@@ -253,18 +254,6 @@ export default function LargeReservationsPipeline() {
     }
 
     toast({ title: "Details Sent!", description: `Reservation details have been emailed to ${location.name}.` });
-  };
-
-  const handleCopyLink = () => {
-    // Dynamically extract the base path from the current URL to ensure it works
-    // correctly through the Vibe proxy sandbox without stripping the UUIDs.
-    const basePath = window.location.pathname.replace(/\/large-reservations$/, '');
-    const url = `${window.location.origin}${basePath}/public/large-reservations`;
-    navigator.clipboard.writeText(url);
-    toast({
-      title: "Link Copied",
-      description: "Public reservation booking link copied to clipboard.",
-    });
   };
 
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
@@ -717,10 +706,7 @@ export default function LargeReservationsPipeline() {
             <Download className="w-4 h-4" />
             Export CSV
           </Button>
-          <Button variant="outline" className="gap-2 shadow-sm" onClick={handleCopyLink}>
-            <LinkIcon className="w-4 h-4" />
-            Copy Booking Link
-          </Button>
+          <ShareFormDialog formTitle="Large Reservations Form" formPath="/public/large-reservations" />
           <Button className="gap-2 shadow-sm" onClick={() => setIsAddSheetOpen(true)}>
             <Plus className="w-4 h-4" />
             New Reservation
