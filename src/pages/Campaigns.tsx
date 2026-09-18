@@ -35,6 +35,9 @@ const SEASONAL_EVENTS = [
   { name: "Halloween", month: 9, day: 31, type: 'Holiday' },
   { name: "Veterans Day", month: 10, day: 11, type: 'Holiday' },
   { name: "Thanksgiving", month: 10, day: 28, type: 'Holiday' },
+  { name: "Black Friday (Gift Card Promo)", month: 10, day: 29, type: 'Holiday' },
+  { name: "Toys for Tots Drop-off Launch", month: 11, day: 1, type: 'Community' },
+  { name: "Winter Coat Drive", month: 11, day: 10, type: 'Community' },
   { name: "Christmas", month: 11, day: 25, type: 'Holiday' },
   { name: "New Year's Eve", month: 11, day: 31, type: 'Holiday' }
 ];
