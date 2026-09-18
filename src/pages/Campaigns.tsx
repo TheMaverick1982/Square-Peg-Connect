@@ -749,6 +749,9 @@ function CampaignDetailsSheet({ campaign, updateCampaignDetails }: any) {
     activity_plan: campaign.activity_plan || "",
     activity_due_date: campaign.activity_due_date ? parseISO(campaign.activity_due_date) : undefined,
     activity_assigned_to: campaign.activity_assigned_to || "",
+    instore_plan: campaign.instore_plan || "",
+    instore_due_date: campaign.instore_due_date ? parseISO(campaign.instore_due_date) : undefined,
+    instore_assigned_to: campaign.instore_assigned_to || "",
     promo_social: campaign.promo_social || false,
     promo_como: campaign.promo_como || false,
     promo_email: campaign.promo_email || false,
@@ -771,6 +774,7 @@ function CampaignDetailsSheet({ campaign, updateCampaignDetails }: any) {
       drinks_due_date: formData.drinks_due_date ? format(formData.drinks_due_date, 'yyyy-MM-dd') : null,
       menu_due_date: formData.menu_due_date ? format(formData.menu_due_date, 'yyyy-MM-dd') : null,
       activity_due_date: formData.activity_due_date ? format(formData.activity_due_date, 'yyyy-MM-dd') : null,
+      instore_due_date: formData.instore_due_date ? format(formData.instore_due_date, 'yyyy-MM-dd') : null,
       promo_due_date: formData.promo_due_date ? format(formData.promo_due_date, 'yyyy-MM-dd') : null,
     };
     updateCampaignDetails.mutate({ id: campaign.id, updates }, {
@@ -906,6 +910,37 @@ function CampaignDetailsSheet({ campaign, updateCampaignDetails }: any) {
               placeholder="Decorations, games, music, schedule of events..." 
               value={formData.activity_plan}
               onChange={e => setFormData(f => ({...f, activity_plan: e.target.value}))}
+              className="min-h-[100px]"
+            />
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex items-center justify-between border-b pb-2">
+              <h4 className="font-semibold">In-Store Experience</h4>
+              <div className="flex items-center gap-2">
+                <Input 
+                  placeholder="Assign To (Email)" 
+                  value={formData.instore_assigned_to || ""}
+                  onChange={e => setFormData(f => ({...f, instore_assigned_to: e.target.value}))}
+                  className="h-8 text-xs w-[180px]"
+                />
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className={`h-8 text-xs ${isOverdue(formData.instore_due_date, formData.instore_plan) ? 'text-destructive border-destructive' : ''}`}>
+                      <CalendarIcon className="mr-2 h-3 w-3" />
+                      {formData.instore_due_date ? format(formData.instore_due_date, "MMM d, yyyy") : <span>Set Due Date</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <CalendarComponent mode="single" selected={formData.instore_due_date} onSelect={d => setFormData(f => ({...f, instore_due_date: d}))} />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
+            <Textarea 
+              placeholder="Staffing adjustments, decorations, table setups, vibe/music..." 
+              value={formData.instore_plan}
+              onChange={e => setFormData(f => ({...f, instore_plan: e.target.value}))}
               className="min-h-[100px]"
             />
           </div>
