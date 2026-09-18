@@ -645,6 +645,10 @@ function CampaignDetailsSheet({ campaign, updateCampaignDetails }: any) {
     promo_in_store: campaign.promo_in_store || false,
     promo_notes: campaign.promo_notes || "",
     promo_due_date: campaign.promo_due_date ? parseISO(campaign.promo_due_date) : undefined,
+    social_email: campaign.social_email || "",
+    como_notes: campaign.como_notes || "",
+    email_notes: campaign.email_notes || "",
+    in_store_notes: campaign.in_store_notes || ""
   });
 
   const handleSave = () => {
@@ -802,57 +806,118 @@ function CampaignDetailsSheet({ campaign, updateCampaignDetails }: any) {
               </label>
             </div>
             
-            {formData.promo_social && (
-              <div className="bg-blue-50/50 dark:bg-blue-900/10 p-4 rounded-md border border-blue-100 dark:border-blue-900/30 space-y-3 mt-4">
-                <h4 className="font-medium text-sm text-blue-800 dark:text-blue-300">Social Media Creative Alert</h4>
-                <p className="text-xs text-blue-700/80 dark:text-blue-400/80">Send a direct request to the social media manager to prepare creative assets for this campaign.</p>
-                
-                <div className="space-y-2">
-                  <Label className="text-xs">Creative Guidance / Notes</Label>
+              {formData.promo_social && (
+                <div className="bg-blue-50/50 dark:bg-blue-900/10 p-4 rounded-md border border-blue-100 dark:border-blue-900/30 space-y-3 mt-4">
+                  <h4 className="font-medium text-sm text-blue-800 dark:text-blue-300">Social Media Creative Alert</h4>
+                  <p className="text-xs text-blue-700/80 dark:text-blue-400/80">Send a direct request to the social media manager to prepare creative assets for this campaign.</p>
+                  
+                  <div className="space-y-3">
+                    <div>
+                      <Label className="text-xs">Social Team Email</Label>
+                      <Input 
+                        placeholder="social@example.com"
+                        className="h-8 mt-1 bg-white dark:bg-background"
+                        value={formData.social_email || ""}
+                        onChange={e => setFormData(f => ({...f, social_email: e.target.value}))}
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Creative Guidance / Notes</Label>
+                      <Textarea 
+                        placeholder="e.g., Needs to feel energetic. Make sure to feature the new cocktail prominently." 
+                        className="min-h-[80px] bg-white dark:bg-background"
+                        value={formData.promo_notes || ""}
+                        onChange={e => setFormData(f => ({...f, promo_notes: e.target.value}))}
+                      />
+                    </div>
+                  </div>
+                  
+                  <Button 
+                    size="sm" 
+                    type="button"
+                    disabled={!formData.social_email}
+                    onClick={async () => {
+                      try {
+                        const { error } = await supabase.from('social_posts').insert({
+                          title: `Campaign Creative: ${campaign.title}`,
+                          content: formData.promo_notes,
+                          target_date: campaign.target_date,
+                          location_id: campaign.location_id,
+                          status: 'Requested',
+                          campaign_id: campaign.id
+                        });
+                        
+                        if (error) throw error;
+                        
+                        await supabase.functions.invoke('send-social-post-alert', {
+                          body: { 
+                            type: "campaign_creative_request",
+                            campaignTitle: campaign.title,
+                            targetDate: campaign.target_date,
+                            notes: formData.promo_notes,
+                            locationId: campaign.location_id,
+                            socialEmail: formData.social_email,
+                            dueDate: formData.promo_due_date
+                          }
+                        });
+                        toast({ title: "Alert Sent", description: "The social media team has been notified and task queued." });
+                      } catch (e: any) {
+                        toast({ title: "Error", description: e.message, variant: "destructive" });
+                      }
+                    }}
+                  >
+                    Alert Social Team
+                  </Button>
+                </div>
+              )}
+              
+              {!formData.promo_social && (
+                <>
+                  <Label className="mt-4 block">Promotion Notes / Submit to Marketing</Label>
                   <Textarea 
-                    placeholder="e.g., Needs to feel energetic. Make sure to feature the new cocktail prominently." 
-                    className="min-h-[80px] bg-white dark:bg-background"
-                    value={formData.promo_notes || ""}
+                    placeholder="What specifically needs to be promoted? Assets needed? Details for social media..." 
+                    value={formData.promo_notes}
                     onChange={e => setFormData(f => ({...f, promo_notes: e.target.value}))}
+                    className="min-h-[100px]"
+                  />
+                </>
+              )}
+              
+              {formData.promo_como && (
+                <div className="mt-4 space-y-1">
+                  <Label className="text-xs">Como (Loyalty) Strategy</Label>
+                  <Textarea 
+                    placeholder="Points multipliers, push notifications, offers..." 
+                    value={formData.como_notes || ""}
+                    onChange={e => setFormData(f => ({...f, como_notes: e.target.value}))}
+                    className="min-h-[60px] text-sm"
                   />
                 </div>
-                
-                <Button 
-                  size="sm" 
-                  type="button"
-                  onClick={async () => {
-                    try {
-                      await supabase.functions.invoke('send-social-post-alert', {
-                        body: { 
-                          type: "campaign_creative_request",
-                          campaignTitle: campaign.title,
-                          targetDate: campaign.target_date,
-                          notes: formData.promo_notes,
-                          locationId: campaign.location_id
-                        }
-                      });
-                      toast({ title: "Alert Sent", description: "The social media team has been notified." });
-                    } catch (e: any) {
-                      toast({ title: "Error", description: e.message, variant: "destructive" });
-                    }
-                  }}
-                >
-                  Alert Social Team
-                </Button>
-              </div>
-            )}
-            
-            {!formData.promo_social && (
-              <>
-                <Label className="mt-4 block">Promotion Notes / Submit to Marketing</Label>
-                <Textarea 
-                  placeholder="What specifically needs to be promoted? Assets needed? Details for social media..." 
-                  value={formData.promo_notes}
-                  onChange={e => setFormData(f => ({...f, promo_notes: e.target.value}))}
-                  className="min-h-[100px]"
-                />
-              </>
-            )}
+              )}
+              
+              {formData.promo_email && (
+                <div className="mt-4 space-y-1">
+                  <Label className="text-xs">Email Broadcast Details</Label>
+                  <Textarea 
+                    placeholder="Subject lines, audience segments, send dates..." 
+                    value={formData.email_notes || ""}
+                    onChange={e => setFormData(f => ({...f, email_notes: e.target.value}))}
+                    className="min-h-[60px] text-sm"
+                  />
+                </div>
+              )}
+
+              {formData.promo_in_store && (
+                <div className="mt-4 space-y-1">
+                  <Label className="text-xs">In-Store Signage Requirements</Label>
+                  <Textarea 
+                    placeholder="Table tents, TV screens, posters..." 
+                    value={formData.in_store_notes || ""}
+                    onChange={e => setFormData(f => ({...f, in_store_notes: e.target.value}))}
+                    className="min-h-[60px] text-sm"
+                  />
+                </div>
+              )}
           </div>
 
           <Button onClick={handleSave} className="w-full">
