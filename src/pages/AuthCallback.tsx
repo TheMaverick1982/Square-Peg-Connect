@@ -31,8 +31,14 @@ export function AuthCallback() {
   if (isAuthPopup) return <div aria-busy="true" className="h-screen w-screen flex items-center justify-center">Signing you in…</div>;
 
   // Redirect flow (default), processed automatically by react-oidc-context.
-  // auth.error is set when the callback carries ?error= (e.g. server_error).
-  if (auth.error) return <div role="alert" className="h-screen w-screen flex items-center justify-center">Sign in failed: {auth.error.message}</div>;
+  // React StrictMode mounts the callback twice; the second pass reports
+  // "No matching state found in storage" after the first already signed the
+  // user in. Ignore only that error, and only while a session exists, so a
+  // real callback failure (error=server_error on a forced re-login, for
+  // example) still surfaces instead of silently landing on the old session.
+  const staleStateAfterSignIn =
+    auth.isAuthenticated && auth.error?.message.includes('No matching state found in storage');
+  if (auth.error && !staleStateAfterSignIn) return <div role="alert" className="h-screen w-screen flex items-center justify-center">Sign in failed: {auth.error.message}</div>;
   if (auth.isAuthenticated) return <Navigate to="/" replace />;
   return (
     <div className="h-screen w-screen flex flex-col items-center justify-center bg-background">
