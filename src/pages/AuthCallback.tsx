@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { UserManager } from 'oidc-client-ts';
 import { useAuth } from 'react-oidc-context';
 import { Navigate } from 'react-router-dom';
-import { oidcConfig } from '../lib/oidc';
+import { buildOidcConfig } from '../lib/oidc';
 
 export function AuthCallback() {
   const auth = useAuth();
@@ -23,7 +23,7 @@ export function AuthCallback() {
   useEffect(() => {
     if (!isAuthPopup || ran.current) return;
     ran.current = true;
-    new UserManager(oidcConfig)
+    new UserManager(buildOidcConfig())
       .signinPopupCallback()
       .catch((e) => console.error('popup sign-in callback failed', e))
       .finally(() => window.close());
