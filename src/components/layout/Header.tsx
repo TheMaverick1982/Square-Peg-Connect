@@ -39,6 +39,7 @@ export function Header() {
   const { profile } = useEmployee();
   const auth = useAuth();
   const [isAlertsOpen, setIsAlertsOpen] = useState(false);
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   
   const assignedLocs = Array.isArray(profile?.assigned_locations) && profile.assigned_locations.length > 0 
     ? profile.assigned_locations 
@@ -117,14 +118,22 @@ export function Header() {
     <div className="header gap-2 sm:gap-4 px-3 sm:px-6">
       <div className="flex items-center gap-2 sm:gap-4">
         {/* Mobile Hamburger Menu */}
-        <Sheet>
+        <Sheet open={isMobileNavOpen} onOpenChange={setIsMobileNavOpen}>
           <SheetTrigger asChild>
             <Button variant="ghost" size="icon" className="md:hidden">
               <Menu className="w-5 h-5" />
             </Button>
           </SheetTrigger>
           <SheetContent side="left" className="w-[280px] p-0 bg-[hsl(var(--sidebar-bg))] text-[hsl(var(--sidebar-text))] border-r-zinc-800 flex flex-col">
-            <SidebarContent />
+            {/* Close the mobile menu when a nav link is followed. */}
+            <div
+              className="flex flex-col flex-1 min-h-0"
+              onClick={(e) => {
+                if ((e.target as HTMLElement).closest('a')) setIsMobileNavOpen(false);
+              }}
+            >
+              <SidebarContent />
+            </div>
           </SheetContent>
         </Sheet>
 
