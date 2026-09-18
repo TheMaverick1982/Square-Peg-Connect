@@ -6,6 +6,7 @@ import { locations } from "@/lib/data";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -119,6 +120,17 @@ export default function MarketingPlanner() {
       setIsDraftingCampaign(false);
       setNewCampaign({ title: "", description: "", target_date: new Date(), location_id: "all" });
       toast({ title: "Campaign created!" });
+    }
+  });
+
+  const updateCampaignDetails = useMutation({
+    mutationFn: async ({ id, updates }: { id: string, updates: any }) => {
+      const { error } = await supabase.from('marketing_campaigns').update(updates).eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['marketing_campaigns'] });
+      toast({ title: "Campaign details updated!" });
     }
   });
 
@@ -325,6 +337,7 @@ export default function MarketingPlanner() {
                         progress={progress} 
                         createTask={createTask} 
                         toggleTask={toggleTask}
+                        updateCampaignDetails={updateCampaignDetails}
                       />
                     );
                   })}
@@ -502,7 +515,7 @@ export default function MarketingPlanner() {
 
 // Subcomponents
 
-function CampaignCard({ campaign, status, tasks, progress, createTask, toggleTask }: any) {
+function CampaignCard({ campaign, status, tasks, progress, createTask, toggleTask, updateCampaignDetails }: any) {
   const [isAssigning, setIsAssigning] = useState(false);
   const [newTask, setNewTask] = useState({ title: "", assigned_to: "", due_date: new Date() });
 
@@ -528,14 +541,17 @@ function CampaignCard({ campaign, status, tasks, progress, createTask, toggleTas
             Target: {format(parseISO(campaign.target_date), "MMM d, yyyy")}
           </div>
         </div>
-        <div className="mt-4 md:mt-0 text-right">
-          <div className="text-sm font-medium mb-1">Task Progress</div>
-          <div className="flex items-center gap-3">
-            <div className="w-32 h-2 bg-muted rounded-full overflow-hidden">
-              <div className="h-full bg-primary transition-all" style={{ width: `${progress}%` }} />
+        <div className="mt-4 md:mt-0 flex items-center justify-end gap-6">
+          <div className="text-right">
+            <div className="text-sm font-medium mb-1">Task Progress</div>
+            <div className="flex items-center gap-3">
+              <div className="w-32 h-2 bg-muted rounded-full overflow-hidden">
+                <div className="h-full bg-primary transition-all" style={{ width: `${progress}%` }} />
+              </div>
+              <span className="text-xs font-semibold">{progress}%</span>
             </div>
-            <span className="text-xs font-semibold">{progress}%</span>
           </div>
+          <CampaignDetailsSheet campaign={campaign} updateCampaignDetails={updateCampaignDetails} />
         </div>
       </div>
       <div className="p-4">
@@ -609,6 +625,106 @@ function CampaignCard({ campaign, status, tasks, progress, createTask, toggleTas
         </div>
       </div>
     </Card>
+  );
+}
+
+function CampaignDetailsSheet({ campaign, updateCampaignDetails }: any) {
+  const [open, setOpen] = useState(false);
+  const [formData, setFormData] = useState({
+    drinks_plan: campaign.drinks_plan || "",
+    menu_plan: campaign.menu_plan || "",
+    activity_plan: campaign.activity_plan || "",
+    promo_social: campaign.promo_social || false,
+    promo_como: campaign.promo_como || false,
+    promo_email: campaign.promo_email || false,
+    promo_in_store: campaign.promo_in_store || false,
+    promo_notes: campaign.promo_notes || ""
+  });
+
+  const handleSave = () => {
+    updateCampaignDetails.mutate({ id: campaign.id, updates: formData }, {
+      onSuccess: () => setOpen(false)
+    });
+  };
+
+  return (
+    <Sheet open={open} onOpenChange={setOpen}>
+      <SheetTrigger asChild>
+        <Button variant="outline" size="sm">Open Details</Button>
+      </SheetTrigger>
+      <SheetContent className="sm:max-w-xl w-full overflow-y-auto">
+        <SheetHeader className="mb-6">
+          <SheetTitle>{campaign.title} Planning</SheetTitle>
+          <SheetDescription>Detailed planning for drinks, menu, activities, and promotion.</SheetDescription>
+        </SheetHeader>
+        
+        <div className="space-y-6 pb-20">
+          <div className="space-y-4">
+            <h4 className="font-semibold border-b pb-2">Drink Menu Plan</h4>
+            <Textarea 
+              placeholder="List specific drinks, specials, or prep needed..." 
+              value={formData.drinks_plan}
+              onChange={e => setFormData(f => ({...f, drinks_plan: e.target.value}))}
+              className="min-h-[100px]"
+            />
+          </div>
+
+          <div className="space-y-4">
+            <h4 className="font-semibold border-b pb-2">Food Menu Plan</h4>
+            <Textarea 
+              placeholder="List specific food specials, prep needed, ingredients..." 
+              value={formData.menu_plan}
+              onChange={e => setFormData(f => ({...f, menu_plan: e.target.value}))}
+              className="min-h-[100px]"
+            />
+          </div>
+
+          <div className="space-y-4">
+            <h4 className="font-semibold border-b pb-2">Activity / Event Plan</h4>
+            <Textarea 
+              placeholder="Decorations, games, music, schedule of events..." 
+              value={formData.activity_plan}
+              onChange={e => setFormData(f => ({...f, activity_plan: e.target.value}))}
+              className="min-h-[100px]"
+            />
+          </div>
+
+          <div className="space-y-4">
+            <h4 className="font-semibold border-b pb-2">Promotional Channels</h4>
+            <div className="grid grid-cols-2 gap-4">
+              <label className="flex items-center space-x-2">
+                <Checkbox checked={formData.promo_social} onCheckedChange={(checked) => setFormData(f => ({...f, promo_social: !!checked}))} />
+                <span className="text-sm cursor-pointer">Social Media</span>
+              </label>
+              <label className="flex items-center space-x-2">
+                <Checkbox checked={formData.promo_como} onCheckedChange={(checked) => setFormData(f => ({...f, promo_como: !!checked}))} />
+                <span className="text-sm cursor-pointer">Como (Loyalty Members)</span>
+              </label>
+              <label className="flex items-center space-x-2">
+                <Checkbox checked={formData.promo_email} onCheckedChange={(checked) => setFormData(f => ({...f, promo_email: !!checked}))} />
+                <span className="text-sm cursor-pointer">Email Broadcast</span>
+              </label>
+              <label className="flex items-center space-x-2">
+                <Checkbox checked={formData.promo_in_store} onCheckedChange={(checked) => setFormData(f => ({...f, promo_in_store: !!checked}))} />
+                <span className="text-sm cursor-pointer">In-Store Signage</span>
+              </label>
+            </div>
+            
+            <Label className="mt-4 block">Promotion Notes / Submit to Marketing</Label>
+            <Textarea 
+              placeholder="What specifically needs to be promoted? Assets needed? Details for social media..." 
+              value={formData.promo_notes}
+              onChange={e => setFormData(f => ({...f, promo_notes: e.target.value}))}
+              className="min-h-[100px]"
+            />
+          </div>
+
+          <Button onClick={handleSave} className="w-full">
+            Save Details
+          </Button>
+        </div>
+      </SheetContent>
+    </Sheet>
   );
 }
 
