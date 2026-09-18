@@ -635,20 +635,27 @@ function CampaignDetailsSheet({ campaign, updateCampaignDetails }: any) {
   const [formData, setFormData] = useState({
     drinks_plan: campaign.drinks_plan || "",
     drinks_due_date: campaign.drinks_due_date ? parseISO(campaign.drinks_due_date) : undefined,
+    drinks_assigned_to: campaign.drinks_assigned_to || "",
     menu_plan: campaign.menu_plan || "",
     menu_due_date: campaign.menu_due_date ? parseISO(campaign.menu_due_date) : undefined,
+    menu_assigned_to: campaign.menu_assigned_to || "",
     activity_plan: campaign.activity_plan || "",
     activity_due_date: campaign.activity_due_date ? parseISO(campaign.activity_due_date) : undefined,
+    activity_assigned_to: campaign.activity_assigned_to || "",
     promo_social: campaign.promo_social || false,
     promo_como: campaign.promo_como || false,
     promo_email: campaign.promo_email || false,
     promo_in_store: campaign.promo_in_store || false,
     promo_notes: campaign.promo_notes || "",
     promo_due_date: campaign.promo_due_date ? parseISO(campaign.promo_due_date) : undefined,
+    promo_assigned_to: campaign.promo_assigned_to || "",
     social_email: campaign.social_email || "",
     como_notes: campaign.como_notes || "",
+    como_assigned_to: campaign.como_assigned_to || "",
     email_notes: campaign.email_notes || "",
-    in_store_notes: campaign.in_store_notes || ""
+    email_assigned_to: campaign.email_assigned_to || "",
+    in_store_notes: campaign.in_store_notes || "",
+    in_store_assigned_to: campaign.in_store_assigned_to || ""
   });
 
   const handleSave = () => {
@@ -706,17 +713,25 @@ function CampaignDetailsSheet({ campaign, updateCampaignDetails }: any) {
           <div className="space-y-4">
             <div className="flex items-center justify-between border-b pb-2">
               <h4 className="font-semibold">Drink Menu Plan</h4>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className={`h-8 text-xs ${isOverdue(formData.drinks_due_date, formData.drinks_plan) ? 'text-destructive border-destructive' : ''}`}>
-                    <CalendarIcon className="mr-2 h-3 w-3" />
-                    {formData.drinks_due_date ? format(formData.drinks_due_date, "MMM d, yyyy") : <span>Set Due Date</span>}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <CalendarComponent mode="single" selected={formData.drinks_due_date} onSelect={d => setFormData(f => ({...f, drinks_due_date: d}))} />
-                </PopoverContent>
-              </Popover>
+              <div className="flex items-center gap-2">
+                <Input 
+                  placeholder="Assign To (Email)" 
+                  value={formData.drinks_assigned_to || ""}
+                  onChange={e => setFormData(f => ({...f, drinks_assigned_to: e.target.value}))}
+                  className="h-8 text-xs w-[180px]"
+                />
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className={`h-8 text-xs ${isOverdue(formData.drinks_due_date, formData.drinks_plan) ? 'text-destructive border-destructive' : ''}`}>
+                      <CalendarIcon className="mr-2 h-3 w-3" />
+                      {formData.drinks_due_date ? format(formData.drinks_due_date, "MMM d, yyyy") : <span>Set Due Date</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <CalendarComponent mode="single" selected={formData.drinks_due_date} onSelect={d => setFormData(f => ({...f, drinks_due_date: d}))} />
+                  </PopoverContent>
+                </Popover>
+              </div>
             </div>
             <Textarea 
               placeholder="List specific drinks, specials, or prep needed..." 
@@ -729,17 +744,25 @@ function CampaignDetailsSheet({ campaign, updateCampaignDetails }: any) {
           <div className="space-y-4">
             <div className="flex items-center justify-between border-b pb-2">
               <h4 className="font-semibold">Food Menu Plan</h4>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className={`h-8 text-xs ${isOverdue(formData.menu_due_date, formData.menu_plan) ? 'text-destructive border-destructive' : ''}`}>
-                    <CalendarIcon className="mr-2 h-3 w-3" />
-                    {formData.menu_due_date ? format(formData.menu_due_date, "MMM d, yyyy") : <span>Set Due Date</span>}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <CalendarComponent mode="single" selected={formData.menu_due_date} onSelect={d => setFormData(f => ({...f, menu_due_date: d}))} />
-                </PopoverContent>
-              </Popover>
+              <div className="flex items-center gap-2">
+                <Input 
+                  placeholder="Assign To (Email)" 
+                  value={formData.menu_assigned_to || ""}
+                  onChange={e => setFormData(f => ({...f, menu_assigned_to: e.target.value}))}
+                  className="h-8 text-xs w-[180px]"
+                />
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className={`h-8 text-xs ${isOverdue(formData.menu_due_date, formData.menu_plan) ? 'text-destructive border-destructive' : ''}`}>
+                      <CalendarIcon className="mr-2 h-3 w-3" />
+                      {formData.menu_due_date ? format(formData.menu_due_date, "MMM d, yyyy") : <span>Set Due Date</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <CalendarComponent mode="single" selected={formData.menu_due_date} onSelect={d => setFormData(f => ({...f, menu_due_date: d}))} />
+                  </PopoverContent>
+                </Popover>
+              </div>
             </div>
             <Textarea 
               placeholder="List specific food specials, prep needed, ingredients..." 
@@ -752,17 +775,25 @@ function CampaignDetailsSheet({ campaign, updateCampaignDetails }: any) {
           <div className="space-y-4">
             <div className="flex items-center justify-between border-b pb-2">
               <h4 className="font-semibold">Activity & Event Plan</h4>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className={`h-8 text-xs ${isOverdue(formData.activity_due_date, formData.activity_plan) ? 'text-destructive border-destructive' : ''}`}>
-                    <CalendarIcon className="mr-2 h-3 w-3" />
-                    {formData.activity_due_date ? format(formData.activity_due_date, "MMM d, yyyy") : <span>Set Due Date</span>}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <CalendarComponent mode="single" selected={formData.activity_due_date} onSelect={d => setFormData(f => ({...f, activity_due_date: d}))} />
-                </PopoverContent>
-              </Popover>
+              <div className="flex items-center gap-2">
+                <Input 
+                  placeholder="Assign To (Email)" 
+                  value={formData.activity_assigned_to || ""}
+                  onChange={e => setFormData(f => ({...f, activity_assigned_to: e.target.value}))}
+                  className="h-8 text-xs w-[180px]"
+                />
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className={`h-8 text-xs ${isOverdue(formData.activity_due_date, formData.activity_plan) ? 'text-destructive border-destructive' : ''}`}>
+                      <CalendarIcon className="mr-2 h-3 w-3" />
+                      {formData.activity_due_date ? format(formData.activity_due_date, "MMM d, yyyy") : <span>Set Due Date</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <CalendarComponent mode="single" selected={formData.activity_due_date} onSelect={d => setFormData(f => ({...f, activity_due_date: d}))} />
+                  </PopoverContent>
+                </Popover>
+              </div>
             </div>
             <Textarea 
               placeholder="Decorations, games, music, schedule of events..." 
@@ -775,17 +806,25 @@ function CampaignDetailsSheet({ campaign, updateCampaignDetails }: any) {
           <div className="space-y-4 bg-muted/20 p-4 rounded-lg border">
             <div className="flex items-center justify-between border-b pb-2 mb-4">
               <h4 className="font-semibold flex items-center gap-2"><Megaphone className="w-4 h-4 text-primary" /> Promotional Strategy</h4>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className={`h-8 text-xs bg-background ${isOverdue(formData.promo_due_date, formData.promo_notes) ? 'text-destructive border-destructive' : ''}`}>
-                    <CalendarIcon className="mr-2 h-3 w-3" />
-                    {formData.promo_due_date ? format(formData.promo_due_date, "MMM d, yyyy") : <span>Set Due Date</span>}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <CalendarComponent mode="single" selected={formData.promo_due_date} onSelect={d => setFormData(f => ({...f, promo_due_date: d}))} />
-                </PopoverContent>
-              </Popover>
+              <div className="flex items-center gap-2">
+                <Input 
+                  placeholder="Promo Lead (Email)" 
+                  value={formData.promo_assigned_to || ""}
+                  onChange={e => setFormData(f => ({...f, promo_assigned_to: e.target.value}))}
+                  className="h-8 text-xs w-[180px] bg-background"
+                />
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" className={`h-8 text-xs bg-background ${isOverdue(formData.promo_due_date, formData.promo_notes) ? 'text-destructive border-destructive' : ''}`}>
+                      <CalendarIcon className="mr-2 h-3 w-3" />
+                      {formData.promo_due_date ? format(formData.promo_due_date, "MMM d, yyyy") : <span>Master Promo Due Date</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <CalendarComponent mode="single" selected={formData.promo_due_date} onSelect={d => setFormData(f => ({...f, promo_due_date: d}))} />
+                  </PopoverContent>
+                </Popover>
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-3 mb-4">
               <div className="flex items-center space-x-2">
@@ -885,7 +924,15 @@ function CampaignDetailsSheet({ campaign, updateCampaignDetails }: any) {
               
               {formData.promo_como && (
                 <div className="mt-4 space-y-1">
-                  <Label className="text-xs">Como (Loyalty) Strategy</Label>
+                  <div className="flex items-center justify-between mb-1">
+                    <Label className="text-xs">Como (Loyalty) Strategy</Label>
+                    <Input 
+                      placeholder="Assign To (Email)" 
+                      value={formData.como_assigned_to || ""}
+                      onChange={e => setFormData(f => ({...f, como_assigned_to: e.target.value}))}
+                      className="h-7 text-xs w-[160px] bg-background"
+                    />
+                  </div>
                   <Textarea 
                     placeholder="Points multipliers, push notifications, offers..." 
                     value={formData.como_notes || ""}
@@ -897,7 +944,15 @@ function CampaignDetailsSheet({ campaign, updateCampaignDetails }: any) {
               
               {formData.promo_email && (
                 <div className="mt-4 space-y-1">
-                  <Label className="text-xs">Email Broadcast Details</Label>
+                  <div className="flex items-center justify-between mb-1">
+                    <Label className="text-xs">Email Broadcast Details</Label>
+                    <Input 
+                      placeholder="Assign To (Email)" 
+                      value={formData.email_assigned_to || ""}
+                      onChange={e => setFormData(f => ({...f, email_assigned_to: e.target.value}))}
+                      className="h-7 text-xs w-[160px] bg-background"
+                    />
+                  </div>
                   <Textarea 
                     placeholder="Subject lines, audience segments, send dates..." 
                     value={formData.email_notes || ""}
@@ -909,7 +964,15 @@ function CampaignDetailsSheet({ campaign, updateCampaignDetails }: any) {
 
               {formData.promo_in_store && (
                 <div className="mt-4 space-y-1">
-                  <Label className="text-xs">In-Store Signage Requirements</Label>
+                  <div className="flex items-center justify-between mb-1">
+                    <Label className="text-xs">In-Store Signage Requirements</Label>
+                    <Input 
+                      placeholder="Assign To (Email)" 
+                      value={formData.in_store_assigned_to || ""}
+                      onChange={e => setFormData(f => ({...f, in_store_assigned_to: e.target.value}))}
+                      className="h-7 text-xs w-[160px] bg-background"
+                    />
+                  </div>
                   <Textarea 
                     placeholder="Table tents, TV screens, posters..." 
                     value={formData.in_store_notes || ""}
