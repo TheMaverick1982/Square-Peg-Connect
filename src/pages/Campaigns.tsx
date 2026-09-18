@@ -16,7 +16,40 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
 import { format, addDays, parseISO, differenceInDays } from "date-fns";
-import { CalendarDays, AlertTriangle, Plus, CheckSquare, Megaphone, Share2, Mail, LayoutList, CalendarIcon, Loader2, CheckCircle2, UserCircle2, MapPin } from "lucide-react";
+import { CalendarDays, AlertTriangle, Plus, CheckSquare, Megaphone, Share2, Mail, LayoutList, CalendarIcon, Loader2, CheckCircle2, UserCircle2, MapPin, Sparkles } from "lucide-react";
+
+const SEASONAL_EVENTS = [
+  { name: "Super Bowl", month: 1, day: 9, type: 'Sports' },
+  { name: "Valentine's Day", month: 1, day: 14, type: 'Holiday' },
+  { name: "March Madness Begins", month: 2, day: 18, type: 'Sports' },
+  { name: "St. Patrick's Day", month: 2, day: 17, type: 'Holiday' },
+  { name: "Cinco de Mayo", month: 4, day: 5, type: 'Holiday' },
+  { name: "Mother's Day", month: 4, day: 11, type: 'Holiday' },
+  { name: "Father's Day", month: 5, day: 15, type: 'Holiday' },
+  { name: "4th of July", month: 6, day: 4, type: 'Holiday' },
+  { name: "Back to School", month: 7, day: 20, type: 'Season' },
+  { name: "Football Season Kickoff", month: 8, day: 5, type: 'Sports' },
+  { name: "Halloween", month: 9, day: 31, type: 'Holiday' },
+  { name: "Thanksgiving", month: 10, day: 28, type: 'Holiday' },
+  { name: "Christmas", month: 11, day: 25, type: 'Holiday' },
+  { name: "New Year's Eve", month: 11, day: 31, type: 'Holiday' }
+];
+
+const getUpcomingEvents = () => {
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  const currentYear = today.getFullYear();
+  
+  const upcoming = SEASONAL_EVENTS.map(event => {
+    let d = new Date(currentYear, event.month, event.day);
+    if (d < today) {
+      d = new Date(currentYear + 1, event.month, event.day);
+    }
+    return { ...event, date: d };
+  }).sort((a, b) => a.date.getTime() - b.date.getTime());
+  
+  return upcoming.slice(0, 5); 
+};
 
 export default function MarketingPlanner() {
   const { selectedLocationId } = useLocationContext();
@@ -176,6 +209,8 @@ export default function MarketingPlanner() {
     return { label: 'Future Planning', color: 'bg-blue-100 text-blue-800 border-blue-200' };
   };
 
+  const upcomingPrompts = getUpcomingEvents();
+
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-12">
       <div className="flex items-center justify-between">
@@ -295,6 +330,39 @@ export default function MarketingPlanner() {
             </div>
 
             <div className="space-y-4">
+              <Card className="bg-primary/5 border-primary/20 shadow-sm">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-primary" />
+                    Seasonal Prompts
+                  </CardTitle>
+                  <CardDescription className="text-xs">Upcoming events to plan for.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {upcomingPrompts.map(prompt => (
+                      <div key={prompt.name} className="flex items-center justify-between">
+                        <div>
+                          <div className="text-sm font-medium">{prompt.name}</div>
+                          <div className="text-xs text-muted-foreground">{format(prompt.date, "MMM d, yyyy")}</div>
+                        </div>
+                        <Button 
+                          variant="secondary" 
+                          size="sm" 
+                          className="h-7 text-xs bg-background hover:bg-background/80"
+                          onClick={() => {
+                            setNewCampaign({ title: `${prompt.name} Promo`, description: "", target_date: prompt.date, location_id: "all" });
+                            setIsDraftingCampaign(true);
+                          }}
+                        >
+                          Plan
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
               <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="text-sm">My Tasks</CardTitle>
