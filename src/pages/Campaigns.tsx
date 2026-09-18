@@ -16,8 +16,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
-import { format, addDays, parseISO, differenceInDays } from "date-fns";
-import { CalendarDays, AlertTriangle, Plus, CheckSquare, Megaphone, Share2, Mail, LayoutList, CalendarIcon, Loader2, CheckCircle2, UserCircle2, MapPin, Sparkles } from "lucide-react";
+import { format, addDays, parseISO, differenceInDays, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, subMonths, addMonths } from "date-fns";
+import { CalendarDays, AlertTriangle, Plus, CheckSquare, Megaphone, Share2, Mail, LayoutList, CalendarIcon, Loader2, CheckCircle2, UserCircle2, MapPin, Sparkles, ChevronLeft, ChevronRight } from "lucide-react";
 
 const SEASONAL_EVENTS = [
   { name: "Super Bowl", month: 1, day: 9, type: 'Sports' },
@@ -60,6 +60,7 @@ export default function MarketingPlanner() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("planning");
+  const [currentMonth, setCurrentMonth] = useState(new Date());
 
   // Fetch campaigns
   const { data: campaigns = [], isLoading: loadingCampaigns } = useQuery({
@@ -226,6 +227,84 @@ export default function MarketingPlanner() {
 
   const upcomingPrompts = getUpcomingEvents();
 
+  const renderCalendar = () => {
+    const monthStart = startOfMonth(currentMonth);
+    const monthEnd = endOfMonth(monthStart);
+    const startDate = startOfWeek(monthStart);
+    const endDate = endOfWeek(monthEnd);
+    
+    const days = eachDayOfInterval({ start: startDate, end: endDate });
+
+    return (
+      <div className="flex flex-col h-[600px] bg-card border rounded-lg overflow-hidden mt-4">
+        <div className="flex items-center justify-between p-4 border-b">
+          <h2 className="text-lg font-semibold">{format(currentMonth, "MMMM yyyy")}</h2>
+          <div className="flex gap-1">
+            <Button variant="outline" size="icon" onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}><ChevronLeft className="w-4 h-4" /></Button>
+            <Button variant="outline" size="icon" onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}><ChevronRight className="w-4 h-4" /></Button>
+          </div>
+        </div>
+        <div className="grid grid-cols-7 border-b bg-muted/30">
+          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(day => (
+            <div key={day} className="py-2 text-center text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+              {day}
+            </div>
+          ))}
+        </div>
+        <div className="grid grid-cols-7 flex-1 auto-rows-fr overflow-y-auto">
+          {days.map((day) => {
+            const isCurrentMonth = isSameMonth(day, monthStart);
+            const dayCampaigns = campaigns.filter(c => isSameDay(parseISO(c.target_date), day));
+            // Find if this day has a seasonal prompt
+            const dayPrompt = upcomingPrompts.find(p => isSameDay(p.date, day));
+
+            return (
+              <div 
+                key={day.toString()} 
+                className={`
+                  min-h-[100px] p-2 border-r border-b relative
+                  ${!isCurrentMonth ? "bg-muted/10 text-muted-foreground/50" : ""}
+                `}
+              >
+                <div className="flex justify-between items-start mb-1">
+                  <span className="text-sm font-medium">{format(day, "d")}</span>
+                </div>
+
+                <div className="flex flex-col gap-1 mt-1">
+                  {dayCampaigns.map(camp => (
+                    <div 
+                      key={camp.id}
+                      className="text-xs px-1.5 py-1 rounded border font-medium truncate bg-primary/10 text-primary border-primary/20 cursor-pointer hover:bg-primary/20"
+                      title={camp.title}
+                    >
+                      {camp.title}
+                    </div>
+                  ))}
+                  
+                  {dayPrompt && dayCampaigns.length === 0 && (
+                    <div 
+                      className="text-[10px] px-1.5 py-1 rounded border border-dashed font-medium truncate bg-muted/30 text-muted-foreground cursor-pointer hover:bg-muted/50 hover:text-foreground transition-colors"
+                      title={`Suggested: ${dayPrompt.name}`}
+                      onClick={() => {
+                        setNewCampaign({ title: `${dayPrompt.name} Promo`, description: "", target_date: dayPrompt.date, location_id: "all" });
+                        setIsDraftingCampaign(true);
+                      }}
+                    >
+                      <Sparkles className="w-3 h-3 inline mr-1 opacity-50" />
+                      {dayPrompt.name}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
+
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-12">
       <div className="flex items-center justify-between">
@@ -248,9 +327,33 @@ export default function MarketingPlanner() {
         </TabsList>
 
         <TabsContent value="planning" className="space-y-4 m-0">
-          <div className="grid gap-4 md:grid-cols-3">
-            <div className="md:col-span-2 space-y-4">
-              <div className="flex justify-between items-center bg-card p-4 rounded-lg border shadow-sm">
+          <div className="flex items-center justify-end mb-2">
+            <div className="flex items-center bg-muted p-1 rounded-lg">
+              <Button 
+                variant={viewMode === "list" ? "secondary" : "ghost"} 
+                size="sm" 
+                className="h-8 px-3"
+                onClick={() => setViewMode("list")}
+              >
+                <LayoutList className="w-4 h-4 mr-2" /> List
+              </Button>
+              <Button 
+                variant={viewMode === "calendar" ? "secondary" : "ghost"} 
+                size="sm" 
+                className="h-8 px-3"
+                onClick={() => setViewMode("calendar")}
+              >
+                <CalendarIcon className="w-4 h-4 mr-2" /> Calendar
+              </Button>
+            </div>
+          </div>
+
+          {viewMode === "calendar" ? (
+             renderCalendar()
+          ) : (
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="md:col-span-2 space-y-4">
+                <div className="flex justify-between items-center bg-card p-4 rounded-lg border shadow-sm">
                 <div>
                   <h3 className="font-semibold flex items-center gap-2">
                     <AlertTriangle className="w-4 h-4 text-amber-500" />
@@ -405,6 +508,7 @@ export default function MarketingPlanner() {
               </Card>
             </div>
           </div>
+          )}
         </TabsContent>
 
         <TabsContent value="social" className="space-y-4 m-0">
