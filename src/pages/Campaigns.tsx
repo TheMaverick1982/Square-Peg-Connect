@@ -631,21 +631,60 @@ function CampaignCard({ campaign, status, tasks, progress, createTask, toggleTas
 function CampaignDetailsSheet({ campaign, updateCampaignDetails }: any) {
   const [open, setOpen] = useState(false);
   const { toast } = useToast();
+  const [isAlertingSocial, setIsAlertingSocial] = useState(false);
   const [formData, setFormData] = useState({
     drinks_plan: campaign.drinks_plan || "",
+    drinks_due_date: campaign.drinks_due_date ? parseISO(campaign.drinks_due_date) : undefined,
     menu_plan: campaign.menu_plan || "",
+    menu_due_date: campaign.menu_due_date ? parseISO(campaign.menu_due_date) : undefined,
     activity_plan: campaign.activity_plan || "",
+    activity_due_date: campaign.activity_due_date ? parseISO(campaign.activity_due_date) : undefined,
     promo_social: campaign.promo_social || false,
     promo_como: campaign.promo_como || false,
     promo_email: campaign.promo_email || false,
     promo_in_store: campaign.promo_in_store || false,
-    promo_notes: campaign.promo_notes || ""
+    promo_notes: campaign.promo_notes || "",
+    promo_due_date: campaign.promo_due_date ? parseISO(campaign.promo_due_date) : undefined,
   });
 
   const handleSave = () => {
-    updateCampaignDetails.mutate({ id: campaign.id, updates: formData }, {
+    const updates = {
+      ...formData,
+      drinks_due_date: formData.drinks_due_date ? format(formData.drinks_due_date, 'yyyy-MM-dd') : null,
+      menu_due_date: formData.menu_due_date ? format(formData.menu_due_date, 'yyyy-MM-dd') : null,
+      activity_due_date: formData.activity_due_date ? format(formData.activity_due_date, 'yyyy-MM-dd') : null,
+      promo_due_date: formData.promo_due_date ? format(formData.promo_due_date, 'yyyy-MM-dd') : null,
+    };
+    updateCampaignDetails.mutate({ id: campaign.id, updates }, {
       onSuccess: () => setOpen(false)
     });
+  };
+
+  const handleAlertSocial = async () => {
+    setIsAlertingSocial(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-social-post-alert', {
+        body: { 
+          source: 'campaign',
+          campaign: campaign.title,
+          target_date: campaign.target_date,
+          due_date: formData.promo_due_date ? format(formData.promo_due_date, 'yyyy-MM-dd') : null,
+          guidance: formData.promo_notes
+        }
+      });
+      if (error || data?.error) throw new Error(error?.message || data?.error);
+      toast({ title: "Social Team Alerted", description: "An email notification has been sent with your creative guidance." });
+    } catch (err: any) {
+      toast({ title: "Alert Failed", description: err.message, variant: "destructive" });
+    } finally {
+      setIsAlertingSocial(false);
+    }
+  };
+
+  const isOverdue = (date?: Date, content?: string) => {
+    if (!date) return false;
+    // Overdue if the date is in the past AND the content plan is empty
+    return (new Date().getTime() > date.getTime() + 86400000) && (!content || content.trim() === "");
   };
 
   return (
@@ -659,9 +698,22 @@ function CampaignDetailsSheet({ campaign, updateCampaignDetails }: any) {
           <SheetDescription>Detailed planning for drinks, menu, activities, and promotion.</SheetDescription>
         </SheetHeader>
         
-        <div className="space-y-6 pb-20">
+        <div className="space-y-8 pb-20">
           <div className="space-y-4">
-            <h4 className="font-semibold border-b pb-2">Drink Menu Plan</h4>
+            <div className="flex items-center justify-between border-b pb-2">
+              <h4 className="font-semibold">Drink Menu Plan</h4>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className={`h-8 text-xs ${isOverdue(formData.drinks_due_date, formData.drinks_plan) ? 'text-destructive border-destructive' : ''}`}>
+                    <CalendarIcon className="mr-2 h-3 w-3" />
+                    {formData.drinks_due_date ? format(formData.drinks_due_date, "MMM d, yyyy") : <span>Set Due Date</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <CalendarComponent mode="single" selected={formData.drinks_due_date} onSelect={d => setFormData(f => ({...f, drinks_due_date: d}))} />
+                </PopoverContent>
+              </Popover>
+            </div>
             <Textarea 
               placeholder="List specific drinks, specials, or prep needed..." 
               value={formData.drinks_plan}
@@ -671,7 +723,20 @@ function CampaignDetailsSheet({ campaign, updateCampaignDetails }: any) {
           </div>
 
           <div className="space-y-4">
-            <h4 className="font-semibold border-b pb-2">Food Menu Plan</h4>
+            <div className="flex items-center justify-between border-b pb-2">
+              <h4 className="font-semibold">Food Menu Plan</h4>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className={`h-8 text-xs ${isOverdue(formData.menu_due_date, formData.menu_plan) ? 'text-destructive border-destructive' : ''}`}>
+                    <CalendarIcon className="mr-2 h-3 w-3" />
+                    {formData.menu_due_date ? format(formData.menu_due_date, "MMM d, yyyy") : <span>Set Due Date</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <CalendarComponent mode="single" selected={formData.menu_due_date} onSelect={d => setFormData(f => ({...f, menu_due_date: d}))} />
+                </PopoverContent>
+              </Popover>
+            </div>
             <Textarea 
               placeholder="List specific food specials, prep needed, ingredients..." 
               value={formData.menu_plan}
@@ -681,7 +746,20 @@ function CampaignDetailsSheet({ campaign, updateCampaignDetails }: any) {
           </div>
 
           <div className="space-y-4">
-            <h4 className="font-semibold border-b pb-2">Activity / Event Plan</h4>
+            <div className="flex items-center justify-between border-b pb-2">
+              <h4 className="font-semibold">Activity & Event Plan</h4>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className={`h-8 text-xs ${isOverdue(formData.activity_due_date, formData.activity_plan) ? 'text-destructive border-destructive' : ''}`}>
+                    <CalendarIcon className="mr-2 h-3 w-3" />
+                    {formData.activity_due_date ? format(formData.activity_due_date, "MMM d, yyyy") : <span>Set Due Date</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <CalendarComponent mode="single" selected={formData.activity_due_date} onSelect={d => setFormData(f => ({...f, activity_due_date: d}))} />
+                </PopoverContent>
+              </Popover>
+            </div>
             <Textarea 
               placeholder="Decorations, games, music, schedule of events..." 
               value={formData.activity_plan}
@@ -690,13 +768,26 @@ function CampaignDetailsSheet({ campaign, updateCampaignDetails }: any) {
             />
           </div>
 
-          <div className="space-y-4">
-            <h4 className="font-semibold border-b pb-2">Promotional Channels</h4>
-            <div className="grid grid-cols-2 gap-4">
-              <label className="flex items-center space-x-2">
-                <Checkbox checked={formData.promo_social} onCheckedChange={(checked) => setFormData(f => ({...f, promo_social: !!checked}))} />
-                <span className="text-sm cursor-pointer">Social Media</span>
-              </label>
+          <div className="space-y-4 bg-muted/20 p-4 rounded-lg border">
+            <div className="flex items-center justify-between border-b pb-2 mb-4">
+              <h4 className="font-semibold flex items-center gap-2"><Megaphone className="w-4 h-4 text-primary" /> Promotional Strategy</h4>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className={`h-8 text-xs bg-background ${isOverdue(formData.promo_due_date, formData.promo_notes) ? 'text-destructive border-destructive' : ''}`}>
+                    <CalendarIcon className="mr-2 h-3 w-3" />
+                    {formData.promo_due_date ? format(formData.promo_due_date, "MMM d, yyyy") : <span>Set Due Date</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <CalendarComponent mode="single" selected={formData.promo_due_date} onSelect={d => setFormData(f => ({...f, promo_due_date: d}))} />
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <div className="flex items-center space-x-2">
+                <Checkbox id="p-social" checked={formData.promo_social} onCheckedChange={c => setFormData(f => ({...f, promo_social: !!c}))} />
+                <Label htmlFor="p-social" className="text-sm cursor-pointer">Social Media</Label>
+              </div>
               <label className="flex items-center space-x-2">
                 <Checkbox checked={formData.promo_como} onCheckedChange={(checked) => setFormData(f => ({...f, promo_como: !!checked}))} />
                 <span className="text-sm cursor-pointer">Como (Loyalty Members)</span>
