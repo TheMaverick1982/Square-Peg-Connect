@@ -630,6 +630,7 @@ function CampaignCard({ campaign, status, tasks, progress, createTask, toggleTas
 
 function CampaignDetailsSheet({ campaign, updateCampaignDetails }: any) {
   const [open, setOpen] = useState(false);
+  const { toast } = useToast();
   const [formData, setFormData] = useState({
     drinks_plan: campaign.drinks_plan || "",
     menu_plan: campaign.menu_plan || "",
@@ -710,13 +711,57 @@ function CampaignDetailsSheet({ campaign, updateCampaignDetails }: any) {
               </label>
             </div>
             
-            <Label className="mt-4 block">Promotion Notes / Submit to Marketing</Label>
-            <Textarea 
-              placeholder="What specifically needs to be promoted? Assets needed? Details for social media..." 
-              value={formData.promo_notes}
-              onChange={e => setFormData(f => ({...f, promo_notes: e.target.value}))}
-              className="min-h-[100px]"
-            />
+            {formData.promo_social && (
+              <div className="bg-blue-50/50 dark:bg-blue-900/10 p-4 rounded-md border border-blue-100 dark:border-blue-900/30 space-y-3 mt-4">
+                <h4 className="font-medium text-sm text-blue-800 dark:text-blue-300">Social Media Creative Alert</h4>
+                <p className="text-xs text-blue-700/80 dark:text-blue-400/80">Send a direct request to the social media manager to prepare creative assets for this campaign.</p>
+                
+                <div className="space-y-2">
+                  <Label className="text-xs">Creative Guidance / Notes</Label>
+                  <Textarea 
+                    placeholder="e.g., Needs to feel energetic. Make sure to feature the new cocktail prominently." 
+                    className="min-h-[80px] bg-white dark:bg-background"
+                    value={formData.promo_notes || ""}
+                    onChange={e => setFormData(f => ({...f, promo_notes: e.target.value}))}
+                  />
+                </div>
+                
+                <Button 
+                  size="sm" 
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      await supabase.functions.invoke('send-social-post-alert', {
+                        body: { 
+                          type: "campaign_creative_request",
+                          campaignTitle: campaign.title,
+                          targetDate: campaign.target_date,
+                          notes: formData.promo_notes,
+                          locationId: campaign.location_id
+                        }
+                      });
+                      toast({ title: "Alert Sent", description: "The social media team has been notified." });
+                    } catch (e: any) {
+                      toast({ title: "Error", description: e.message, variant: "destructive" });
+                    }
+                  }}
+                >
+                  Alert Social Team
+                </Button>
+              </div>
+            )}
+            
+            {!formData.promo_social && (
+              <>
+                <Label className="mt-4 block">Promotion Notes / Submit to Marketing</Label>
+                <Textarea 
+                  placeholder="What specifically needs to be promoted? Assets needed? Details for social media..." 
+                  value={formData.promo_notes}
+                  onChange={e => setFormData(f => ({...f, promo_notes: e.target.value}))}
+                  className="min-h-[100px]"
+                />
+              </>
+            )}
           </div>
 
           <Button onClick={handleSave} className="w-full">
