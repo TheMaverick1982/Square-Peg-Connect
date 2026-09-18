@@ -5,13 +5,15 @@ import { Navigate } from "react-router-dom";
 export default function Login() {
   const auth = useAuth();
 
+  useEffect(() => {
+    // Auto-redirect unauthenticated users to SSO immediately.
+    if (!auth.isLoading && !auth.isAuthenticated && !auth.activeNavigator) {
+      auth.signinRedirect();
+    }
+  }, [auth.isLoading, auth.isAuthenticated, auth.activeNavigator, auth]);
+
   if (auth.isAuthenticated) {
     return <Navigate to="/" replace />;
-  }
-
-  // Auto-redirect unauthenticated users to SSO immediately.
-  if (!auth.isLoading && !auth.isAuthenticated && !auth.activeNavigator) {
-    auth.signinRedirect();
   }
 
   return (
