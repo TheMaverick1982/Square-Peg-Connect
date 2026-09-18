@@ -1,6 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
+import { vibeConfig } from '@/vibe.config';
 
-export const supabase = createClient(
-  'https://tsrnpmkipdbtwyrlfbuy.supabase.co',
-  'sb_publishable_Hw7PhZvwSR0qMcV7nkfXJw_VBGgsV7k'
-);
+export const isSupabaseConfigured =
+  Boolean(vibeConfig.supabase.url) && Boolean(vibeConfig.supabase.publishableKey);
+
+export const supabase = isSupabaseConfigured
+  ? createClient(vibeConfig.supabase.url, vibeConfig.supabase.publishableKey)
+  : null;
