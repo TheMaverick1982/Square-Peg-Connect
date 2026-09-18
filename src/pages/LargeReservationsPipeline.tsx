@@ -706,6 +706,14 @@ export default function LargeReservationsPipeline() {
             <Download className="w-4 h-4" />
             Export CSV
           </Button>
+          <Button variant="outline" className="gap-2 shadow-sm" onClick={() => {
+            const url = `${window.location.origin}${import.meta.env.BASE_URL}public/large-reservations`.replace(/([^:]\/)\/+/g, "$1");
+            navigator.clipboard.writeText(url);
+            toast({ title: "Copied!", description: "Booking link copied to clipboard." });
+          }}>
+            <LinkIcon className="w-4 h-4" />
+            Copy Link
+          </Button>
           <ShareFormDialog formTitle="Large Reservations Form" formPath="/public/large-reservations" />
           <Button className="gap-2 shadow-sm" onClick={() => setIsAddSheetOpen(true)}>
             <Plus className="w-4 h-4" />

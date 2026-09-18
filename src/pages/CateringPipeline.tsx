@@ -418,6 +418,14 @@ export default function CateringPipeline() {
             <Download className="w-4 h-4" />
             Export CSV
           </Button>
+          <Button variant="outline" className="gap-2 shadow-sm" onClick={() => {
+            const url = `${window.location.origin}${import.meta.env.BASE_URL}public/catering`.replace(/([^:]\/)\/+/g, "$1");
+            navigator.clipboard.writeText(url);
+            toast({ title: "Copied!", description: "Booking link copied to clipboard." });
+          }}>
+            <LinkIcon className="w-4 h-4" />
+            Copy Link
+          </Button>
           <ShareFormDialog formTitle="Catering Intake Form" formPath="/public/catering" />
           <Sheet open={isNewSheetOpen} onOpenChange={setIsNewSheetOpen}>
             <SheetTrigger asChild>

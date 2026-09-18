@@ -607,6 +607,14 @@ export default function FundraisersPipeline() {
         </div>
         
         <div className="flex items-center gap-2">
+          <Button variant="outline" className="gap-2 shadow-sm" onClick={() => {
+            const url = `${window.location.origin}${import.meta.env.BASE_URL}public/fundraisers`.replace(/([^:]\/)\/+/g, "$1");
+            navigator.clipboard.writeText(url);
+            toast({ title: "Copied!", description: "Booking link copied to clipboard." });
+          }}>
+            <LinkIcon className="w-4 h-4" />
+            Copy Link
+          </Button>
           <ShareFormDialog formTitle="Fundraisers Form" formPath="/public/fundraisers" />
           <FundraiserCsvImporter onImportSuccess={fetchOrders} />
           <Button className="gap-2 shadow-sm" onClick={() => setIsAddSheetOpen(true)}>

@@ -104,7 +104,7 @@ export function SidebarContent() {
         <div className="sidebar-group-title">Marketing</div>
         <NavLink to="/campaigns" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
           <Megaphone className="w-4 h-4" />
-          Campaigns
+          Marketing Planner
         </NavLink>
         <NavLink to="/automations" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
           <Zap className="w-4 h-4" />
