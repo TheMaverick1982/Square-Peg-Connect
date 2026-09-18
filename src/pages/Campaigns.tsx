@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useLocationContext } from "@/lib/LocationContext";
+import { locations } from "@/lib/data";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -15,7 +16,7 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
 import { format, addDays, parseISO, differenceInDays } from "date-fns";
-import { CalendarDays, AlertTriangle, Plus, CheckSquare, Megaphone, Share2, Mail, LayoutList, CalendarIcon, Loader2, CheckCircle2, UserCircle2 } from "lucide-react";
+import { CalendarDays, AlertTriangle, Plus, CheckSquare, Megaphone, Share2, Mail, LayoutList, CalendarIcon, Loader2, CheckCircle2, UserCircle2, MapPin } from "lucide-react";
 
 export default function MarketingPlanner() {
   const { selectedLocationId } = useLocationContext();
@@ -29,7 +30,7 @@ export default function MarketingPlanner() {
     queryFn: async () => {
       let query = supabase.from('marketing_campaigns').select('*').order('target_date', { ascending: true });
       if (selectedLocationId) {
-        query = query.eq('location_id', selectedLocationId);
+        query = query.or(`location_id.eq.${selectedLocationId},location_id.is.null`);
       }
       const { data, error } = await query;
       if (error) throw error;
@@ -49,9 +50,13 @@ export default function MarketingPlanner() {
 
   // Fetch social posts
   const { data: socialPosts = [], isLoading: loadingPosts } = useQuery({
-    queryKey: ['social_posts'],
+    queryKey: ['social_posts', selectedLocationId],
     queryFn: async () => {
-      const { data, error } = await supabase.from('social_posts').select('*').order('target_date', { ascending: true });
+      let query = supabase.from('social_posts').select('*').order('target_date', { ascending: true });
+      if (selectedLocationId) {
+        query = query.or(`location_id.eq.${selectedLocationId},location_id.is.null`);
+      }
+      const { data, error } = await query;
       if (error) throw error;
       return data;
     }
@@ -59,7 +64,7 @@ export default function MarketingPlanner() {
 
   // --- Campaign Mutations ---
   const [isDraftingCampaign, setIsDraftingCampaign] = useState(false);
-  const [newCampaign, setNewCampaign] = useState({ title: "", description: "", target_date: new Date() });
+  const [newCampaign, setNewCampaign] = useState({ title: "", description: "", target_date: new Date(), location_id: "all" });
 
   const createCampaign = useMutation({
     mutationFn: async () => {
@@ -67,7 +72,7 @@ export default function MarketingPlanner() {
         title: newCampaign.title,
         description: newCampaign.description,
         target_date: format(newCampaign.target_date, 'yyyy-MM-dd'),
-        location_id: selectedLocationId || null,
+        location_id: newCampaign.location_id === "all" ? null : newCampaign.location_id,
         status: 'planning'
       };
       const { error } = await supabase.from('marketing_campaigns').insert(payload);
@@ -76,7 +81,7 @@ export default function MarketingPlanner() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['marketing_campaigns'] });
       setIsDraftingCampaign(false);
-      setNewCampaign({ title: "", description: "", target_date: new Date() });
+      setNewCampaign({ title: "", description: "", target_date: new Date(), location_id: "all" });
       toast({ title: "Campaign created!" });
     }
   });
@@ -92,7 +97,7 @@ export default function MarketingPlanner() {
       if (assigned_to) {
         await supabase.functions.invoke('send-marketing-task-assigned', {
           body: { task: payload, campaign: { title: data.marketing_campaigns.title } }
-        });
+        }).catch(err => console.error("Error sending task assignment email", err));
       }
     },
     onSuccess: () => {
@@ -111,7 +116,7 @@ export default function MarketingPlanner() {
 
   // --- Social Post Mutations ---
   const [isRequestingPost, setIsRequestingPost] = useState(false);
-  const [newPost, setNewPost] = useState({ title: "", content: "", assigned_to: "", target_date: new Date() });
+  const [newPost, setNewPost] = useState({ title: "", content: "", assigned_to: "", target_date: new Date(), location_id: "all" });
 
   const createSocialPost = useMutation({
     mutationFn: async () => {
@@ -120,6 +125,7 @@ export default function MarketingPlanner() {
         content: newPost.content,
         assigned_to: newPost.assigned_to,
         target_date: format(newPost.target_date, 'yyyy-MM-dd'),
+        location_id: newPost.location_id === "all" ? null : newPost.location_id,
         status: 'draft'
       };
       const { data, error } = await supabase.from('social_posts').insert(payload).select().single();
@@ -129,13 +135,13 @@ export default function MarketingPlanner() {
       if (newPost.assigned_to) {
         await supabase.functions.invoke('send-social-post-alert', {
           body: { post: data, action: 'requested' }
-        });
+        }).catch(err => console.error("Error sending social post alert", err));
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['social_posts'] });
       setIsRequestingPost(false);
-      setNewPost({ title: "", content: "", assigned_to: "", target_date: new Date() });
+      setNewPost({ title: "", content: "", assigned_to: "", target_date: new Date(), location_id: "all" });
       toast({ title: "Social post requested!" });
     }
   });
@@ -215,6 +221,20 @@ export default function MarketingPlanner() {
                       <div>
                         <Label>Campaign Title</Label>
                         <Input placeholder="e.g. Thanksgiving Catering, Super Bowl" value={newCampaign.title} onChange={e => setNewCampaign({...newCampaign, title: e.target.value})} className="mt-1" />
+                      </div>
+                      <div>
+                        <Label>Location</Label>
+                        <Select value={newCampaign.location_id} onValueChange={v => setNewCampaign({...newCampaign, location_id: v})}>
+                          <SelectTrigger className="mt-1">
+                            <SelectValue placeholder="All Locations" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Locations</SelectItem>
+                            {locations.map(l => (
+                              <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div>
                         <Label>Target Date</Label>
@@ -323,6 +343,20 @@ export default function MarketingPlanner() {
                   <div>
                     <Label>Assign To (Email)</Label>
                     <Input placeholder="social@squarepegpizzeria.com" value={newPost.assigned_to} onChange={e => setNewPost({...newPost, assigned_to: e.target.value})} className="mt-1" />
+                  </div>
+                  <div>
+                    <Label>Location</Label>
+                    <Select value={newPost.location_id} onValueChange={v => setNewPost({...newPost, location_id: v})}>
+                      <SelectTrigger className="mt-1">
+                        <SelectValue placeholder="All Locations" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Locations</SelectItem>
+                        {locations.map(l => (
+                          <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div>
                     <Label>Target Post Date</Label>
