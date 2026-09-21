@@ -17,7 +17,7 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
 import { format, addDays, parseISO, differenceInDays, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, subMonths, addMonths } from "date-fns";
-import { CalendarDays, AlertTriangle, Plus, CheckSquare, Megaphone, Share2, Mail, LayoutList, CalendarIcon, Loader2, CheckCircle2, UserCircle2, MapPin, Sparkles, ChevronLeft, ChevronRight } from "lucide-react";
+import { CalendarDays, AlertTriangle, Plus, CheckSquare, Megaphone, Share2, Mail, LayoutList, CalendarIcon, Loader2, CheckCircle2, UserCircle2, MapPin, Sparkles, ChevronLeft, ChevronRight, Briefcase } from "lucide-react";
 
 const SEASONAL_EVENTS = [
   { name: "Super Bowl", month: 1, day: 9, type: 'Sports' },
@@ -57,6 +57,184 @@ const getUpcomingEvents = () => {
   
   return upcoming.slice(0, 5); 
 };
+
+function MarketingSupportRequestSheet() {
+  const [open, setOpen] = useState(false);
+  const { selectedLocationId } = useLocationContext();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const [formData, setFormData] = useState({
+    title: "",
+    target_date: new Date(),
+    location_id: selectedLocationId || "",
+    description: "",
+    support_needed: "",
+    external_links: ""
+  });
+
+  const submitRequest = useMutation({
+    mutationFn: async (data: typeof formData) => {
+      // 1. Create a Draft Campaign on the Horizon planner
+      const campaignPayload = {
+        title: `Support: ${data.title}`,
+        description: `Marketing Support Request.\nNeeds: ${data.support_needed}\nLinks: ${data.external_links}\nNotes: ${data.description}`,
+        target_date: format(data.target_date, 'yyyy-MM-dd'),
+        location_id: data.location_id === "all" ? null : data.location_id,
+        status: 'planning', // Puts it on the dashboard
+      };
+
+      const { data: campaign, error: campaignError } = await supabase
+        .from('marketing_campaigns')
+        .insert(campaignPayload)
+        .select()
+        .single();
+
+      if (campaignError) throw campaignError;
+
+      // 2. Also log it to the structured requests table just for records if we want, or just rely on campaigns.
+      const requestPayload = {
+        event_name: data.title,
+        event_date: format(data.target_date, 'yyyy-MM-dd'),
+        location_id: data.location_id === "all" ? null : data.location_id,
+        support_needed: data.support_needed,
+        external_links: data.external_links,
+        notes: data.description,
+        status: 'Draft'
+      };
+
+      const { error: requestError, data: supportRequest } = await supabase
+        .from('marketing_support_requests')
+        .insert(requestPayload)
+        .select()
+        .single();
+        
+      if (requestError) throw requestError;
+
+      // 3. Email Brian
+      await supabase.functions.invoke('notify-marketing-request', {
+        body: { 
+          request: supportRequest,
+          location: locations.find(l => l.id === data.location_id)
+        }
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['marketing_campaigns'] });
+      setOpen(false);
+      setFormData({
+        title: "",
+        target_date: new Date(),
+        location_id: selectedLocationId || "",
+        description: "",
+        support_needed: "",
+        external_links: ""
+      });
+      toast({ title: "Request Submitted!", description: "The marketing team has been notified." });
+    },
+    onError: (error: any) => {
+      toast({ title: "Submission Failed", description: error.message, variant: "destructive" });
+    }
+  });
+
+  return (
+    <Sheet open={open} onOpenChange={setOpen}>
+      <SheetTrigger asChild>
+        <Button className="shrink-0"><Briefcase className="w-4 h-4 mr-2" /> Request Support</Button>
+      </SheetTrigger>
+      <SheetContent className="sm:max-w-xl w-full overflow-y-auto">
+        <SheetHeader className="mb-6">
+          <SheetTitle>Request Marketing Support</SheetTitle>
+          <SheetDescription>Submit an upcoming event or promotion that needs marketing team support.</SheetDescription>
+        </SheetHeader>
+        
+        <div className="space-y-4 pb-20">
+          <div>
+            <Label>Event / Promotion Name <span className="text-destructive">*</span></Label>
+            <Input 
+              placeholder="e.g. Local Brewery Tap Takeover" 
+              value={formData.title}
+              onChange={e => setFormData(f => ({...f, title: e.target.value}))}
+              className="mt-1"
+            />
+          </div>
+
+          <div>
+            <Label>Location <span className="text-destructive">*</span></Label>
+            <Select value={formData.location_id} onValueChange={v => setFormData(f => ({...f, location_id: v}))}>
+              <SelectTrigger className="mt-1">
+                <SelectValue placeholder="Select Location" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Locations (Global Promo)</SelectItem>
+                {locations.map(l => (
+                  <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label>Event Date <span className="text-destructive">*</span></Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="w-full mt-1 justify-start text-left font-normal">
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {formData.target_date ? format(formData.target_date, "PPP") : <span>Pick a date</span>}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0">
+                <CalendarComponent mode="single" selected={formData.target_date} onSelect={d => d && setFormData(f => ({...f, target_date: d}))} />
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          <div>
+            <Label>What specific support do you need? <span className="text-destructive">*</span></Label>
+            <Textarea 
+              placeholder="e.g. Need an Instagram flyer, an email blast to our list, and table tents designed." 
+              value={formData.support_needed}
+              onChange={e => setFormData(f => ({...f, support_needed: e.target.value}))}
+              className="mt-1 min-h-[80px]"
+            />
+          </div>
+
+          <div>
+            <Label>External Links (Optional)</Label>
+            <Input 
+              placeholder="Links to partner websites, menus, or inspiration..." 
+              value={formData.external_links}
+              onChange={e => setFormData(f => ({...f, external_links: e.target.value}))}
+              className="mt-1"
+            />
+          </div>
+
+          <div>
+            <Label>Additional Context</Label>
+            <Textarea 
+              placeholder="Any other details the marketing team should know..." 
+              value={formData.description}
+              onChange={e => setFormData(f => ({...f, description: e.target.value}))}
+              className="mt-1 min-h-[80px]"
+            />
+          </div>
+
+          <Button 
+            className="w-full mt-4" 
+            onClick={() => submitRequest.mutate(formData)}
+            disabled={!formData.title || !formData.location_id || !formData.support_needed || submitRequest.isPending}
+          >
+            {submitRequest.isPending ? (
+              <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Submitting Request...</>
+            ) : (
+              "Submit Request to Marketing"
+            )}
+          </Button>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
 
 export default function MarketingPlanner() {
   const { selectedLocationId } = useLocationContext();
@@ -310,11 +488,12 @@ export default function MarketingPlanner() {
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-12">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Marketing & Social Planner</h1>
           <p className="text-muted-foreground mt-1">Plan campaigns 3+ months out, assign tasks, and manage social approvals.</p>
         </div>
+        <MarketingSupportRequestSheet />
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">

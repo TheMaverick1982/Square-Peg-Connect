@@ -21,6 +21,8 @@ import EventsDashboard from "./pages/EventsDashboard";
 import StoreEventsPipeline from "./pages/StoreEventsPipeline";
 import LargeReservationsPipeline from "./pages/LargeReservationsPipeline";
 import PublicLargeReservationForm from "./pages/PublicLargeReservationForm";
+import PublicPhotoUpload from "./pages/PublicPhotoUpload";
+import StaffPhotos from "./pages/StaffPhotos";
 import { Navigate } from "react-router-dom";
 
 export const routes = [
@@ -35,6 +37,10 @@ export const routes = [
   {
     path: "/public/large-reservations",
     element: <PublicLargeReservationForm />
+  },
+  {
+    path: "/public/photo-upload",
+    element: <PublicPhotoUpload />
   },
   {
     path: "/auth/callback",
@@ -59,6 +65,7 @@ export const routes = [
       { path: "b2b-partnerships", element: <B2BPartnerships /> },
       { path: "guest-bounce-back", element: <GuestBounceBack /> },
       { path: "campaigns", element: <Campaigns /> },
+      { path: "staff-photos", element: <StaffPhotos /> },
       { path: "team", element: <Navigate to="/settings" replace /> },
       { path: "tasks", element: <Navigate to="/reminders" replace /> },
       { path: "automations", element: <Automations /> },
