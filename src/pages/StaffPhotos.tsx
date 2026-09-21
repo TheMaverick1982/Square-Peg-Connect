@@ -1,14 +1,20 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useLocationContext } from "@/lib/LocationContext";
 import { locations } from "@/lib/data";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { format } from "date-fns";
-import { Camera, MapPin, Download, Expand, X, Loader2, Calendar } from "lucide-react";
+import { Camera, MapPin, Download, Expand, X, Loader2, Calendar, Trash2 } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogClose } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import * as VisuallyHidden from "@radix-ui/react-visually-hidden";
+import { useToast } from "@/hooks/use-toast";
+import JSZip from 'jszip';
+import { saveAs } from 'file-saver';
 
 interface PhotoSubmission {
   id: string;
@@ -19,9 +25,20 @@ interface PhotoSubmission {
   photo_urls: string[];
 }
 
+interface FlattenedPhoto {
+  id: string; // The URL itself serves as a unique ID for the specific photo
+  url: string;
+  submission: PhotoSubmission;
+}
+
 export default function StaffPhotos() {
   const { selectedLocationId } = useLocationContext();
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isDownloading, setIsDownloading] = useState(false);
+  
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   const { data: submissions = [], isLoading } = useQuery({
     queryKey: ['staff_photos', selectedLocationId],
@@ -39,14 +56,129 @@ export default function StaffPhotos() {
   });
 
   // Flatten submissions into a single array of photos for the masonry grid
-  const allPhotos = submissions.flatMap(sub => 
+  const allPhotos: FlattenedPhoto[] = submissions.flatMap(sub => 
     (sub.photo_urls || []).map(url => ({
+      id: url,
       url,
       submission: sub
     }))
   );
 
-  const downloadPhoto = async (url: string, e: React.MouseEvent) => {
+  const toggleSelection = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedIds(newSelected);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === allPhotos.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(allPhotos.map(p => p.id)));
+    }
+  };
+
+  const downloadSelected = async () => {
+    if (selectedIds.size === 0) return;
+    setIsDownloading(true);
+    
+    try {
+      const zip = new JSZip();
+      const folder = zip.folder("SquarePeg_StaffPhotos");
+      
+      const photosToDownload = allPhotos.filter(p => selectedIds.has(p.id));
+      
+      // Fetch all selected images in parallel
+      const fetchPromises = photosToDownload.map(async (photo, index) => {
+        const response = await fetch(photo.url);
+        const blob = await response.blob();
+        
+        // Construct a clean filename
+        const locName = locations.find(l => l.id === photo.submission.location_id)?.name || "Unknown";
+        const dateStr = format(new Date(photo.submission.created_at), "yyyy-MM-dd");
+        const safeName = photo.submission.submitter_name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        
+        // Try to get original extension, fallback to jpg
+        const extMatch = photo.url.match(/\.([a-zA-Z0-9]+)(?:\?|$)/);
+        const ext = extMatch ? extMatch[1] : 'jpg';
+        
+        const fileName = `${dateStr}_${locName}_${safeName}_${index + 1}.${ext}`;
+        folder?.file(fileName, blob);
+      });
+      
+      await Promise.all(fetchPromises);
+      
+      const content = await zip.generateAsync({ type: "blob" });
+      saveAs(content, `SquarePeg_StaffPhotos_${format(new Date(), "yyyy-MM-dd")}.zip`);
+      
+      toast({ title: `Successfully downloaded ${photosToDownload.length} photos` });
+      setSelectedIds(new Set());
+    } catch (error) {
+      console.error("Download failed:", error);
+      toast({ title: "Download failed", description: "There was an error generating the zip file.", variant: "destructive" });
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      // Group by submission to minimize database updates
+      const photosToDelete = allPhotos.filter(p => selectedIds.has(p.id));
+      const submissionsToUpdate = new Map<string, string[]>();
+      
+      // Figure out which URLs to keep for each submission
+      allPhotos.forEach(p => {
+        if (!selectedIds.has(p.id)) {
+          const keepList = submissionsToUpdate.get(p.submission.id) || [];
+          keepList.push(p.url);
+          submissionsToUpdate.set(p.submission.id, keepList);
+        } else {
+          // Ensure the submission exists in the map even if empty
+          if (!submissionsToUpdate.has(p.submission.id)) {
+            submissionsToUpdate.set(p.submission.id, []);
+          }
+        }
+      });
+
+      // 1. Delete from storage bucket
+      const filePaths = photosToDelete.map(p => {
+        const urlParts = p.url.split('/public/staff-photos/');
+        return urlParts.length > 1 ? urlParts[1] : '';
+      }).filter(Boolean);
+
+      if (filePaths.length > 0) {
+        const { error: storageError } = await supabase.storage.from('staff-photos').remove(filePaths);
+        if (storageError) console.error("Storage delete error:", storageError);
+      }
+
+      // 2. Update or delete database rows
+      for (const [subId, remainingUrls] of submissionsToUpdate.entries()) {
+        if (remainingUrls.length === 0) {
+          // Delete entire submission row if no photos left
+          await supabase.from('staff_photo_submissions').delete().eq('id', subId);
+        } else {
+          // Update row with remaining photos
+          await supabase.from('staff_photo_submissions').update({ photo_urls: remainingUrls }).eq('id', subId);
+        }
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['staff_photos'] });
+      setSelectedIds(new Set());
+      toast({ title: "Photos deleted successfully" });
+    },
+    onError: (error) => {
+      toast({ title: "Failed to delete photos", description: error.message, variant: "destructive" });
+    }
+  });
+
+  const downloadSinglePhoto = async (url: string, e: React.MouseEvent) => {
     e.stopPropagation();
     try {
       const response = await fetch(url);
@@ -72,10 +204,53 @@ export default function StaffPhotos() {
           <p className="text-muted-foreground mt-1">Content submitted by team members from the floor.</p>
         </div>
         
-        <Button onClick={() => window.open('/public/photo-upload', '_blank')} variant="outline">
-          <Camera className="w-4 h-4 mr-2" />
-          View Public Upload Form
-        </Button>
+        <div className="flex items-center gap-2">
+          {selectedIds.size > 0 && (
+            <>
+              <Button 
+                variant="outline" 
+                onClick={downloadSelected}
+                disabled={isDownloading}
+              >
+                {isDownloading ? (
+                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Zipping...</>
+                ) : (
+                  <><Download className="w-4 h-4 mr-2" /> Download ({selectedIds.size})</>
+                )}
+              </Button>
+              
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive">
+                    <Trash2 className="w-4 h-4 mr-2" /> Delete ({selectedIds.size})
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete {selectedIds.size} photos?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This action cannot be undone. This will permanently delete the selected photos from the database and storage.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction 
+                      onClick={() => deleteMutation.mutate()} 
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </>
+          )}
+
+          <Button onClick={() => window.open('/public/photo-upload', '_blank')} variant="outline">
+            <Camera className="w-4 h-4 mr-2" />
+            Upload Link
+          </Button>
+        </div>
       </div>
 
       {isLoading ? (
@@ -94,52 +269,84 @@ export default function StaffPhotos() {
           </p>
         </div>
       ) : (
-        <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 gap-4 space-y-4 pb-12">
-          {allPhotos.map((photo, i) => (
-            <Card 
-              key={i} 
-              className="break-inside-avoid overflow-hidden group cursor-pointer hover:ring-2 ring-primary/50 transition-all"
-              onClick={() => setSelectedPhoto(photo.url)}
-            >
-              <div className="relative">
-                <img 
-                  src={photo.url} 
-                  alt="Staff submission" 
-                  className="w-full object-cover bg-muted min-h-[200px]"
-                  loading="lazy"
-                />
-                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                  <Expand className="w-8 h-8 text-white" />
-                </div>
-                <Button 
-                  size="icon" 
-                  variant="secondary" 
-                  className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 rounded-full shadow-md"
-                  onClick={(e) => downloadPhoto(photo.url, e)}
-                  title="Download Photo"
+        <>
+          <div className="flex items-center gap-2 pb-2">
+            <Checkbox 
+              id="select-all" 
+              checked={selectedIds.size === allPhotos.length && allPhotos.length > 0}
+              onCheckedChange={toggleSelectAll}
+            />
+            <Label htmlFor="select-all" className="text-sm font-medium cursor-pointer">
+              Select All {allPhotos.length} Photos
+            </Label>
+          </div>
+          
+          <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 gap-4 space-y-4 pb-12">
+            {allPhotos.map((photo, i) => {
+              const isSelected = selectedIds.has(photo.id);
+              
+              return (
+                <Card 
+                  key={i} 
+                  className={`break-inside-avoid overflow-hidden group cursor-pointer transition-all ${isSelected ? 'ring-2 ring-primary' : 'hover:ring-2 ring-primary/50'}`}
+                  onClick={() => setSelectedPhoto(photo.url)}
                 >
-                  <Download className="w-4 h-4" />
-                </Button>
-              </div>
-              <CardContent className="p-3 text-xs">
-                <div className="flex justify-between items-start mb-1">
-                  <span className="font-semibold">{photo.submission.submitter_name}</span>
-                  <span className="text-muted-foreground flex items-center">
-                    <Calendar className="w-3 h-3 mr-1" />
-                    {format(new Date(photo.submission.created_at), "MMM d")}
-                  </span>
-                </div>
-                <div className="flex items-center text-muted-foreground mb-2">
-                  <MapPin className="w-3 h-3 mr-1" />
-                  {locations.find(l => l.id === photo.submission.location_id)?.name || "Unknown Location"}
-                </div>
-                {photo.submission.notes && (
-                  <p className="text-muted-foreground italic line-clamp-2 border-t pt-2 mt-2">"{photo.submission.notes}"</p>
-                )}
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                  <div className="relative">
+                    <img 
+                      src={photo.url} 
+                      alt="Staff submission" 
+                      className="w-full object-cover bg-muted min-h-[200px]"
+                      loading="lazy"
+                    />
+                    
+                    {/* Checkbox overlay */}
+                    <div 
+                      className={`absolute top-2 left-2 z-10 p-1.5 rounded-md transition-opacity ${isSelected ? 'opacity-100 bg-background/80' : 'opacity-0 group-hover:opacity-100 bg-background/50 hover:bg-background/80'}`}
+                      onClick={(e) => toggleSelection(photo.id, e)}
+                    >
+                      <Checkbox 
+                        checked={isSelected} 
+                        // Prevent the click from bubbling to the Card (which opens full screen)
+                        onClick={(e) => e.stopPropagation()}
+                        // The actual toggle is handled by the wrapper div's onClick
+                      />
+                    </div>
+
+                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                      <Expand className="w-8 h-8 text-white" />
+                    </div>
+                    
+                    <Button 
+                      size="icon" 
+                      variant="secondary" 
+                      className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 rounded-full shadow-md z-10"
+                      onClick={(e) => downloadSinglePhoto(photo.url, e)}
+                      title="Download Photo"
+                    >
+                      <Download className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  <CardContent className="p-3 text-xs">
+                    <div className="flex justify-between items-start mb-1">
+                      <span className="font-semibold">{photo.submission.submitter_name}</span>
+                      <span className="text-muted-foreground flex items-center">
+                        <Calendar className="w-3 h-3 mr-1" />
+                        {format(new Date(photo.submission.created_at), "MMM d")}
+                      </span>
+                    </div>
+                    <div className="flex items-center text-muted-foreground mb-2">
+                      <MapPin className="w-3 h-3 mr-1" />
+                      {locations.find(l => l.id === photo.submission.location_id)?.name || "Unknown Location"}
+                    </div>
+                    {photo.submission.notes && (
+                      <p className="text-muted-foreground italic line-clamp-2 border-t pt-2 mt-2">"{photo.submission.notes}"</p>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </>
       )}
 
       {/* Full Screen Photo Modal */}

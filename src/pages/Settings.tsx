@@ -389,6 +389,27 @@ export default function Settings() {
             </div>
 
             <div className="bg-card border rounded-lg p-6">
+              <h3 className="text-lg font-medium">Notification Settings</h3>
+              <p className="text-sm text-muted-foreground mb-4">Manage where system alerts (like new Staff Photos or Marketing Requests) are sent.</p>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium">Marketing Team Emails</label>
+                  <p className="text-xs text-muted-foreground mb-1.5">Who receives alerts when Staff Photos are uploaded or marketing support is requested? (Comma separated)</p>
+                  <input 
+                    type="text" 
+                    className="w-full px-3 py-2 border rounded-md bg-background" 
+                    defaultValue="brian@brianhardy.com, darene.gtomp@gmail.com" 
+                    disabled 
+                  />
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    * To change these permanently, update the MARKETING_NOTIFY_EMAILS secret in your Supabase dashboard.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-card border rounded-lg p-6">
               <h3 className="text-lg font-medium">Integrations</h3>
               <p className="text-sm text-muted-foreground mb-4">Connected third-party services and APIs.</p>
               
