@@ -22,6 +22,7 @@ import StoreEventsPipeline from "./pages/StoreEventsPipeline";
 import LargeReservationsPipeline from "./pages/LargeReservationsPipeline";
 import PublicLargeReservationForm from "./pages/PublicLargeReservationForm";
 import PublicPhotoUpload from "./pages/PublicPhotoUpload";
+import PublicMarketingRequestForm from "./pages/PublicMarketingRequestForm";
 import StaffPhotos from "./pages/StaffPhotos";
 import { Navigate } from "react-router-dom";
 
@@ -41,6 +42,10 @@ export const routes = [
   {
     path: "/public/photo-upload",
     element: <PublicPhotoUpload />
+  },
+  {
+    path: "/public/marketing-request",
+    element: <PublicMarketingRequestForm />
   },
   {
     path: "/auth/callback",

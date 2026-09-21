@@ -546,161 +546,171 @@ export default function MarketingPlanner() {
         ) : (
           <div className="grid gap-4 md:grid-cols-3">
             <div className="md:col-span-2 space-y-4">
-              <div className="flex justify-between items-center bg-card p-4 rounded-lg border shadow-sm">
-              <div>
-                <h3 className="font-semibold flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4 text-amber-500" />
-                  Upcoming Horizons
-                </h3>
-                <p className="text-sm text-muted-foreground">Campaigns entering the 90-day critical planning window.</p>
+              <div className="flex flex-col sm:flex-row justify-between sm:items-center bg-card p-4 rounded-lg border shadow-sm mb-4 gap-4">
+                <div>
+                  <h3 className="font-semibold flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 text-amber-500" />
+                    Upcoming Horizons
+                  </h3>
+                  <p className="text-sm text-muted-foreground">Campaigns entering the 90-day critical planning window.</p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={() => {
+                    navigator.clipboard.writeText(`${window.location.origin}${import.meta.env.BASE_URL}public/marketing-request`);
+                    toast({ title: "Link Copied!", description: "Intake form URL copied to clipboard." });
+                  }}>
+                    <LinkIcon className="w-4 h-4 mr-2" /> Share Intake Form
+                  </Button>
+                  <Sheet open={isDraftingCampaign} onOpenChange={setIsDraftingCampaign}>
+                    <SheetTrigger asChild>
+                      <Button size="sm" onClick={() => setNewCampaign({ title: "", description: "", target_date: new Date(), location_id: "all" })}>
+                        <Plus className="w-4 h-4 mr-2" /> Plan Campaign
+                      </Button>
+                    </SheetTrigger>
+                    <SheetContent>
+                      <SheetHeader className="mb-6">
+                        <SheetTitle>Plan New Campaign</SheetTitle>
+                        <SheetDescription>Set a target date to begin tracking this campaign's horizon.</SheetDescription>
+                      </SheetHeader>
+                      <div className="space-y-4">
+                        <div>
+                          <Label>Campaign Title</Label>
+                          <Input placeholder="e.g. Thanksgiving Catering, Super Bowl" value={newCampaign.title} onChange={e => setNewCampaign({...newCampaign, title: e.target.value})} className="mt-1" />
+                        </div>
+                        <div>
+                          <Label>Location</Label>
+                          <Select value={newCampaign.location_id} onValueChange={v => setNewCampaign({...newCampaign, location_id: v})}>
+                            <SelectTrigger className="mt-1">
+                              <SelectValue placeholder="All Locations" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="all">All Locations</SelectItem>
+                              {locations.map(l => (
+                                <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label>Target Date</Label>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button variant="outline" className="w-full mt-1 justify-start text-left font-normal">
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {newCampaign.target_date ? format(newCampaign.target_date, "PPP") : <span>Pick a date</span>}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0">
+                              <CalendarComponent mode="single" selected={newCampaign.target_date} onSelect={d => d && setNewCampaign({...newCampaign, target_date: d})} />
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+                        <div>
+                          <Label>Description</Label>
+                          <Textarea placeholder="High level goals for this season..." value={newCampaign.description} onChange={e => setNewCampaign({...newCampaign, description: e.target.value})} className="mt-1" />
+                        </div>
+                        <Button className="w-full mt-4" onClick={() => createCampaign.mutate()} disabled={!newCampaign.title || createCampaign.isPending}>
+                          {createCampaign.isPending ? "Saving..." : "Save Campaign"}
+                        </Button>
+                      </div>
+                    </SheetContent>
+                  </Sheet>
+                </div>
               </div>
-              <Sheet open={isDraftingCampaign} onOpenChange={setIsDraftingCampaign}>
-                <SheetTrigger asChild>
-                  <Button size="sm"><Plus className="w-4 h-4 mr-2" /> Plan Campaign</Button>
-                </SheetTrigger>
-                <SheetContent>
-                  <SheetHeader className="mb-6">
-                    <SheetTitle>Plan New Campaign</SheetTitle>
-                    <SheetDescription>Set a target date to begin tracking this campaign's horizon.</SheetDescription>
-                  </SheetHeader>
-                  <div className="space-y-4">
-                    <div>
-                      <Label>Campaign Title</Label>
-                      <Input placeholder="e.g. Thanksgiving Catering, Super Bowl" value={newCampaign.title} onChange={e => setNewCampaign({...newCampaign, title: e.target.value})} className="mt-1" />
-                    </div>
-                    <div>
-                      <Label>Location</Label>
-                      <Select value={newCampaign.location_id} onValueChange={v => setNewCampaign({...newCampaign, location_id: v})}>
-                        <SelectTrigger className="mt-1">
-                          <SelectValue placeholder="All Locations" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All Locations</SelectItem>
-                          {locations.map(l => (
-                            <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label>Target Date</Label>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button variant="outline" className="w-full mt-1 justify-start text-left font-normal">
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {newCampaign.target_date ? format(newCampaign.target_date, "PPP") : <span>Pick a date</span>}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0">
-                          <CalendarComponent mode="single" selected={newCampaign.target_date} onSelect={d => d && setNewCampaign({...newCampaign, target_date: d})} />
-                        </PopoverContent>
-                      </Popover>
-                    </div>
-                    <div>
-                      <Label>Description</Label>
-                      <Textarea placeholder="High level goals for this season..." value={newCampaign.description} onChange={e => setNewCampaign({...newCampaign, description: e.target.value})} className="mt-1" />
-                    </div>
-                    <Button className="w-full mt-4" onClick={() => createCampaign.mutate()} disabled={!newCampaign.title || createCampaign.isPending}>
-                      {createCampaign.isPending ? "Saving..." : "Save Campaign"}
-                    </Button>
-                  </div>
-                </SheetContent>
-              </Sheet>
+
+              {loadingCampaigns ? (
+                <div className="text-center py-8 text-muted-foreground"><Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" /> Loading campaigns...</div>
+              ) : campaignList.length === 0 ? (
+                <div className="text-center py-12 border-2 border-dashed rounded-lg bg-muted/20">
+                  <Megaphone className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
+                  <h3 className="text-lg font-medium">No campaigns planned</h3>
+                  <p className="text-sm text-muted-foreground mt-1 mb-4">Start planning 3+ months ahead to never miss a holiday.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {campaignList.map(camp => {
+                    const status = getHorizonStatus(camp.target_date);
+                    const campTasks = tasks.filter(t => t.campaign_id === camp.id);
+                    const completedTasks = campTasks.filter(t => t.is_completed).length;
+                    const progress = campTasks.length > 0 ? Math.round((completedTasks / campTasks.length) * 100) : 0;
+
+                    return (
+                      <CampaignCard 
+                        key={camp.id} 
+                        campaign={camp} 
+                        status={status} 
+                        tasks={campTasks} 
+                        progress={progress} 
+                        createTask={createTask} 
+                        toggleTask={toggleTask}
+                        updateCampaignDetails={updateCampaignDetails}
+                      />
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
-            {loadingCampaigns ? (
-              <div className="text-center py-8 text-muted-foreground"><Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" /> Loading campaigns...</div>
-            ) : campaignList.length === 0 ? (
-              <div className="text-center py-12 border-2 border-dashed rounded-lg bg-muted/20">
-                <Megaphone className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
-                <h3 className="text-lg font-medium">No campaigns planned</h3>
-                <p className="text-sm text-muted-foreground mt-1 mb-4">Start planning 3+ months ahead to never miss a holiday.</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {campaignList.map(camp => {
-                  const status = getHorizonStatus(camp.target_date);
-                  const campTasks = tasks.filter(t => t.campaign_id === camp.id);
-                  const completedTasks = campTasks.filter(t => t.is_completed).length;
-                  const progress = campTasks.length > 0 ? Math.round((completedTasks / campTasks.length) * 100) : 0;
-
-                  return (
-                    <CampaignCard 
-                      key={camp.id} 
-                      campaign={camp} 
-                      status={status} 
-                      tasks={campTasks} 
-                      progress={progress} 
-                      createTask={createTask} 
-                      toggleTask={toggleTask}
-                      updateCampaignDetails={updateCampaignDetails}
-                    />
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          <div className="space-y-4">
-            <Card className="bg-primary/5 border-primary/20 shadow-sm">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-primary" />
-                  Seasonal Prompts
-                </CardTitle>
-                <CardDescription className="text-xs">Upcoming events to plan for.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {upcomingPrompts.map(prompt => (
-                    <div key={prompt.name} className="flex items-center justify-between">
-                      <div>
-                        <div className="text-sm font-medium">{prompt.name}</div>
-                        <div className="text-xs text-muted-foreground">{format(prompt.date, "MMM d, yyyy")}</div>
-                      </div>
-                      <Button 
-                        variant="secondary" 
-                        size="sm" 
-                        className="h-7 text-xs bg-background hover:bg-background/80"
-                        onClick={() => {
-                          setNewCampaign({ title: `${prompt.name} Promo`, description: "", target_date: prompt.date, location_id: "all" });
-                          setIsDraftingCampaign(true);
-                        }}
-                      >
-                        Plan
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm">My Tasks</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {tasks.filter(t => !t.is_completed).length === 0 ? (
-                    <p className="text-xs text-muted-foreground italic">No pending tasks.</p>
-                  ) : (
-                    tasks.filter(t => !t.is_completed).slice(0, 8).map(task => (
-                      <div key={task.id} className="flex items-start gap-2 text-sm">
-                        <button onClick={() => toggleTask.mutate({ task_id: task.id, is_completed: true })} className="mt-0.5 text-muted-foreground hover:text-primary">
-                          <CheckSquare className="w-4 h-4" />
-                        </button>
+            <div className="space-y-4">
+              <Card className="bg-primary/5 border-primary/20 shadow-sm">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-primary" />
+                    Seasonal Prompts
+                  </CardTitle>
+                  <CardDescription className="text-xs">Upcoming events to plan for.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {upcomingPrompts.map(prompt => (
+                      <div key={prompt.name} className="flex items-center justify-between">
                         <div>
-                          <div className="font-medium line-clamp-1">{task.title}</div>
-                          <div className="text-[10px] text-muted-foreground">{task.assigned_to} • Due {format(parseISO(task.due_date), "MMM d")}</div>
+                          <div className="text-sm font-medium">{prompt.name}</div>
+                          <div className="text-xs text-muted-foreground">{format(prompt.date, "MMM d, yyyy")}</div>
                         </div>
+                        <Button 
+                          variant="secondary" 
+                          size="sm" 
+                          className="h-7 text-xs bg-background hover:bg-background/80"
+                          onClick={() => {
+                            setNewCampaign({ title: `${prompt.name} Promo`, description: "", target_date: prompt.date, location_id: "all" });
+                            setIsDraftingCampaign(true);
+                          }}
+                        >
+                          Plan
+                        </Button>
                       </div>
-                    ))
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm">My Tasks</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {tasks.filter(t => !t.is_completed).length === 0 ? (
+                      <p className="text-xs text-muted-foreground italic">No pending tasks.</p>
+                    ) : (
+                      tasks.filter(t => !t.is_completed).slice(0, 8).map(task => (
+                        <div key={task.id} className="flex items-start gap-2 text-sm">
+                          <button onClick={() => toggleTask.mutate({ task_id: task.id, is_completed: true })} className="mt-0.5 text-muted-foreground hover:text-primary">
+                            <CheckSquare className="w-4 h-4" />
+                          </button>
+                          <div>
+                            <div className="font-medium line-clamp-1">{task.title}</div>
+                            <div className="text-[10px] text-muted-foreground">{task.assigned_to} • Due {format(parseISO(task.due_date), "MMM d")}</div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </div>
-        </div>
         )}
       </div>
     );
