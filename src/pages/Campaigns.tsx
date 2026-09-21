@@ -17,7 +17,7 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
 import { format, addDays, parseISO, differenceInDays, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, subMonths, addMonths } from "date-fns";
-import { CalendarDays, AlertTriangle, Plus, CheckSquare, Megaphone, Share2, Mail, LayoutList, CalendarIcon, Loader2, CheckCircle2, UserCircle2, MapPin, Sparkles, ChevronLeft, ChevronRight, Briefcase, Store } from "lucide-react";
+import { CalendarDays, AlertTriangle, Plus, CheckSquare, Megaphone, Share2, Mail, LayoutList, CalendarIcon, Loader2, CheckCircle2, UserCircle2, MapPin, Sparkles, ChevronLeft, ChevronRight, Briefcase, Store, XCircle, FileText, Download, Edit2, Trash2, ExternalLink, Image as ImageIcon, Link as LinkIcon, ClipboardList } from "lucide-react";
 
 const SEASONAL_EVENTS = [
   { name: "Super Bowl", month: 1, day: 9, type: 'Sports' },
@@ -347,7 +347,37 @@ export default function MarketingPlanner() {
 
   // --- Social Post Mutations ---
   const [isRequestingPost, setIsRequestingPost] = useState(false);
-  const [newPost, setNewPost] = useState({ title: "", content: "", assigned_to: "", target_date: new Date(), location_id: "all" });
+  const [newPost, setNewPost] = useState({ title: "", content: "", assigned_to: "", target_date: new Date(), location_id: "all", media_url: "" });
+  const [isUploading, setIsUploading] = useState(false);
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`;
+      const filePath = `approvals/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('social-media-posts')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage
+        .from('social-media-posts')
+        .getPublicUrl(filePath);
+
+      setNewPost(prev => ({ ...prev, media_url: data.publicUrl }));
+      toast({ title: "Media uploaded successfully" });
+    } catch (error: any) {
+      toast({ title: "Upload Failed", description: error.message, variant: "destructive" });
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   const createSocialPost = useMutation({
     mutationFn: async () => {
@@ -357,35 +387,37 @@ export default function MarketingPlanner() {
         assigned_to: newPost.assigned_to,
         target_date: format(newPost.target_date, 'yyyy-MM-dd'),
         location_id: newPost.location_id === "all" ? null : newPost.location_id,
+        media_url: newPost.media_url,
         status: 'draft'
       };
       const { data, error } = await supabase.from('social_posts').insert(payload).select().single();
       if (error) throw error;
 
-      // Notify social media manager
-      if (newPost.assigned_to) {
-        await supabase.functions.invoke('send-social-post-alert', {
-          body: { post: data, action: 'requested' }
-        }).catch(err => console.error("Error sending social post alert", err));
-      }
+      // Notify social media manager (or admin if submitted by social team)
+      await supabase.functions.invoke('send-social-post-alert', {
+        body: { post: data, action: 'requested' }
+      }).catch(err => console.error("Error sending social post alert", err));
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['social_posts'] });
       setIsRequestingPost(false);
-      setNewPost({ title: "", content: "", assigned_to: "", target_date: new Date(), location_id: "all" });
-      toast({ title: "Social post requested!" });
+      setNewPost({ title: "", content: "", assigned_to: "", target_date: new Date(), location_id: "all", media_url: "" });
+      toast({ title: "Social post submitted for approval!" });
     }
   });
 
   const updatePostStatus = useMutation({
-    mutationFn: async ({ post_id, status, post }: { post_id: string, status: string, post: any }) => {
-      const { error } = await supabase.from('social_posts').update({ status }).eq('id', post_id);
+    mutationFn: async ({ post_id, status, post, feedback }: { post_id: string, status: string, post: any, feedback?: string }) => {
+      const updates: any = { status };
+      if (feedback) updates.feedback_notes = feedback;
+      
+      const { error } = await supabase.from('social_posts').update(updates).eq('id', post_id);
       if (error) throw error;
       
-      // Notify on approval or review request
-      if (status === 'approved' || status === 'needs_approval') {
+      // Notify on approval, review request, or changes needed
+      if (['approved', 'needs_approval', 'changes_needed'].includes(status)) {
          await supabase.functions.invoke('send-social-post-alert', {
-           body: { post, action: status }
+           body: { post: { ...post, ...updates }, action: status, feedback }
          });
       }
     },
@@ -717,12 +749,12 @@ export default function MarketingPlanner() {
               </SheetTrigger>
               <SheetContent>
                 <SheetHeader className="mb-6">
-                  <SheetTitle>Request Social Post</SheetTitle>
-                  <SheetDescription>Assign a post concept to your social media manager.</SheetDescription>
+                  <SheetTitle>Submit Post for Approval</SheetTitle>
+                  <SheetDescription>Upload media and caption copy for review by management.</SheetDescription>
                 </SheetHeader>
-                <div className="space-y-4">
+                <div className="space-y-4 pb-20">
                   <div>
-                    <Label>Concept / Topic</Label>
+                    <Label>Concept / Topic <span className="text-destructive">*</span></Label>
                     <Input placeholder="e.g. Highlight new Fall drink menu" value={newPost.title} onChange={e => setNewPost({...newPost, title: e.target.value})} className="mt-1" />
                   </div>
                   <div>
@@ -744,7 +776,7 @@ export default function MarketingPlanner() {
                     </Select>
                   </div>
                   <div>
-                    <Label>Target Post Date</Label>
+                    <Label>Target Post Date <span className="text-destructive">*</span></Label>
                     <Popover>
                       <PopoverTrigger asChild>
                         <Button variant="outline" className="w-full mt-1 justify-start text-left font-normal">
@@ -758,11 +790,49 @@ export default function MarketingPlanner() {
                     </Popover>
                   </div>
                   <div>
-                    <Label>Details & Direction</Label>
-                    <Textarea placeholder="Make sure to mention the discount code..." value={newPost.content} onChange={e => setNewPost({...newPost, content: e.target.value})} className="mt-1 min-h-[100px]" />
+                    <Label>Caption Copy <span className="text-destructive">*</span></Label>
+                    <Textarea placeholder="Write the exact caption copy here..." value={newPost.content} onChange={e => setNewPost({...newPost, content: e.target.value})} className="mt-1 min-h-[100px]" />
                   </div>
-                  <Button className="w-full mt-4" onClick={() => createSocialPost.mutate()} disabled={!newPost.title || !newPost.assigned_to || createSocialPost.isPending}>
-                    {createSocialPost.isPending ? "Sending Request..." : "Request Post"}
+
+                  <div>
+                    <Label>Media Upload (Optional)</Label>
+                    <div className="mt-1 border-2 border-dashed rounded-lg p-4 text-center hover:bg-muted/50 transition-colors">
+                      {newPost.media_url ? (
+                        <div className="flex flex-col items-center gap-2">
+                          <CheckCircle2 className="w-6 h-6 text-green-500" />
+                          <span className="text-sm font-medium text-green-600">Media attached</span>
+                          <a href={newPost.media_url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline flex items-center gap-1">
+                            <ExternalLink className="w-3 h-3" /> View Upload
+                          </a>
+                          <Button variant="ghost" size="sm" onClick={() => setNewPost(p => ({...p, media_url: ""}))} className="mt-2 text-xs h-7 text-muted-foreground">Remove</Button>
+                        </div>
+                      ) : (
+                        <>
+                          <input 
+                            type="file" 
+                            id="media-upload" 
+                            className="hidden" 
+                            accept="image/*,video/*"
+                            onChange={handleFileUpload} 
+                            disabled={isUploading}
+                          />
+                          <label htmlFor="media-upload" className="cursor-pointer flex flex-col items-center gap-2">
+                            {isUploading ? (
+                              <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" />
+                            ) : (
+                              <ImageIcon className="w-6 h-6 text-muted-foreground" />
+                            )}
+                            <span className="text-sm font-medium text-primary">
+                              {isUploading ? "Uploading..." : "Click to upload image or video"}
+                            </span>
+                          </label>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  <Button className="w-full mt-4" onClick={() => createSocialPost.mutate()} disabled={!newPost.title || !newPost.content || isUploading || createSocialPost.isPending}>
+                    {createSocialPost.isPending ? "Submitting..." : "Submit for Approval"}
                   </Button>
                 </div>
               </SheetContent>
@@ -1329,6 +1399,9 @@ function CampaignDetailsSheet({ campaign, updateCampaignDetails }: any) {
 }
 
 function SocialPostCard({ post, updateStatus }: any) {
+  const [isReviewing, setIsReviewing] = useState(false);
+  const [feedback, setFeedback] = useState(post.feedback_notes || "");
+
   return (
     <Card className="p-3 shadow-sm border bg-background text-sm relative">
       <div className="font-semibold mb-1 pr-6 leading-tight">{post.title}</div>
@@ -1343,19 +1416,76 @@ function SocialPostCard({ post, updateStatus }: any) {
         </div>
       )}
 
-      <div className="flex items-center gap-2 mt-2 pt-2 border-t">
+      {post.media_url && (
+        <a href={post.media_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline bg-primary/10 px-2 py-1 rounded border border-primary/20 mb-3 w-max">
+          <ImageIcon className="w-3 h-3" /> View Media
+        </a>
+      )}
+
+      {post.feedback_notes && post.status === 'changes_needed' && (
+        <div className="text-xs bg-destructive/10 text-destructive p-2 rounded border border-destructive/20 mb-3">
+          <strong>Feedback:</strong> {post.feedback_notes}
+        </div>
+      )}
+
+      <div className="flex flex-col gap-2 mt-2 pt-2 border-t">
         {post.status === 'draft' && (
           <Button variant="outline" size="sm" className="w-full text-xs h-7" onClick={() => updateStatus.mutate({ post_id: post.id, status: 'needs_approval', post })}>
             Submit for Approval
           </Button>
         )}
-        {post.status === 'needs_approval' && (
-          <>
-            <Button variant="default" size="sm" className="w-full text-xs h-7 bg-green-600 hover:bg-green-700" onClick={() => updateStatus.mutate({ post_id: post.id, status: 'approved', post })}>
-              Approve
-            </Button>
-          </>
+        
+        {post.status === 'needs_approval' && !isReviewing && (
+          <Button variant="default" size="sm" className="w-full text-xs h-7 bg-primary" onClick={() => setIsReviewing(true)}>
+            Review Post
+          </Button>
         )}
+
+        {post.status === 'needs_approval' && isReviewing && (
+          <div className="space-y-3 animate-in fade-in slide-in-from-top-1">
+            <div>
+              <Label className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1 block">Reviewer Feedback</Label>
+              <Textarea 
+                placeholder="Leave notes if changes are needed..." 
+                value={feedback}
+                onChange={e => setFeedback(e.target.value)}
+                className="text-xs min-h-[60px]"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="flex-1 text-xs h-7 text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/20"
+                onClick={() => {
+                  updateStatus.mutate({ post_id: post.id, status: 'changes_needed', post, feedback });
+                  setIsReviewing(false);
+                }}
+              >
+                <XCircle className="w-3 h-3 mr-1" /> Request Changes
+              </Button>
+              <Button 
+                variant="default" 
+                size="sm" 
+                className="flex-1 text-xs h-7 bg-green-600 hover:bg-green-700"
+                onClick={() => {
+                  updateStatus.mutate({ post_id: post.id, status: 'approved', post, feedback });
+                  setIsReviewing(false);
+                }}
+              >
+                <CheckCircle2 className="w-3 h-3 mr-1" /> Approve
+              </Button>
+            </div>
+            <Button variant="ghost" size="sm" className="w-full text-xs h-7 text-muted-foreground" onClick={() => setIsReviewing(false)}>Cancel Review</Button>
+          </div>
+        )}
+
+        {post.status === 'changes_needed' && (
+           <Button variant="outline" size="sm" className="w-full text-xs h-7" onClick={() => updateStatus.mutate({ post_id: post.id, status: 'needs_approval', post })}>
+             Resubmit for Approval
+           </Button>
+        )}
+
         {post.status === 'approved' && (
           <Button variant="outline" size="sm" className="w-full text-xs h-7" onClick={() => updateStatus.mutate({ post_id: post.id, status: 'posted', post })}>
             Mark as Posted
