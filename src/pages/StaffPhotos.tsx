@@ -11,6 +11,7 @@ import { format } from "date-fns";
 import { Camera, MapPin, Download, Expand, X, Loader2, Calendar, Trash2 } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogClose } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import * as VisuallyHidden from "@radix-ui/react-visually-hidden";
 import { useToast } from "@/hooks/use-toast";
 import JSZip from 'jszip';
@@ -33,7 +34,7 @@ interface FlattenedPhoto {
 
 export default function StaffPhotos() {
   const { selectedLocationId } = useLocationContext();
-  const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
+  const [selectedPhoto, setSelectedPhoto] = useState<FlattenedPhoto | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [isDownloading, setIsDownloading] = useState(false);
   
@@ -289,7 +290,7 @@ export default function StaffPhotos() {
                 <Card 
                   key={i} 
                   className={`break-inside-avoid overflow-hidden group cursor-pointer transition-all ${isSelected ? 'ring-2 ring-primary' : 'hover:ring-2 ring-primary/50'}`}
-                  onClick={() => setSelectedPhoto(photo.url)}
+                  onClick={() => setSelectedPhoto(photo)}
                 >
                   <div className="relative">
                     <img 
@@ -350,22 +351,85 @@ export default function StaffPhotos() {
       )}
 
       {/* Full Screen Photo Modal */}
-      <Dialog open={!!selectedPhoto} onOpenChange={() => setSelectedPhoto(null)}>
-        <DialogContent className="max-w-5xl w-full p-1 bg-transparent border-none shadow-none">
+      <Dialog open={!!selectedPhoto} onOpenChange={(open) => !open && setSelectedPhoto(null)}>
+        <DialogContent className="max-w-5xl w-full p-4 bg-background border-border shadow-lg gap-0">
           <VisuallyHidden.Root>
             <DialogTitle>View Photo</DialogTitle>
             <DialogDescription>Full screen photo preview</DialogDescription>
           </VisuallyHidden.Root>
-          <div className="relative flex items-center justify-center min-h-[50vh]">
-            <DialogClose className="absolute top-0 right-0 m-2 z-50 bg-black/50 text-white rounded-full p-2 hover:bg-black/80 transition-colors">
-              <X className="w-5 h-5" />
-            </DialogClose>
-            {selectedPhoto && (
-              <img 
-                src={selectedPhoto} 
-                alt="Full screen preview" 
-                className="max-h-[85vh] w-auto object-contain rounded-md"
-              />
+          
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center justify-between border-b pb-4">
+              <div className="flex items-center gap-4 flex-1">
+                <div className="flex items-center gap-2">
+                  <MapPin className="w-4 h-4 text-muted-foreground shrink-0" />
+                  <Select 
+                    value={selectedPhoto?.submission.location_id}
+                    onValueChange={(val) => {
+                      if (!selectedPhoto) return;
+                      
+                      // Optimistically update UI
+                      setSelectedPhoto({
+                        ...selectedPhoto,
+                        submission: {
+                          ...selectedPhoto.submission,
+                          location_id: val
+                        }
+                      });
+                      
+                      // Persist to DB
+                      supabase.from('staff_photo_submissions')
+                        .update({ location_id: val })
+                        .eq('id', selectedPhoto.submission.id)
+                        .then(({ error }) => {
+                          if (error) {
+                            toast({ title: "Error updating location", description: error.message, variant: "destructive" });
+                          } else {
+                            queryClient.invalidateQueries({ queryKey: ['staff_photos'] });
+                          }
+                        });
+                    }}
+                  >
+                    <SelectTrigger className="w-[200px] h-8">
+                      <SelectValue placeholder="Select Location" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {locations.map(loc => (
+                        <SelectItem key={loc.id} value={loc.id}>{loc.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                {selectedPhoto && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Calendar className="w-4 h-4" />
+                    {format(new Date(selectedPhoto.submission.created_at), "MMM d, yyyy h:mm a")}
+                  </div>
+                )}
+              </div>
+              <DialogClose asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full shrink-0">
+                  <X className="w-4 h-4" />
+                </Button>
+              </DialogClose>
+            </div>
+
+            <div className="relative flex items-center justify-center min-h-[50vh] bg-muted/30 rounded-lg overflow-hidden border">
+              {selectedPhoto && (
+                <img 
+                  src={selectedPhoto.url} 
+                  alt="Full screen preview" 
+                  className="max-h-[75vh] w-auto object-contain"
+                />
+              )}
+            </div>
+            
+            {selectedPhoto?.submission.notes && (
+              <div className="pt-2 text-sm">
+                <span className="font-semibold mr-2">{selectedPhoto.submission.submitter_name}:</span>
+                <span className="text-muted-foreground italic">"{selectedPhoto.submission.notes}"</span>
+              </div>
             )}
           </div>
         </DialogContent>
