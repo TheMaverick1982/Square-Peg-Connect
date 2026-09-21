@@ -19,6 +19,116 @@ import { useToast } from "@/hooks/use-toast";
 import { format, addDays, parseISO, differenceInDays, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, subMonths, addMonths } from "date-fns";
 import { CalendarDays, AlertTriangle, Plus, CheckSquare, Megaphone, Share2, Mail, LayoutList, CalendarIcon, Loader2, CheckCircle2, UserCircle2, MapPin, Sparkles, ChevronLeft, ChevronRight, Briefcase, Store, XCircle, FileText, Download, Edit2, Trash2, ExternalLink, Image as ImageIcon, Link as LinkIcon, ClipboardList } from "lucide-react";
 
+function CustomPromptsManager() {
+  const [open, setOpen] = useState(false);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [newPrompt, setNewPrompt] = useState({ name: "", month: "0", day: "1" });
+
+  const { data: customPrompts = [], isLoading } = useQuery({
+    queryKey: ['custom_seasonal_prompts'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('custom_seasonal_prompts').select('*').order('month').order('day');
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  const addPrompt = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from('custom_seasonal_prompts').insert({
+        name: newPrompt.name,
+        month: parseInt(newPrompt.month, 10),
+        day: parseInt(newPrompt.day, 10)
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['custom_seasonal_prompts'] });
+      setNewPrompt({ name: "", month: "0", day: "1" });
+      toast({ title: "Custom Prompt Added" });
+    }
+  });
+
+  const deletePrompt = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('custom_seasonal_prompts').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['custom_seasonal_prompts'] });
+      toast({ title: "Prompt deleted" });
+    }
+  });
+
+  const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+  return (
+    <Sheet open={open} onOpenChange={setOpen}>
+      <SheetTrigger asChild>
+        <Button variant="outline" size="sm">
+          <CalendarIcon className="w-4 h-4 mr-2" /> Manage Prompts
+        </Button>
+      </SheetTrigger>
+      <SheetContent className="w-full sm:max-w-md overflow-y-auto">
+        <SheetHeader className="mb-6">
+          <SheetTitle>Custom Seasonal Prompts</SheetTitle>
+          <SheetDescription>Add your own recurring local events (like town fairs or anniversaries) to appear on the planning calendar year after year.</SheetDescription>
+        </SheetHeader>
+        
+        <div className="space-y-6">
+          <div className="bg-muted/30 p-4 rounded-lg border space-y-4">
+            <h4 className="font-medium text-sm">Add New Prompt</h4>
+            <div>
+              <Label>Event Name</Label>
+              <Input placeholder="e.g. Glastonbury Apple Fest" value={newPrompt.name} onChange={e => setNewPrompt(f => ({...f, name: e.target.value}))} className="mt-1" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Month</Label>
+                <Select value={newPrompt.month} onValueChange={v => setNewPrompt(f => ({...f, month: v}))}>
+                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {months.map((m, i) => <SelectItem key={i} value={i.toString()}>{m}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Day</Label>
+                <Input type="number" min="1" max="31" value={newPrompt.day} onChange={e => setNewPrompt(f => ({...f, day: e.target.value}))} className="mt-1" />
+              </div>
+            </div>
+            <Button className="w-full" onClick={() => addPrompt.mutate()} disabled={!newPrompt.name || addPrompt.isPending}>
+              Add Custom Prompt
+            </Button>
+          </div>
+
+          <div className="space-y-3">
+            <h4 className="font-medium text-sm">Your Custom Prompts</h4>
+            {isLoading ? (
+              <div className="text-center py-4 text-muted-foreground"><Loader2 className="w-4 h-4 animate-spin mx-auto" /></div>
+            ) : customPrompts.length === 0 ? (
+              <div className="text-sm text-muted-foreground italic text-center py-4 border rounded bg-muted/10">No custom prompts added yet.</div>
+            ) : (
+              customPrompts.map((p: any) => (
+                <div key={p.id} className="flex items-center justify-between p-3 border rounded bg-card">
+                  <div>
+                    <div className="font-medium text-sm">{p.name}</div>
+                    <div className="text-xs text-muted-foreground">{months[p.month]} {p.day}</div>
+                  </div>
+                  <Button variant="ghost" size="icon" onClick={() => deletePrompt.mutate(p.id)} className="h-8 w-8 text-muted-foreground hover:text-destructive">
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
 const SEASONAL_EVENTS = [
   { name: "Super Bowl", month: 1, day: 9, type: 'Sports' },
   { name: "Valentine's Day", month: 1, day: 14, type: 'Holiday' },
@@ -42,12 +152,14 @@ const SEASONAL_EVENTS = [
   { name: "New Year's Eve", month: 11, day: 31, type: 'Holiday' }
 ];
 
-const getUpcomingEvents = () => {
+const getUpcomingEvents = (customPrompts: any[] = []) => {
   const today = new Date();
   today.setHours(0,0,0,0);
   const currentYear = today.getFullYear();
   
-  const upcoming = SEASONAL_EVENTS.map(event => {
+  const allEvents = [...SEASONAL_EVENTS, ...customPrompts.map(p => ({ name: p.name, month: p.month, day: p.day, type: 'Custom' }))];
+  
+  const upcoming = allEvents.map(event => {
     let d = new Date(currentYear, event.month, event.day);
     if (d < today) {
       d = new Date(currentYear + 1, event.month, event.day);
@@ -244,6 +356,15 @@ export default function MarketingPlanner() {
   const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
   const [currentMonth, setCurrentMonth] = useState(new Date());
 
+  const { data: customPrompts = [] } = useQuery({
+    queryKey: ['custom_seasonal_prompts'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('custom_seasonal_prompts').select('*');
+      if (error) throw error;
+      return data;
+    }
+  });
+
   // Fetch campaigns
   const { data: campaigns = [], isLoading: loadingCampaigns } = useQuery({
     queryKey: ['marketing_campaigns', selectedLocationId],
@@ -439,7 +560,7 @@ export default function MarketingPlanner() {
     return { label: 'Future Planning', color: 'bg-blue-100 text-blue-800 border-blue-200' };
   };
 
-  const upcomingPrompts = getUpcomingEvents();
+  const upcomingPrompts = getUpcomingEvents(customPrompts);
 
   const renderCalendar = (campaignList: any[]) => {
     const monthStart = startOfMonth(currentMonth);
@@ -555,6 +676,7 @@ export default function MarketingPlanner() {
                   <p className="text-sm text-muted-foreground">Campaigns entering the 90-day critical planning window.</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
+                  <CustomPromptsManager />
                   <Button variant="outline" size="sm" onClick={() => {
                     navigator.clipboard.writeText(`${window.location.origin}${import.meta.env.BASE_URL}public/marketing-request`);
                     toast({ title: "Link Copied!", description: "Intake form URL copied to clipboard." });
@@ -1111,7 +1233,7 @@ function CampaignDetailsSheet({ campaign, updateCampaignDetails }: any) {
     in_store_assigned_to: campaign.in_store_assigned_to || ""
   });
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const updates = {
       ...formData,
       drinks_due_date: formData.drinks_due_date ? format(formData.drinks_due_date, 'yyyy-MM-dd') : null,
@@ -1120,8 +1242,38 @@ function CampaignDetailsSheet({ campaign, updateCampaignDetails }: any) {
       instore_due_date: formData.instore_due_date ? format(formData.instore_due_date, 'yyyy-MM-dd') : null,
       promo_due_date: formData.promo_due_date ? format(formData.promo_due_date, 'yyyy-MM-dd') : null,
     };
+    
     updateCampaignDetails.mutate({ id: campaign.id, updates }, {
-      onSuccess: () => setOpen(false)
+      onSuccess: async () => {
+        setOpen(false);
+
+        // Check if any assignments were newly added or changed to trigger notifications
+        const assignmentsToCheck = [
+          { email: formData.drinks_assigned_to, type: "Drinks Menu", dueDate: updates.drinks_due_date, oldEmail: campaign.drinks_assigned_to },
+          { email: formData.menu_assigned_to, type: "Food Menu", dueDate: updates.menu_due_date, oldEmail: campaign.menu_assigned_to },
+          { email: formData.activity_assigned_to, type: "Activity", dueDate: updates.activity_due_date, oldEmail: campaign.activity_assigned_to },
+          { email: formData.instore_assigned_to, type: "In-Store Experience", dueDate: updates.instore_due_date, oldEmail: campaign.instore_assigned_to },
+          { email: formData.promo_assigned_to, type: "Master Promo Lead", dueDate: updates.promo_due_date, oldEmail: campaign.promo_assigned_to },
+          { email: formData.como_assigned_to, type: "Como (Loyalty)", dueDate: updates.promo_due_date, oldEmail: campaign.como_assigned_to },
+          { email: formData.email_assigned_to, type: "Email Broadcast", dueDate: updates.promo_due_date, oldEmail: campaign.email_assigned_to },
+          { email: formData.in_store_assigned_to, type: "In-Store Signage", dueDate: updates.promo_due_date, oldEmail: campaign.in_store_assigned_to }
+        ];
+
+        for (const assign of assignmentsToCheck) {
+          if (assign.email && assign.email !== assign.oldEmail) {
+             await supabase.functions.invoke('send-marketing-task-assigned', {
+               body: { 
+                 task: { 
+                   title: `Manage ${assign.type} for ${campaign.title}`, 
+                   assigned_to: assign.email, 
+                   due_date: assign.dueDate 
+                 }, 
+                 campaign: { title: campaign.title } 
+               }
+             }).catch(err => console.error(`Error notifying ${assign.email}`, err));
+          }
+        }
+      }
     });
   };
 
