@@ -727,7 +727,7 @@ export default function MarketingPlanner() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="mb-4 flex flex-wrap h-auto p-1">
+        <TabsList className="grid w-full grid-cols-4 max-w-3xl">
           <TabsTrigger value="planning" className="gap-2">
             <CalendarDays className="w-4 h-4" />
             Global Campaigns
@@ -736,40 +736,109 @@ export default function MarketingPlanner() {
             <Store className="w-4 h-4" />
             Store Promotions
           </TabsTrigger>
+          <TabsTrigger value="social_requests" className="gap-2">
+            <FileText className="w-4 h-4" />
+            Creative Requests
+          </TabsTrigger>
           <TabsTrigger value="social" className="gap-2">
             <Share2 className="w-4 h-4" />
-            Social Media Approvals
+            Social Approvals
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="planning" className="m-0">
+        <TabsContent value="planning" className="m-0 mt-4">
           {renderCampaignsView(campaigns.filter((c: any) => !c.location_id))}
         </TabsContent>
 
-        <TabsContent value="promotions" className="m-0">
+        <TabsContent value="promotions" className="m-0 mt-4">
           {renderCampaignsView(campaigns.filter((c: any) => c.location_id))}
         </TabsContent>
 
-        <TabsContent value="social" className="space-y-4 m-0">
+        <TabsContent value="social_requests" className="space-y-4 m-0 mt-4">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-semibold">Content Pipeline</h2>
+            <h2 className="text-lg font-semibold">Creative Briefs Queue</h2>
+            <p className="text-sm text-muted-foreground">Requests sent from marketing campaigns.</p>
+          </div>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {socialPosts.filter(p => p.status === 'Requested').length === 0 ? (
+              <div className="col-span-full text-center py-12 border-2 border-dashed rounded-lg bg-muted/20">
+                <FileText className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
+                <h3 className="text-lg font-medium">No pending requests</h3>
+                <p className="text-sm text-muted-foreground mt-1">When a campaign owner clicks "Alert Social Team", it appears here.</p>
+              </div>
+            ) : (
+              socialPosts.filter(p => p.status === 'Requested').map(post => (
+                <Card key={post.id} className="p-4 shadow-sm border border-l-4 border-l-blue-500 bg-background text-sm relative">
+                  <div className="font-semibold mb-1 pr-6 leading-tight">{post.title}</div>
+                  <div className="text-xs text-muted-foreground mb-3 flex items-center gap-1">
+                    <CalendarDays className="w-3 h-3" />
+                    Campaign Target: {format(parseISO(post.target_date), "MMM d")}
+                  </div>
+                  {post.content && (
+                    <div className="text-xs bg-blue-50/50 dark:bg-blue-900/10 p-3 rounded border border-blue-100 dark:border-blue-900/30 mb-4 whitespace-pre-wrap">
+                      <strong className="block mb-1 text-blue-800 dark:text-blue-300">Creative Guidance:</strong>
+                      {post.content}
+                    </div>
+                  )}
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full text-xs h-8" 
+                    onClick={() => updatePostStatus.mutate({ post_id: post.id, status: 'acknowledged', post })}
+                  >
+                    Mark as Received
+                  </Button>
+                </Card>
+              ))
+            )}
+          </div>
+          
+          {socialPosts.filter(p => p.status === 'acknowledged').length > 0 && (
+            <div className="mt-8">
+              <h3 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wider">Currently Working On</h3>
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {socialPosts.filter(p => p.status === 'acknowledged').map(post => (
+                  <Card key={post.id} className="p-4 shadow-sm border bg-muted/30 text-sm relative opacity-70">
+                    <div className="font-semibold mb-1 leading-tight">{post.title}</div>
+                    <div className="text-xs text-muted-foreground mb-3">Target: {format(parseISO(post.target_date), "MMM d")}</div>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="w-full text-xs h-8" 
+                      onClick={() => {
+                        setActiveTab("social");
+                        setNewPost(prev => ({...prev, title: post.title, content: post.content, target_date: parseISO(post.target_date), location_id: post.location_id || "all"}));
+                        setIsRequestingPost(true);
+                      }}
+                    >
+                      Upload Finished Post
+                    </Button>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="social" className="space-y-4 m-0 mt-4">
+          <div className="flex justify-between items-center mb-4">
+            <div>
+              <h2 className="text-lg font-semibold">Social Media Approvals Calendar</h2>
+              <p className="text-sm text-muted-foreground">Upload finished creative for management review.</p>
+            </div>
             <Sheet open={isRequestingPost} onOpenChange={setIsRequestingPost}>
               <SheetTrigger asChild>
-                <Button size="sm" className="gap-2"><Plus className="w-4 h-4" /> Request Post</Button>
+                <Button size="sm" className="gap-2"><Plus className="w-4 h-4" /> Upload Post for Approval</Button>
               </SheetTrigger>
               <SheetContent>
                 <SheetHeader className="mb-6">
                   <SheetTitle>Submit Post for Approval</SheetTitle>
-                  <SheetDescription>Upload media and caption copy for review by management.</SheetDescription>
+                  <SheetDescription>Upload finished media and caption copy for review by management.</SheetDescription>
                 </SheetHeader>
                 <div className="space-y-4 pb-20">
                   <div>
                     <Label>Concept / Topic <span className="text-destructive">*</span></Label>
                     <Input placeholder="e.g. Highlight new Fall drink menu" value={newPost.title} onChange={e => setNewPost({...newPost, title: e.target.value})} className="mt-1" />
-                  </div>
-                  <div>
-                    <Label>Assign To (Email)</Label>
-                    <Input placeholder="social@squarepegpizzeria.com" value={newPost.assigned_to} onChange={e => setNewPost({...newPost, assigned_to: e.target.value})} className="mt-1" />
                   </div>
                   <div>
                     <Label>Location</Label>
@@ -850,10 +919,10 @@ export default function MarketingPlanner() {
           </div>
 
           <div className="grid md:grid-cols-3 gap-4">
-            {/* Draft / Needs Approval */}
+            {/* Needs Approval */}
             <div className="bg-muted/30 rounded-lg p-3 border">
               <h3 className="font-semibold text-sm mb-3 flex items-center justify-between">
-                <span>Draft / Needs Approval</span>
+                <span>Needs Approval</span>
                 <Badge variant="secondary">{socialPosts.filter(p => p.status === 'draft' || p.status === 'needs_approval').length}</Badge>
               </h3>
               <div className="space-y-3">
