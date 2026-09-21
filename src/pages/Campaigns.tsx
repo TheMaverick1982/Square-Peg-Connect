@@ -468,7 +468,7 @@ export default function MarketingPlanner() {
 
   // --- Social Post Mutations ---
   const [isRequestingPost, setIsRequestingPost] = useState(false);
-  const [newPost, setNewPost] = useState({ title: "", content: "", assigned_to: "", target_date: new Date(), location_id: "all", media_url: "" });
+  const [newPost, setNewPost] = useState({ title: "", content: "", assigned_to: "", target_date: new Date(), location_id: "all", media_url: "", platform: "", format: "" });
   const [isUploading, setIsUploading] = useState(false);
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -509,6 +509,8 @@ export default function MarketingPlanner() {
         target_date: format(newPost.target_date, 'yyyy-MM-dd'),
         location_id: newPost.location_id === "all" ? null : newPost.location_id,
         media_url: newPost.media_url,
+        platform: newPost.platform,
+        format: newPost.format,
         status: 'draft'
       };
       const { data, error } = await supabase.from('social_posts').insert(payload).select().single();
@@ -522,7 +524,7 @@ export default function MarketingPlanner() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['social_posts'] });
       setIsRequestingPost(false);
-      setNewPost({ title: "", content: "", assigned_to: "", target_date: new Date(), location_id: "all", media_url: "" });
+      setNewPost({ title: "", content: "", assigned_to: "", target_date: new Date(), location_id: "all", media_url: "", platform: "", format: "" });
       toast({ title: "Social post submitted for approval!" });
     }
   });
@@ -976,6 +978,34 @@ export default function MarketingPlanner() {
                       </SelectContent>
                     </Select>
                   </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>Platform <span className="text-destructive">*</span></Label>
+                      <Select value={newPost.platform} onValueChange={v => setNewPost({...newPost, platform: v})}>
+                        <SelectTrigger className="mt-1">
+                          <SelectValue placeholder="Select..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Instagram">Instagram</SelectItem>
+                          <SelectItem value="Facebook">Facebook</SelectItem>
+                          <SelectItem value="TikTok">TikTok</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Format <span className="text-destructive">*</span></Label>
+                      <Select value={newPost.format} onValueChange={v => setNewPost({...newPost, format: v})}>
+                        <SelectTrigger className="mt-1">
+                          <SelectValue placeholder="Select..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Post">Feed Post</SelectItem>
+                          <SelectItem value="Story">Story</SelectItem>
+                          <SelectItem value="Reel">Reel / Video</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
                   <div>
                     <Label>Target Post Date <span className="text-destructive">*</span></Label>
                     <Popover>
@@ -1032,7 +1062,7 @@ export default function MarketingPlanner() {
                     </div>
                   </div>
 
-                  <Button className="w-full mt-4" onClick={() => createSocialPost.mutate()} disabled={!newPost.title || !newPost.content || isUploading || createSocialPost.isPending}>
+                  <Button className="w-full mt-4" onClick={() => createSocialPost.mutate()} disabled={!newPost.title || !newPost.content || !newPost.platform || !newPost.format || isUploading || createSocialPost.isPending}>
                     {createSocialPost.isPending ? "Submitting..." : "Submit for Approval"}
                   </Button>
                 </div>
