@@ -16,7 +16,8 @@ import {
   ShieldCheck,
   Store,
   Lock,
-  CalendarRange
+  CalendarRange,
+  Camera
 } from "lucide-react";
 import { useEmployee } from "@/lib/EmployeeContext";
 import { useToast } from "@/hooks/use-toast";
@@ -105,6 +106,10 @@ export function SidebarContent() {
         <NavLink to="/campaigns" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
           <Megaphone className="w-4 h-4" />
           Marketing Planner
+        </NavLink>
+        <NavLink to="/staff-photos" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
+          <Camera className="w-4 h-4" />
+          Staff Photos
         </NavLink>
         <NavLink to="/automations" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
           <Zap className="w-4 h-4" />

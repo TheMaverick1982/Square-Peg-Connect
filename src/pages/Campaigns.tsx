@@ -17,7 +17,7 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
 import { format, addDays, parseISO, differenceInDays, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, subMonths, addMonths } from "date-fns";
-import { CalendarDays, AlertTriangle, Plus, CheckSquare, Megaphone, Share2, Mail, LayoutList, CalendarIcon, Loader2, CheckCircle2, UserCircle2, MapPin, Sparkles, ChevronLeft, ChevronRight, Briefcase } from "lucide-react";
+import { CalendarDays, AlertTriangle, Plus, CheckSquare, Megaphone, Share2, Mail, LayoutList, CalendarIcon, Loader2, CheckCircle2, UserCircle2, MapPin, Sparkles, ChevronLeft, ChevronRight, Briefcase, Store } from "lucide-react";
 
 const SEASONAL_EVENTS = [
   { name: "Super Bowl", month: 1, day: 9, type: 'Sports' },
@@ -241,6 +241,7 @@ export default function MarketingPlanner() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("planning");
+  const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
   const [currentMonth, setCurrentMonth] = useState(new Date());
 
   // Fetch campaigns
@@ -408,7 +409,7 @@ export default function MarketingPlanner() {
 
   const upcomingPrompts = getUpcomingEvents();
 
-  const renderCalendar = () => {
+  const renderCalendar = (campaignList: any[]) => {
     const monthStart = startOfMonth(currentMonth);
     const monthEnd = endOfMonth(monthStart);
     const startDate = startOfWeek(monthStart);
@@ -435,7 +436,7 @@ export default function MarketingPlanner() {
         <div className="grid grid-cols-7 flex-1 auto-rows-fr overflow-y-auto">
           {days.map((day) => {
             const isCurrentMonth = isSameMonth(day, monthStart);
-            const dayCampaigns = campaigns.filter(c => isSameDay(parseISO(c.target_date), day));
+            const dayCampaigns = campaignList.filter(c => isSameDay(parseISO(c.target_date), day));
             // Find if this day has a seasonal prompt
             const dayPrompt = upcomingPrompts.find(p => isSameDay(p.date, day));
 
@@ -484,7 +485,194 @@ export default function MarketingPlanner() {
     );
   };
 
-  const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
+  const renderCampaignsView = (campaignList: any[]) => {
+    return (
+      <div className="space-y-4 m-0">
+        <div className="flex items-center justify-end mb-2">
+          <div className="flex items-center bg-muted p-1 rounded-lg">
+            <Button 
+              variant={viewMode === "list" ? "secondary" : "ghost"} 
+              size="sm" 
+              className="h-8 px-3"
+              onClick={() => setViewMode("list")}
+            >
+              <LayoutList className="w-4 h-4 mr-2" /> List
+            </Button>
+            <Button 
+              variant={viewMode === "calendar" ? "secondary" : "ghost"} 
+              size="sm" 
+              className="h-8 px-3"
+              onClick={() => setViewMode("calendar")}
+            >
+              <CalendarIcon className="w-4 h-4 mr-2" /> Calendar
+            </Button>
+          </div>
+        </div>
+
+        {viewMode === "calendar" ? (
+           renderCalendar(campaignList)
+        ) : (
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="md:col-span-2 space-y-4">
+              <div className="flex justify-between items-center bg-card p-4 rounded-lg border shadow-sm">
+              <div>
+                <h3 className="font-semibold flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-500" />
+                  Upcoming Horizons
+                </h3>
+                <p className="text-sm text-muted-foreground">Campaigns entering the 90-day critical planning window.</p>
+              </div>
+              <Sheet open={isDraftingCampaign} onOpenChange={setIsDraftingCampaign}>
+                <SheetTrigger asChild>
+                  <Button size="sm"><Plus className="w-4 h-4 mr-2" /> Plan Campaign</Button>
+                </SheetTrigger>
+                <SheetContent>
+                  <SheetHeader className="mb-6">
+                    <SheetTitle>Plan New Campaign</SheetTitle>
+                    <SheetDescription>Set a target date to begin tracking this campaign's horizon.</SheetDescription>
+                  </SheetHeader>
+                  <div className="space-y-4">
+                    <div>
+                      <Label>Campaign Title</Label>
+                      <Input placeholder="e.g. Thanksgiving Catering, Super Bowl" value={newCampaign.title} onChange={e => setNewCampaign({...newCampaign, title: e.target.value})} className="mt-1" />
+                    </div>
+                    <div>
+                      <Label>Location</Label>
+                      <Select value={newCampaign.location_id} onValueChange={v => setNewCampaign({...newCampaign, location_id: v})}>
+                        <SelectTrigger className="mt-1">
+                          <SelectValue placeholder="All Locations" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Locations</SelectItem>
+                          {locations.map(l => (
+                            <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Target Date</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" className="w-full mt-1 justify-start text-left font-normal">
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {newCampaign.target_date ? format(newCampaign.target_date, "PPP") : <span>Pick a date</span>}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0">
+                          <CalendarComponent mode="single" selected={newCampaign.target_date} onSelect={d => d && setNewCampaign({...newCampaign, target_date: d})} />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                    <div>
+                      <Label>Description</Label>
+                      <Textarea placeholder="High level goals for this season..." value={newCampaign.description} onChange={e => setNewCampaign({...newCampaign, description: e.target.value})} className="mt-1" />
+                    </div>
+                    <Button className="w-full mt-4" onClick={() => createCampaign.mutate()} disabled={!newCampaign.title || createCampaign.isPending}>
+                      {createCampaign.isPending ? "Saving..." : "Save Campaign"}
+                    </Button>
+                  </div>
+                </SheetContent>
+              </Sheet>
+            </div>
+
+            {loadingCampaigns ? (
+              <div className="text-center py-8 text-muted-foreground"><Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" /> Loading campaigns...</div>
+            ) : campaignList.length === 0 ? (
+              <div className="text-center py-12 border-2 border-dashed rounded-lg bg-muted/20">
+                <Megaphone className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
+                <h3 className="text-lg font-medium">No campaigns planned</h3>
+                <p className="text-sm text-muted-foreground mt-1 mb-4">Start planning 3+ months ahead to never miss a holiday.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {campaignList.map(camp => {
+                  const status = getHorizonStatus(camp.target_date);
+                  const campTasks = tasks.filter(t => t.campaign_id === camp.id);
+                  const completedTasks = campTasks.filter(t => t.is_completed).length;
+                  const progress = campTasks.length > 0 ? Math.round((completedTasks / campTasks.length) * 100) : 0;
+
+                  return (
+                    <CampaignCard 
+                      key={camp.id} 
+                      campaign={camp} 
+                      status={status} 
+                      tasks={campTasks} 
+                      progress={progress} 
+                      createTask={createTask} 
+                      toggleTask={toggleTask}
+                      updateCampaignDetails={updateCampaignDetails}
+                    />
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-4">
+            <Card className="bg-primary/5 border-primary/20 shadow-sm">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-primary" />
+                  Seasonal Prompts
+                </CardTitle>
+                <CardDescription className="text-xs">Upcoming events to plan for.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {upcomingPrompts.map(prompt => (
+                    <div key={prompt.name} className="flex items-center justify-between">
+                      <div>
+                        <div className="text-sm font-medium">{prompt.name}</div>
+                        <div className="text-xs text-muted-foreground">{format(prompt.date, "MMM d, yyyy")}</div>
+                      </div>
+                      <Button 
+                        variant="secondary" 
+                        size="sm" 
+                        className="h-7 text-xs bg-background hover:bg-background/80"
+                        onClick={() => {
+                          setNewCampaign({ title: `${prompt.name} Promo`, description: "", target_date: prompt.date, location_id: "all" });
+                          setIsDraftingCampaign(true);
+                        }}
+                      >
+                        Plan
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm">My Tasks</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {tasks.filter(t => !t.is_completed).length === 0 ? (
+                    <p className="text-xs text-muted-foreground italic">No pending tasks.</p>
+                  ) : (
+                    tasks.filter(t => !t.is_completed).slice(0, 8).map(task => (
+                      <div key={task.id} className="flex items-start gap-2 text-sm">
+                        <button onClick={() => toggleTask.mutate({ task_id: task.id, is_completed: true })} className="mt-0.5 text-muted-foreground hover:text-primary">
+                          <CheckSquare className="w-4 h-4" />
+                        </button>
+                        <div>
+                          <div className="font-medium line-clamp-1">{task.title}</div>
+                          <div className="text-[10px] text-muted-foreground">{task.assigned_to} • Due {format(parseISO(task.due_date), "MMM d")}</div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-12">
@@ -497,200 +685,27 @@ export default function MarketingPlanner() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="mb-4">
+        <TabsList className="mb-4 flex flex-wrap h-auto p-1">
           <TabsTrigger value="planning" className="gap-2">
             <CalendarDays className="w-4 h-4" />
-            90-Day Horizon & Campaigns
+            Global Campaigns
+          </TabsTrigger>
+          <TabsTrigger value="promotions" className="gap-2">
+            <Store className="w-4 h-4" />
+            Store Promotions
           </TabsTrigger>
           <TabsTrigger value="social" className="gap-2">
             <Share2 className="w-4 h-4" />
-            Social Media Approval Engine
+            Social Media Approvals
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="planning" className="space-y-4 m-0">
-          <div className="flex items-center justify-end mb-2">
-            <div className="flex items-center bg-muted p-1 rounded-lg">
-              <Button 
-                variant={viewMode === "list" ? "secondary" : "ghost"} 
-                size="sm" 
-                className="h-8 px-3"
-                onClick={() => setViewMode("list")}
-              >
-                <LayoutList className="w-4 h-4 mr-2" /> List
-              </Button>
-              <Button 
-                variant={viewMode === "calendar" ? "secondary" : "ghost"} 
-                size="sm" 
-                className="h-8 px-3"
-                onClick={() => setViewMode("calendar")}
-              >
-                <CalendarIcon className="w-4 h-4 mr-2" /> Calendar
-              </Button>
-            </div>
-          </div>
+        <TabsContent value="planning" className="m-0">
+          {renderCampaignsView(campaigns.filter((c: any) => !c.location_id))}
+        </TabsContent>
 
-          {viewMode === "calendar" ? (
-             renderCalendar()
-          ) : (
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="md:col-span-2 space-y-4">
-                <div className="flex justify-between items-center bg-card p-4 rounded-lg border shadow-sm">
-                <div>
-                  <h3 className="font-semibold flex items-center gap-2">
-                    <AlertTriangle className="w-4 h-4 text-amber-500" />
-                    Upcoming Horizons
-                  </h3>
-                  <p className="text-sm text-muted-foreground">Campaigns entering the 90-day critical planning window.</p>
-                </div>
-                <Sheet open={isDraftingCampaign} onOpenChange={setIsDraftingCampaign}>
-                  <SheetTrigger asChild>
-                    <Button size="sm"><Plus className="w-4 h-4 mr-2" /> Plan Campaign</Button>
-                  </SheetTrigger>
-                  <SheetContent>
-                    <SheetHeader className="mb-6">
-                      <SheetTitle>Plan New Campaign</SheetTitle>
-                      <SheetDescription>Set a target date to begin tracking this campaign's horizon.</SheetDescription>
-                    </SheetHeader>
-                    <div className="space-y-4">
-                      <div>
-                        <Label>Campaign Title</Label>
-                        <Input placeholder="e.g. Thanksgiving Catering, Super Bowl" value={newCampaign.title} onChange={e => setNewCampaign({...newCampaign, title: e.target.value})} className="mt-1" />
-                      </div>
-                      <div>
-                        <Label>Location</Label>
-                        <Select value={newCampaign.location_id} onValueChange={v => setNewCampaign({...newCampaign, location_id: v})}>
-                          <SelectTrigger className="mt-1">
-                            <SelectValue placeholder="All Locations" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">All Locations</SelectItem>
-                            {locations.map(l => (
-                              <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div>
-                        <Label>Target Date</Label>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button variant="outline" className="w-full mt-1 justify-start text-left font-normal">
-                              <CalendarIcon className="mr-2 h-4 w-4" />
-                              {newCampaign.target_date ? format(newCampaign.target_date, "PPP") : <span>Pick a date</span>}
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0">
-                            <CalendarComponent mode="single" selected={newCampaign.target_date} onSelect={d => d && setNewCampaign({...newCampaign, target_date: d})} />
-                          </PopoverContent>
-                        </Popover>
-                      </div>
-                      <div>
-                        <Label>Description</Label>
-                        <Textarea placeholder="High level goals for this season..." value={newCampaign.description} onChange={e => setNewCampaign({...newCampaign, description: e.target.value})} className="mt-1" />
-                      </div>
-                      <Button className="w-full mt-4" onClick={() => createCampaign.mutate()} disabled={!newCampaign.title || createCampaign.isPending}>
-                        {createCampaign.isPending ? "Saving..." : "Save Campaign"}
-                      </Button>
-                    </div>
-                  </SheetContent>
-                </Sheet>
-              </div>
-
-              {loadingCampaigns ? (
-                <div className="text-center py-8 text-muted-foreground"><Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" /> Loading campaigns...</div>
-              ) : campaigns.length === 0 ? (
-                <div className="text-center py-12 border-2 border-dashed rounded-lg bg-muted/20">
-                  <Megaphone className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
-                  <h3 className="text-lg font-medium">No campaigns planned</h3>
-                  <p className="text-sm text-muted-foreground mt-1 mb-4">Start planning 3+ months ahead to never miss a holiday.</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {campaigns.map(camp => {
-                    const status = getHorizonStatus(camp.target_date);
-                    const campTasks = tasks.filter(t => t.campaign_id === camp.id);
-                    const completedTasks = campTasks.filter(t => t.is_completed).length;
-                    const progress = campTasks.length > 0 ? Math.round((completedTasks / campTasks.length) * 100) : 0;
-
-                    return (
-                      <CampaignCard 
-                        key={camp.id} 
-                        campaign={camp} 
-                        status={status} 
-                        tasks={campTasks} 
-                        progress={progress} 
-                        createTask={createTask} 
-                        toggleTask={toggleTask}
-                        updateCampaignDetails={updateCampaignDetails}
-                      />
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            <div className="space-y-4">
-              <Card className="bg-primary/5 border-primary/20 shadow-sm">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-primary" />
-                    Seasonal Prompts
-                  </CardTitle>
-                  <CardDescription className="text-xs">Upcoming events to plan for.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {upcomingPrompts.map(prompt => (
-                      <div key={prompt.name} className="flex items-center justify-between">
-                        <div>
-                          <div className="text-sm font-medium">{prompt.name}</div>
-                          <div className="text-xs text-muted-foreground">{format(prompt.date, "MMM d, yyyy")}</div>
-                        </div>
-                        <Button 
-                          variant="secondary" 
-                          size="sm" 
-                          className="h-7 text-xs bg-background hover:bg-background/80"
-                          onClick={() => {
-                            setNewCampaign({ title: `${prompt.name} Promo`, description: "", target_date: prompt.date, location_id: "all" });
-                            setIsDraftingCampaign(true);
-                          }}
-                        >
-                          Plan
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm">My Tasks</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {tasks.filter(t => !t.is_completed).length === 0 ? (
-                      <p className="text-xs text-muted-foreground italic">No pending tasks.</p>
-                    ) : (
-                      tasks.filter(t => !t.is_completed).slice(0, 8).map(task => (
-                        <div key={task.id} className="flex items-start gap-2 text-sm">
-                          <button onClick={() => toggleTask.mutate({ task_id: task.id, is_completed: true })} className="mt-0.5 text-muted-foreground hover:text-primary">
-                            <CheckSquare className="w-4 h-4" />
-                          </button>
-                          <div>
-                            <div className="font-medium line-clamp-1">{task.title}</div>
-                            <div className="text-[10px] text-muted-foreground">{task.assigned_to} • Due {format(parseISO(task.due_date), "MMM d")}</div>
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-          )}
+        <TabsContent value="promotions" className="m-0">
+          {renderCampaignsView(campaigns.filter((c: any) => c.location_id))}
         </TabsContent>
 
         <TabsContent value="social" className="space-y-4 m-0">
