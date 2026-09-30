@@ -68,7 +68,7 @@ export default function PublicCateringForm() {
 
     try {
       // 1. Insert into database
-      const { data, error: dbError } = await supabase.from('catering_requests').insert([{
+      const { error: dbError } = await supabase.from('catering_requests').insert([{
         name: form.name,
         email: form.email,
         phone: form.phone,
@@ -85,7 +85,7 @@ export default function PublicCateringForm() {
         utm_campaign: utmData.utm_campaign || null,
         utm_content: utmData.utm_content || null,
         utm_term: utmData.utm_term || null
-      }]).select().single();
+      }]);
 
       if (dbError) throw dbError;
 

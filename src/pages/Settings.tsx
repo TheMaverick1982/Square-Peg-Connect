@@ -6,7 +6,7 @@ import { type EmployeeProfile, useEmployee } from "@/lib/EmployeeContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { LocationPicker } from "@/components/LocationPicker";
-import { inviteTeamMember } from "@/lib/teamApi";
+import { inviteTeamMember, removeTeamMember } from "@/lib/teamApi";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -234,6 +234,30 @@ function AddTeamMember() {
   );
 }
 
+function RemoveMemberButton({ email, name }: { email: string; name: string }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const { profile } = useEmployee();
+  const [busy, setBusy] = useState(false);
+  if (profile?.email?.toLowerCase() === email.toLowerCase()) return null;
+  return (
+    <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs text-destructive hover:text-destructive" disabled={busy}
+      onClick={async () => {
+        if (!window.confirm(`Remove ${name || email} from Square Peg Connect? They will lose access immediately.`)) return;
+        setBusy(true);
+        try {
+          await removeTeamMember(email);
+          queryClient.invalidateQueries({ queryKey: ['employee_profiles'] });
+          toast({ title: "Removed", description: `${email} no longer has access.` });
+        } catch (err) {
+          toast({ title: "Couldn't remove", description: (err as Error).message, variant: "destructive" });
+        } finally { setBusy(false); }
+      }}>
+      <Trash2 className="w-3.5 h-3.5 mr-1" /> {busy ? "Removing…" : "Remove"}
+    </Button>
+  );
+}
+
 function SendLoginEmailButton({ email }: { email: string }) {
   const { toast } = useToast();
   const [busy, setBusy] = useState(false);
@@ -376,7 +400,10 @@ function TeamManagementTab() {
 
                 <div className="col-span-2 text-right text-sm text-muted-foreground flex flex-col items-end gap-1">
                   <span>{(employee as any).created_at ? format(new Date((employee as any).created_at), "MMM d, yyyy") : "—"}</span>
-                  <SendLoginEmailButton email={employee.email} />
+                  <div className="flex gap-1">
+                    <SendLoginEmailButton email={employee.email} />
+                    <RemoveMemberButton email={employee.email} name={employee.name} />
+                  </div>
                 </div>
               </div>
             ))

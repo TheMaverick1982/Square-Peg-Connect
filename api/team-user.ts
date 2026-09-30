@@ -56,6 +56,15 @@ export async function POST(request: Request): Promise<Response> {
     return null;
   };
 
+  if (body.action === 'remove') {
+    if (email === callerEmail) return json(400, { error: "You can't remove yourself." });
+    // Removes Connect access only. Their Supabase login is kept because the
+    // Loyalty Member Lookup shares the same user list.
+    const { error } = await admin.from('employee_profiles').delete().ilike('email', email);
+    if (error) return json(500, { error: error.message });
+    return json(200, { ok: true });
+  }
+
   if (body.action !== 'invite') return json(400, { error: 'Unknown action.' });
 
   try {

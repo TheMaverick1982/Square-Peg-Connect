@@ -20,3 +20,17 @@ export async function inviteTeamMember(body: {
   if (!res.ok) throw new Error(out.error || `Request failed (${res.status})`);
   return out as { ok: true; sent: 'invite' | 'reset' };
 }
+
+/** Removes someone from the team list (they lose Connect access). */
+export async function removeTeamMember(email: string) {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  if (!token) throw new Error('Session expired. Sign in again.');
+  const res = await fetch('/api/team-user', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
+    body: JSON.stringify({ action: 'remove', email }),
+  });
+  const out = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(out.error || `Request failed (${res.status})`);
+}

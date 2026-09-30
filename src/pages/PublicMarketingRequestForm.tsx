@@ -41,11 +41,10 @@ export default function PublicMarketingRequestForm() {
         status: 'planning',
       };
 
-      const { data: campaign, error: campaignError } = await supabase
+      // Public visitors can submit but not read back rows, so no .select() here.
+      const { error: campaignError } = await supabase
         .from('marketing_campaigns')
-        .insert(campaignPayload)
-        .select()
-        .single();
+        .insert(campaignPayload);
 
       if (campaignError) throw campaignError;
 
@@ -60,11 +59,10 @@ export default function PublicMarketingRequestForm() {
         status: 'Draft'
       };
 
-      const { error: requestError, data: supportRequest } = await supabase
+      const { error: requestError } = await supabase
         .from('marketing_support_requests')
-        .insert(requestPayload)
-        .select()
-        .single();
+        .insert(requestPayload);
+      const supportRequest = { ...requestPayload, created_at: new Date().toISOString() };
         
       if (requestError) throw requestError;
 

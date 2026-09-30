@@ -81,16 +81,17 @@ export default function PublicPhotoUpload() {
       }
       
       // 2. Save submission to database
-      const { data: submission, error: dbError } = await supabase
+      // Public visitors can submit but not read back rows, so no .select() here.
+      const submissionPayload = {
+        staff_name: formData.staff_name,
+        location_id: formData.location_id,
+        notes: formData.notes,
+        photo_urls: uploadedUrls
+      };
+      const { error: dbError } = await supabase
         .from('staff_photo_submissions')
-        .insert([{
-          staff_name: formData.staff_name,
-          location_id: formData.location_id,
-          notes: formData.notes,
-          photo_urls: uploadedUrls
-        }])
-        .select()
-        .single();
+        .insert([submissionPayload]);
+      const submission = { ...submissionPayload, created_at: new Date().toISOString() };
         
       if (dbError) throw dbError;
       
