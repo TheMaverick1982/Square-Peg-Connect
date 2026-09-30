@@ -15,7 +15,6 @@ import Settings from "./pages/Settings";
 import Reports from "./pages/Reports";
 import Reminders from "./pages/Reminders";
 import Contacts from "./pages/Contacts";
-import { AuthCallback } from "./pages/AuthCallback";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import EventsDashboard from "./pages/EventsDashboard";
 import StoreEventsPipeline from "./pages/StoreEventsPipeline";
@@ -46,10 +45,6 @@ export const routes = [
   {
     path: "/public/marketing-request",
     element: <PublicMarketingRequestForm />
-  },
-  {
-    path: "/auth/callback",
-    element: <AuthCallback />
   },
   {
     path: "/login",

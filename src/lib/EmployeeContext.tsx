@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { useAuth } from "react-oidc-context";
+import { useAuth } from "./auth";
 import { supabase } from "./supabase";
 
 export type EmployeeRole = "admin" | "employee" | "manager";
@@ -24,116 +24,75 @@ const EmployeeContext = createContext<EmployeeContextType>({
   isLoading: true,
 });
 
+// Bootstrap admins: if one of these signs in and has no team profile yet,
+// an admin profile is created so the app can never be locked out.
+// Everyone else must be added by an admin in Settings → Team first.
+export const BOOTSTRAP_ADMIN_EMAILS = [
+  "brian@brianhardy.com",
+  "hr@squarepegpizzeria.com",
+  "catering@squarepegpizzeria.com",
+  "growth@themaverick.ai",
+];
+
 export function EmployeeProvider({ children }: { children: React.ReactNode }) {
-  const auth = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const [profile, setProfile] = useState<EmployeeProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const email = user?.email?.toLowerCase() ?? null;
 
   useEffect(() => {
+    let cancelled = false;
+
     async function loadProfile() {
-      if (!auth.isAuthenticated || !auth.user?.profile) {
+      if (authLoading) return;
+      if (!email) {
+        setProfile(null);
         setIsLoading(false);
         return;
       }
+      setIsLoading(true);
 
-      const possibleEmail = (
-        auth.user.profile.email || 
-        auth.user.profile.preferred_username || 
-        auth.user.profile.upn || 
-        auth.user.profile.unique_name ||
-        auth.user.profile['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress'] ||
-        auth.user.profile['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/upn'] ||
-        auth.user.profile['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name']
-      ) as string;
-      
-      const email = possibleEmail || "unknown";
-      
-      // If we genuinely can't extract an email, we still want them to have a profile
-      // so we use their subject (ID) as a fallback so they aren't stuck loading forever.
-      const lookupKey = email !== "unknown" ? email : auth.user.profile.sub;
-      
       const { data, error } = await supabase
         .from("employee_profiles")
         .select("*")
-        .eq("email", lookupKey)
-        .single();
+        .ilike("email", email)
+        .maybeSingle();
 
-      if (error && error.code !== "PGRST116") {
+      if (cancelled) return;
+
+      if (error) {
         console.error("Error loading employee profile:", error);
+        setProfile(null);
       } else if (data) {
-        let currentProfile = data as EmployeeProfile;
-        
-        const normalizedEmail = lookupKey.toLowerCase();
-        
-        // Extract a robust name string for checking
-        const rawName = auth.user.profile.name || 
-          `${auth.user.profile.given_name || ''} ${auth.user.profile.family_name || ''}`;
-        const normalizedName = rawName.trim().toLowerCase();
-        
-        const isAdminUser = 
-          ["growth@themaverick.ai", "hr@squarepegpizzeria.com", "catering@squarepegpizzeria.com", "brian@brianhardy.com"].includes(normalizedEmail) ||
-          (normalizedName.includes("brian") && normalizedName.includes("hardy"));
-
-        if (isAdminUser && currentProfile.role !== "admin") {
-          const { data: updated, error: updateErr } = await supabase
-            .from("employee_profiles")
-            .update({ role: "admin" })
-            .eq("id", currentProfile.id)
-            .select()
-            .single();
-          if (updated && !updateErr) {
-            currentProfile = updated as EmployeeProfile;
-          }
-        }
-        
-        setProfile(currentProfile);
-      } else {
-        // Create an initial profile if they don't exist yet
-        
-        // Auto-assign Admin role to specific emails
-        const normalizedEmail = lookupKey.toLowerCase();
-        const rawName = auth.user.profile.name || 
-          `${auth.user.profile.given_name || ''} ${auth.user.profile.family_name || ''}`;
-        const normalizedName = rawName.trim().toLowerCase();
-        const isAdminUser = 
-          ["growth@themaverick.ai", "hr@squarepegpizzeria.com", "catering@squarepegpizzeria.com", "brian@brianhardy.com"].includes(normalizedEmail) ||
-          (normalizedName.includes("brian") && normalizedName.includes("hardy"));
-          
-        const assignedRole = isAdminUser ? "admin" : "manager";
-
-        // Auto-assign to a location if their email matches a known location email
-        const { locations } = await import("./data");
-        const matchingLocation = locations.find(l => l.email?.toLowerCase() === lookupKey.toLowerCase());
-        const initialLocations = matchingLocation ? [matchingLocation.id] : [];
-
-        const newProfile = {
-          email: lookupKey,
-          name: auth.user.profile.name || lookupKey,
-          role: assignedRole as EmployeeRole, // Default new users to manager, unless specified above
-          status: "approved",
-          assigned_locations: initialLocations,
-          assigned_location: initialLocations.length > 0 ? initialLocations[0] : null
-        };
-        
+        setProfile(data as EmployeeProfile);
+      } else if (BOOTSTRAP_ADMIN_EMAILS.includes(email)) {
         const { data: created, error: insertError } = await supabase
           .from("employee_profiles")
-          .insert([newProfile])
+          .insert([{
+            email,
+            name: (user?.user_metadata?.name as string) || email,
+            role: "admin",
+            status: "approved",
+            assigned_locations: [],
+            assigned_location: null,
+          }])
           .select()
           .single();
-          
-        if (!insertError && created) {
-          setProfile(created as EmployeeProfile);
-        }
+        if (!cancelled) setProfile(insertError ? null : (created as EmployeeProfile));
+      } else {
+        // Signed in, but not on the team list → no access.
+        setProfile(null);
       }
-      
-      setIsLoading(false);
+
+      if (!cancelled) setIsLoading(false);
     }
 
     loadProfile();
-  }, [auth.isAuthenticated, auth.user?.profile?.email, auth.user?.profile?.preferred_username]);
+    return () => { cancelled = true; };
+  }, [authLoading, email, user?.user_metadata?.name]);
 
   return (
-    <EmployeeContext.Provider value={{ profile, isLoading }}>
+    <EmployeeContext.Provider value={{ profile, isLoading: authLoading || isLoading }}>
       {children}
     </EmployeeContext.Provider>
   );

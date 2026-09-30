@@ -4,10 +4,11 @@ import { supabase } from "@/lib/supabase";
 import { locations } from "@/lib/data";
 import { type EmployeeProfile, useEmployee } from "@/lib/EmployeeContext";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { Shield, ShieldAlert, Store, UserCog, Settings as SettingsIcon, UploadCloud, FileArchive, Trash2, Link as LinkIcon, Loader2 } from "lucide-react";
+import { Shield, ShieldAlert, Store, UserCog, Settings as SettingsIcon, UploadCloud, FileArchive, Trash2, Link as LinkIcon, Loader2, UserPlus } from "lucide-react";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuCheckboxItem } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
@@ -165,6 +166,74 @@ function MarketingAssetsTab() {
   );
 }
 
+function AddTeamMember() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [role, setRole] = useState<"admin" | "manager" | "employee">("employee");
+
+  const addMember = useMutation({
+    mutationFn: async () => {
+      const cleanEmail = email.trim().toLowerCase();
+      const { data: existing } = await supabase
+        .from('employee_profiles').select('id').ilike('email', cleanEmail).maybeSingle();
+      if (existing) throw new Error("That email is already on the team list.");
+      const { error } = await supabase.from('employee_profiles').insert([{
+        email: cleanEmail,
+        name: name.trim() || cleanEmail,
+        role,
+        status: 'approved',
+        assigned_locations: [],
+        assigned_location: null,
+      }]);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['employee_profiles'] });
+      toast({
+        title: "Team member added",
+        description: `${email.trim()} can now go to the login page and choose "Set up your account".`,
+      });
+      setName(""); setEmail(""); setRole("employee");
+    },
+    onError: (error) => {
+      toast({ title: "Couldn't add team member", description: (error as Error).message, variant: "destructive" });
+    },
+  });
+
+  return (
+    <form
+      className="bg-card border rounded-lg p-4 mt-4 flex flex-col md:flex-row gap-3 md:items-end"
+      onSubmit={(e) => { e.preventDefault(); if (email.trim()) addMember.mutate(); }}
+    >
+      <div className="flex-1">
+        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Name</label>
+        <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Jane Smith" className="mt-1" />
+      </div>
+      <div className="flex-1">
+        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Email</label>
+        <Input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="jane@squarepegpizzeria.com" className="mt-1" />
+      </div>
+      <div className="md:w-44">
+        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Role</label>
+        <Select value={role} onValueChange={(v) => setRole(v as typeof role)}>
+          <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="admin">Super Admin</SelectItem>
+            <SelectItem value="manager">Location Manager</SelectItem>
+            <SelectItem value="employee">Staff</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <Button type="submit" disabled={addMember.isPending}>
+        {addMember.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <UserPlus className="w-4 h-4 mr-2" />}
+        Add to team
+      </Button>
+    </form>
+  );
+}
+
 function TeamManagementTab() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -201,6 +270,8 @@ function TeamManagementTab() {
   });
 
   return (
+    <>
+    <AddTeamMember />
     <div className="bg-card border rounded-lg overflow-hidden flex flex-col mt-4 min-h-[500px]">
       <div className="overflow-x-auto h-full flex flex-col">
         <div className="min-w-[800px] grid grid-cols-12 gap-4 p-4 border-b bg-muted/30 text-xs font-semibold text-muted-foreground uppercase tracking-wider shrink-0">
@@ -324,6 +395,7 @@ function TeamManagementTab() {
         </div>
       </div>
     </div>
+    </>
   );
 }
 

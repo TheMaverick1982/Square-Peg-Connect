@@ -4,7 +4,7 @@ import { useEmployee } from "@/lib/EmployeeContext";
 import { locations } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "react-oidc-context";
+import { useAuth } from "@/lib/auth";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
@@ -276,22 +276,14 @@ export function Header() {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button className="w-8 h-8 shrink-0 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center text-primary font-bold text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
-              {profile?.name?.charAt(0).toUpperCase() || auth.user?.profile?.name?.charAt(0).toUpperCase() || "SP"}
+              {profile?.name?.charAt(0).toUpperCase() || auth.user?.email?.charAt(0).toUpperCase() || "SP"}
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuLabel>
               <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium leading-none">{profile?.name || auth.user?.profile?.name || "Square Peg User"}</p>
-                <p className="text-xs leading-none text-muted-foreground break-all">{
-                  String([
-                    profile?.email,
-                    auth.user?.profile?.email,
-                    auth.user?.profile?.preferred_username,
-                    auth.user?.profile?.['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress'],
-                    auth.user?.profile?.sub
-                  ].find(e => typeof e === 'string' && e.trim() !== '') || "user@squarepeg.com")
-                }</p>
+                <p className="text-sm font-medium leading-none">{profile?.name || "Square Peg User"}</p>
+                <p className="text-xs leading-none text-muted-foreground break-all">{profile?.email || auth.user?.email || ""}</p>
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
@@ -301,9 +293,7 @@ export function Header() {
             </DropdownMenuItem>
             <DropdownMenuItem 
               onClick={() => {
-                auth.signoutRedirect({
-                  extraQueryParams: { namespace: 'RZG9' },
-                });
+                auth.signOut().then(() => navigate('/login', { replace: true }));
               }}
               className="text-destructive focus:bg-destructive focus:text-destructive-foreground"
             >
