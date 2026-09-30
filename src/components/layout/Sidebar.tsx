@@ -31,7 +31,7 @@ export function SidebarContent() {
     <>
       <div className="px-6 mb-8 mt-4 flex flex-col items-center gap-2">
         <img 
-          src="https://media-api-prod.apigateway.co/files/v3/AG-D5HZKZ2TNH/FileID-2859e6a7-48eb-46ed-83a6-9d6ebb5d5850/uploaded-1782298633843015700.png" 
+          src="/square-peg-logo.png" 
           alt="Square Peg Pizzeria Logo" 
           className="h-12 w-auto object-contain"
         />

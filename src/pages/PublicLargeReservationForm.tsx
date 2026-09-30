@@ -137,7 +137,7 @@ export default function PublicLargeReservationForm() {
       <div className="mb-8 text-center flex flex-col items-center">
         <div className="h-24 md:h-32 mb-4 w-full flex justify-center">
           <img 
-            src="https://media-api-prod.apigateway.co/files/v3/AG-D5HZKZ2TNH/FileID-2859e6a7-48eb-46ed-83a6-9d6ebb5d5850/uploaded-1782298633843015700.png" 
+            src="/square-peg-logo.png" 
             alt="Square Peg Connect Logo" 
             className="h-full w-auto object-contain" 
           />

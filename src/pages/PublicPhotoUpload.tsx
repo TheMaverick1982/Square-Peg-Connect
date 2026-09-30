@@ -156,7 +156,7 @@ export default function PublicPhotoUpload() {
       <div className="max-w-md mx-auto">
         <div className="text-center mb-8">
           <img 
-            src="https://media-api-prod.apigateway.co/files/v3/AG-D5HZKZ2TNH/FileID-2859e6a7-48eb-46ed-83a6-9d6ebb5d5850/uploaded-1782298633843015700.png" 
+            src="/square-peg-logo.png" 
             alt="Square Peg Pizzeria" 
             className="h-16 mx-auto object-contain mb-6"
           />
