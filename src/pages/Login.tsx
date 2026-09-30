@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
-import { supabase } from "@/lib/supabase";
+import { supabase, initialLinkError } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
 import { LOGO_URL } from "@/lib/brand";
 import { Card } from "@/components/ui/card";
@@ -21,9 +21,12 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(
+    initialLinkError ? "That email link has expired or was already used. Use \"Forgot password?\" to get a new one." : null
+  );
   const [notice, setNotice] = useState<string | null>(null);
 
+  const switchMode = (m: Mode) => { setMode(m); setError(null); setNotice(null); setPassword(""); setConfirm(""); };
   const activeMode: Mode = auth.isRecovery ? "newpassword" : mode;
 
   if (auth.isLoading) {
@@ -34,8 +37,20 @@ export default function Login() {
     );
   }
   if (auth.isAuthenticated && !auth.isRecovery) return <Navigate to={from} replace />;
+  if (auth.isRecovery && !auth.isAuthenticated) {
+    return (
+      <div className="min-h-screen w-full flex items-center justify-center bg-muted/30 p-4">
+        <Card className="w-full max-w-sm p-6 text-center">
+          <h1 className="text-lg font-semibold mb-2">This link has expired</h1>
+          <p className="text-sm text-muted-foreground mb-4">Email links work once and expire after a while. Request a fresh one below.</p>
+          <Button className="w-full" onClick={() => { auth.clearRecovery(); switchMode("forgot"); window.history.replaceState(null, "", "/login"); }}>
+            Send me a new link
+          </Button>
+        </Card>
+      </div>
+    );
+  }
 
-  const switchMode = (m: Mode) => { setMode(m); setError(null); setNotice(null); setPassword(""); setConfirm(""); };
   const origin = window.location.origin;
 
   async function handleSubmit(e: React.FormEvent) {
@@ -98,6 +113,9 @@ export default function Login() {
     forgot: { title: "Reset your password", sub: "We'll email you a link to choose a new one.", cta: "Send reset link" },
     newpassword: { title: "Choose a new password", sub: "You'll be signed in right after.", cta: "Save password" },
   };
+  if (auth.linkType === "invite") {
+    titles.newpassword = { title: "Welcome to Square Peg Connect", sub: "Choose a password to finish setting up your account.", cta: "Create password" };
+  }
   const t = titles[activeMode];
 
   return (

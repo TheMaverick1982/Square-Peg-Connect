@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
-import { supabase } from './supabase';
+import { supabase, initialLinkType } from './supabase';
 
 interface AuthContextType {
   session: Session | null;
@@ -9,6 +9,8 @@ interface AuthContextType {
   isAuthenticated: boolean;
   /** True while the user arrived from a password-reset / invite link and must choose a password. */
   isRecovery: boolean;
+  /** Which email link brought them here, if any. */
+  linkType: 'invite' | 'recovery' | null;
   clearRecovery: () => void;
   signOut: () => Promise<void>;
 }
@@ -19,6 +21,7 @@ const AuthContext = createContext<AuthContextType>({
   isLoading: true,
   isAuthenticated: false,
   isRecovery: false,
+  linkType: null,
   clearRecovery: () => {},
   signOut: async () => {},
 });
@@ -26,7 +29,7 @@ const AuthContext = createContext<AuthContextType>({
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isRecovery, setIsRecovery] = useState(false);
+  const [isRecovery, setIsRecovery] = useState(initialLinkType !== null);
 
   useEffect(() => {
     let mounted = true;
@@ -62,6 +65,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isLoading,
         isAuthenticated: !!session,
         isRecovery,
+        linkType: initialLinkType,
         clearRecovery: () => setIsRecovery(false),
         signOut,
       }}

@@ -5,10 +5,12 @@ import { locations } from "@/lib/data";
 import { type EmployeeProfile, useEmployee } from "@/lib/EmployeeContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { LocationPicker } from "@/components/LocationPicker";
+import { inviteTeamMember } from "@/lib/teamApi";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { Shield, ShieldAlert, Store, UserCog, Settings as SettingsIcon, UploadCloud, FileArchive, Trash2, Link as LinkIcon, Loader2, UserPlus } from "lucide-react";
+import { Shield, ShieldAlert, Store, UserCog, Settings as SettingsIcon, UploadCloud, FileArchive, Trash2, Link as LinkIcon, Loader2, UserPlus, Mail } from "lucide-react";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuCheckboxItem } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
@@ -171,66 +173,89 @@ function AddTeamMember() {
   const queryClient = useQueryClient();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState<"admin" | "manager" | "employee">("employee");
+  const [role, setRole] = useState<"admin" | "manager" | "employee">("manager");
+  const [locs, setLocs] = useState<string[]>([]);
 
   const addMember = useMutation({
-    mutationFn: async () => {
-      const cleanEmail = email.trim().toLowerCase();
-      const { data: existing } = await supabase
-        .from('employee_profiles').select('id').ilike('email', cleanEmail).maybeSingle();
-      if (existing) throw new Error("That email is already on the team list.");
-      const { error } = await supabase.from('employee_profiles').insert([{
-        email: cleanEmail,
-        name: name.trim() || cleanEmail,
-        role,
-        status: 'approved',
-        assigned_locations: [],
-        assigned_location: null,
-      }]);
-      if (error) throw error;
-    },
+    mutationFn: () => inviteTeamMember({
+      email: email.trim().toLowerCase(), name: name.trim(), role, locations: role === 'admin' ? [] : locs,
+    }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['employee_profiles'] });
-      toast({
-        title: "Team member added",
-        description: `${email.trim()} can now go to the login page and choose "Set up your account".`,
-      });
-      setName(""); setEmail(""); setRole("employee");
+      toast({ title: "Invite sent", description: `${email.trim()} will get an email to set their password.` });
+      setName(""); setEmail(""); setRole("manager"); setLocs([]);
     },
     onError: (error) => {
-      toast({ title: "Couldn't add team member", description: (error as Error).message, variant: "destructive" });
+      toast({ title: "Couldn't send invite", description: (error as Error).message, variant: "destructive" });
     },
   });
 
   return (
-    <form
-      className="bg-card border rounded-lg p-4 mt-4 flex flex-col md:flex-row gap-3 md:items-end"
-      onSubmit={(e) => { e.preventDefault(); if (email.trim()) addMember.mutate(); }}
-    >
-      <div className="flex-1">
-        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Name</label>
-        <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Jane Smith" className="mt-1" />
+    <div className="bg-card border rounded-lg p-4 mt-4 space-y-3">
+      <div className="flex items-center gap-2 font-semibold text-sm">
+        <UserPlus className="w-4 h-4" /> Add a team member
+        <span className="font-normal text-muted-foreground">— they'll get an email to set their password</span>
       </div>
-      <div className="flex-1">
-        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Email</label>
-        <Input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="jane@squarepegpizzeria.com" className="mt-1" />
-      </div>
-      <div className="md:w-44">
-        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Role</label>
-        <Select value={role} onValueChange={(v) => setRole(v as typeof role)}>
-          <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="admin">Super Admin</SelectItem>
-            <SelectItem value="manager">Location Manager</SelectItem>
-            <SelectItem value="employee">Staff</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-      <Button type="submit" disabled={addMember.isPending}>
-        {addMember.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <UserPlus className="w-4 h-4 mr-2" />}
-        Add to team
-      </Button>
-    </form>
+      <form
+        className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end"
+        onSubmit={(e) => { e.preventDefault(); if (email.trim()) addMember.mutate(); }}
+      >
+        <div className="md:col-span-3">
+          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Name</label>
+          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Jane Smith" className="mt-1" />
+        </div>
+        <div className="md:col-span-3">
+          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Email</label>
+          <Input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="jane@squarepegpizzeria.com" className="mt-1" />
+        </div>
+        <div className="md:col-span-2">
+          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Role</label>
+          <Select value={role} onValueChange={(v) => setRole(v as typeof role)}>
+            <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="admin">Super Admin</SelectItem>
+              <SelectItem value="manager">Location Manager</SelectItem>
+              <SelectItem value="employee">Staff</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="md:col-span-2">
+          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Locations</label>
+          <div className="mt-1">
+            <LocationPicker value={role === 'admin' ? [] : locs} onChange={setLocs} disabled={role === 'admin'} />
+          </div>
+        </div>
+        <Button type="submit" className="md:col-span-2" disabled={addMember.isPending}>
+          {addMember.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Mail className="w-4 h-4 mr-2" />}
+          Send invite
+        </Button>
+      </form>
+    </div>
+  );
+}
+
+function SendLoginEmailButton({ email }: { email: string }) {
+  const { toast } = useToast();
+  const [busy, setBusy] = useState(false);
+  return (
+    <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" disabled={busy}
+      title="Emails them a link to set up or reset their password"
+      onClick={async () => {
+        setBusy(true);
+        try {
+          const out = await inviteTeamMember({ email });
+          toast({
+            title: out.sent === 'invite' ? "Invite sent" : "Reset link sent",
+            description: out.sent === 'invite'
+              ? `${email} will get an email to set up their login.`
+              : `${email} will get an email to choose a new password.`,
+          });
+        } catch (err) {
+          toast({ title: "Couldn't send email", description: (err as Error).message, variant: "destructive" });
+        } finally { setBusy(false); }
+      }}>
+      <Mail className="w-3.5 h-3.5 mr-1" /> {busy ? "Sending…" : "Send login email"}
+    </Button>
   );
 }
 
@@ -332,53 +357,16 @@ function TeamManagementTab() {
                 </div>
 
                 <div className="col-span-4">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button 
-                        variant="outline" 
-                        role="combobox"
-                        className="w-full justify-between h-8 text-xs font-normal bg-background"
-                        disabled={employee.role === 'admin'}
-                      >
-                        {employee.role === 'admin' 
-                          ? "All Locations (Unrestricted)"
-                          : employee.assigned_locations?.length 
-                            ? `${employee.assigned_locations.length} Locations Selected`
-                            : (employee.assigned_location ? locations.find(l => l.id === employee.assigned_location)?.name : "Select Locations...")}
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent className="w-[250px]" align="start">
-                      {locations.map(loc => {
-                        const isSelected = employee.assigned_locations?.includes(loc.id) || (!employee.assigned_locations?.length && employee.assigned_location === loc.id);
-                        return (
-                          <DropdownMenuCheckboxItem
-                            key={loc.id}
-                            checked={isSelected}
-                            onCheckedChange={(checked) => {
-                              const currentLocs = employee.assigned_locations?.length 
-                                ? [...employee.assigned_locations] 
-                                : (employee.assigned_location ? [employee.assigned_location] : []);
-                              
-                              let newLocs;
-                              if (checked) {
-                                newLocs = [...currentLocs, loc.id];
-                              } else {
-                                newLocs = currentLocs.filter(id => id !== loc.id);
-                              }
-                              
-                              updateProfile.mutate({
-                                id: employee.id,
-                                assigned_locations: newLocs,
-                                assigned_location: newLocs.length > 0 ? newLocs[0] : null
-                              });
-                            }}
-                          >
-                            {loc.name}
-                          </DropdownMenuCheckboxItem>
-                        );
-                      })}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  <LocationPicker
+                    className="h-8 text-xs"
+                    disabled={employee.role === 'admin'}
+                    value={employee.role === 'admin' ? [] : (employee.assigned_locations?.length ? employee.assigned_locations : (employee.assigned_location ? [employee.assigned_location] : []))}
+                    onChange={(newLocs) => updateProfile.mutate({
+                      id: employee.id,
+                      assigned_locations: newLocs,
+                      assigned_location: newLocs.length > 0 ? newLocs[0] : null,
+                    })}
+                  />
                   {employee.role === 'admin' && (
                     <div className="text-[10px] text-muted-foreground mt-1 ml-1">
                       Admins inherently have access to all locations.
@@ -386,8 +374,9 @@ function TeamManagementTab() {
                   )}
                 </div>
 
-                <div className="col-span-2 text-right text-sm text-muted-foreground">
-                  {(employee as any).created_at ? format(new Date((employee as any).created_at), "MMM d, yyyy") : "—"}
+                <div className="col-span-2 text-right text-sm text-muted-foreground flex flex-col items-end gap-1">
+                  <span>{(employee as any).created_at ? format(new Date((employee as any).created_at), "MMM d, yyyy") : "—"}</span>
+                  <SendLoginEmailButton email={employee.email} />
                 </div>
               </div>
             ))

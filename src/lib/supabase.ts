@@ -11,6 +11,16 @@ const SUPABASE_PUBLISHABLE_KEY =
 
 export const isSupabaseConfigured = true;
 
+// Read the email-link type BEFORE the client consumes and clears the URL hash.
+// "invite" = first-time setup link, "recovery" = forgot-password link.
+function readLinkType(): 'invite' | 'recovery' | null {
+  if (typeof window === 'undefined') return null;
+  const params = new URLSearchParams(window.location.hash.replace(/^#/, '') || window.location.search);
+  const t = params.get('type');
+  return t === 'invite' || t === 'recovery' ? t : null;
+}
+export const initialLinkType = readLinkType();
+
 export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
     persistSession: true,
@@ -18,3 +28,7 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
     detectSessionInUrl: true,
   },
 });
+
+// Supabase puts error_code in the URL when an email link is expired or already used.
+export const initialLinkError =
+  typeof window !== 'undefined' && /error_code=/.test(window.location.hash + window.location.search);
