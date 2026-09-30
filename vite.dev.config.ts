@@ -15,6 +15,9 @@ export default defineConfig(async (env) => {
   return mergeConfig(base, {
     plugins: [jsxLocPlugin()],
     server: {
+      watch: {
+        ignored: ['**/.pnpm-store/**', '**/.cache/**'],
+      },
       hmr: {
         overlay: false,
         ...(hmrHost ? { host: hmrHost } : {}),

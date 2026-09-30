@@ -13,3 +13,9 @@ dist/
 .vibe-bundle-*.tar.gz
 .vibe-write-*
 *.tsbuildinfo
+
+# local secrets
+.env
+.env.*
+!.env.example
+.vercel

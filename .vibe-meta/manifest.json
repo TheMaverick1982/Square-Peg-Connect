@@ -1,5 +1,14 @@
 {
   "template": "react",
   "runtime": "static",
-  "schemaVersion": 9
+  "schemaVersion": 9,
+  "connectorIds": [
+    "forms",
+    "sso",
+    "supabase"
+  ],
+  "description": "Square Peg Connect will be the main hub for catering, B2B Relationships, and Automated Sales followup",
+  "formatVersion": 1,
+  "name": "Square Peg Connect",
+  "sourcePartnerId": "RZG9"
 }
