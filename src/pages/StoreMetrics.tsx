@@ -56,6 +56,7 @@ export default function StoreMetrics() {
   const [managerDraft, setManagerDraft] = useState<Record<string, string>>({});
   const [recipientsDraft, setRecipientsDraft] = useState("");
   const [chartLoc, setChartLoc] = useState<string>("all");
+  const [testDraft, setTestDraft] = useState("");
   const [metric, setMetric] = useState<MetricKey>("penetration");
 
   // ---------- data ----------
@@ -154,12 +155,12 @@ export default function StoreMetrics() {
   });
 
   const sendReport = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (testTo?: string[]) => {
       const { data } = await supabase.auth.getSession();
       const res = await fetch("/api/store-metrics-report", {
         method: "POST",
         headers: { "content-type": "application/json", authorization: `Bearer ${data.session?.access_token ?? ""}` },
-        body: JSON.stringify({ week_ending: week }),
+        body: JSON.stringify(testTo ? { week_ending: week, test_to: testTo } : { week_ending: week }),
       });
       const out = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(out.error || `Request failed (${res.status})`);
@@ -201,6 +202,22 @@ export default function StoreMetrics() {
     onError: (e) => toast({ title: "Couldn't save", description: (e as Error).message, variant: "destructive" }),
   });
 
+  const onSendTest = async () => {
+    const list = Array.from(new Set((testDraft || profile?.email || "").split(/[\s,;]+/).map((e) => e.trim().toLowerCase()).filter(Boolean)));
+    const bad = list.filter((e) => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e));
+    if (!list.length || bad.length) {
+      toast({ title: "Check the test email", description: bad.length ? `Not a valid email: ${bad.join(", ")}` : "Enter at least one email.", variant: "destructive" });
+      return;
+    }
+    try {
+      await saveWeek.mutateAsync();
+      const out = await sendReport.mutateAsync(list);
+      toast({ title: "Test sent", description: `Sent only to ${list.join(", ")} (${out.stores} stores). Stores were not emailed.` });
+    } catch (e) {
+      toast({ title: "Couldn't send test", description: (e as Error).message, variant: "destructive" });
+    }
+  };
+
   const onSave = async (alsoSend: boolean) => {
     try {
       const count = await saveWeek.mutateAsync();
@@ -208,7 +225,7 @@ export default function StoreMetrics() {
         toast({ title: "Saved", description: `Numbers saved for ${count} store${count === 1 ? "" : "s"}.` });
         return;
       }
-      const out = await sendReport.mutateAsync();
+      const out = await sendReport.mutateAsync(undefined);
       toast({ title: "Report sent", description: `Emailed to ${out.sent_to} recipient${out.sent_to === 1 ? "" : "s"} (${out.stores} stores).` });
     } catch (e) {
       toast({ title: alsoSend ? "Couldn't send report" : "Couldn't save", description: (e as Error).message, variant: "destructive" });
@@ -488,6 +505,22 @@ export default function StoreMetrics() {
                 {saveRecipients.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
                 Save recipients
               </Button>
+            </div>
+
+            <div className="border-t pt-4 mt-2 space-y-2">
+              <div className="text-sm font-medium flex items-center gap-2"><Send className="w-4 h-4" /> Send a test</div>
+              <p className="text-xs text-muted-foreground">
+                Saves this week's numbers and emails the score card <span className="font-medium">only</span> to the addresses below (marked [TEST]). Stores and extra recipients are not emailed.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Input value={testDraft} onChange={(e) => setTestDraft(e.target.value)}
+                  placeholder={profile?.email || "you@example.com"} aria-label="Test recipients" className="font-mono text-sm" />
+                <Button variant="secondary" disabled={busy} onClick={onSendTest} className="shrink-0">
+                  {sendReport.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Send className="w-4 h-4 mr-2" />}
+                  Send test
+                </Button>
+              </div>
+              <p className="text-[11px] text-muted-foreground">Leave blank to send to yourself. Separate several emails with commas.</p>
             </div>
           </CardContent>
         </Card>

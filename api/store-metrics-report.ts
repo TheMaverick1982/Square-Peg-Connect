@@ -190,7 +190,7 @@ export async function POST(request: Request): Promise<Response> {
     return json(403, { error: 'Only admins can send this report.' });
   }
 
-  let body: { week_ending?: string };
+  let body: { week_ending?: string; test_to?: string[] };
   try { body = await request.json(); } catch { return json(400, { error: 'Bad request.' }); }
   const week = String(body.week_ending || '');
   if (!/^\d{4}-\d{2}-\d{2}$/.test(week)) return json(400, { error: 'Pick a week first.' });
@@ -206,7 +206,11 @@ export async function POST(request: Request): Promise<Response> {
   // Every store's email gets the report automatically, plus the extra people listed on the page.
   const storeEmails = locations.map((l) => l.email || '').filter((e) => /@/.test(e));
   const extra = ((settings?.recipients as string[] | undefined) || []).map((e) => e.trim()).filter((e) => /@/.test(e));
-  const recipients = Array.from(new Set([...storeEmails, ...extra].map((e) => e.toLowerCase())));
+  // Test send: only to the emails typed in "Send a test" (max 10), never to the stores.
+  const isTest = Array.isArray(body.test_to);
+  const testTo = isTest ? (body.test_to || []).map((e) => String(e).trim().toLowerCase()).filter((e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)).slice(0, 10) : [];
+  if (isTest && !testTo.length) return json(400, { error: 'Enter at least one valid email for the test.' });
+  const recipients = isTest ? Array.from(new Set(testTo)) : Array.from(new Set([...storeEmails, ...extra].map((e) => e.toLowerCase())));
   if (!recipients.length) return json(400, { error: 'No recipients to send to.' });
 
   // Manager name: 1) typed in Store Metrics → Store setup, 2) Location Managers assigned to the store
@@ -240,7 +244,10 @@ export async function POST(request: Request): Promise<Response> {
   if (!storesReported) return json(400, { error: 'No numbers are saved for that week yet.' });
 
   const allPen = allLoyalty + allNon > 0 ? (allLoyalty / (allLoyalty + allNon)) * 100 : null;
-  const html = `<div style="font-family:Arial,Helvetica,sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#111827">
+  const testBanner = isTest
+    ? `<div style="background:#fef3c7;color:#92400e;border-radius:6px;padding:8px 12px;margin:0 0 16px;font-size:13px;font-weight:bold">TEST SEND: only sent to ${esc(recipients.join(', '))}. Stores did not receive this.</div>`
+    : '';
+  const html = `<div style="font-family:Arial,Helvetica,sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#111827">${testBanner}
     <h1 style="margin:0 0 6px;font-size:30px;line-height:1.15;color:#111827">Weekly Loyalty Score Card</h1>
     <div style="color:#6b7280;margin:0 0 18px;font-size:15px">Previous 7 days · week ending ${prettyDate(week)}</div>
     <div style="background:#f3f4f6;border-radius:8px;padding:12px 16px;margin:0 0 20px;font-size:14px">
@@ -257,7 +264,7 @@ export async function POST(request: Request): Promise<Response> {
     body: JSON.stringify({
       from: REPORT_FROM,
       to: recipients,
-      subject: `Weekly Loyalty Score Card — ${prettyDate(week)}`,
+      subject: `${isTest ? '[TEST] ' : ''}Weekly Loyalty Score Card — ${prettyDate(week)}`,
       html,
     }),
   });
