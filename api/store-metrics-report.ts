@@ -154,17 +154,17 @@ function storeSection(name: string, manager: string, cur: ComputedWeek | undefin
 // Quick side-by-side of every store for the week (stores without numbers show dashes).
 function compareTable(stores: { loc: { name: string }; cur?: ComputedWeek; prev?: ComputedWeek }[]) {
   const th = (t: string, align = 'right') =>
-    `<th style="padding:6px 4px;text-align:${align};font-size:11px;color:#6b7280;font-weight:bold;text-transform:uppercase;border-bottom:2px solid #e5e7eb">${t}</th>`;
+    `<th style="padding:6px 3px;text-align:${align};font-size:10px;color:#6b7280;font-weight:bold;text-transform:uppercase;border-bottom:2px solid #e5e7eb">${t}</th>`;
   const td = (v: string, align = 'right', bold = false) =>
-    `<td style="padding:6px 4px;text-align:${align};font-size:13px;white-space:nowrap;border-bottom:1px solid #f3f4f6;${bold ? 'font-weight:bold;' : ''}color:${v === '—' ? '#9ca3af' : '#111827'}">${v}</td>`;
+    `<td style="padding:6px 3px;text-align:${align};font-size:12px;white-space:${align === 'left' ? 'normal' : 'nowrap'};border-bottom:1px solid #f3f4f6;${bold ? 'font-weight:bold;' : ''}color:${v === '—' ? '#9ca3af' : '#111827'}">${v}</td>`;
   const arrow = (cur: number | null, prev: number | null | undefined) =>
-    cur === null || prev === null || prev === undefined || Math.abs(cur - prev) < 0.05 ? '' : cur > prev ? ' <span style="color:#6b7280">▲</span>' : ' <span style="color:#6b7280">▼</span>';
+    cur === null || prev === null || prev === undefined || Math.abs(cur - prev) < 0.05 ? '' : cur > prev ? '&nbsp;<span style="color:#6b7280;font-size:10px">▲</span>' : '&nbsp;<span style="color:#6b7280;font-size:10px">▼</span>';
   const rowsHtml = stores.map(({ loc, cur, prev }) => cur
     ? `<tr>${td(esc(loc.name), 'left', true)}${td(fmtInt(cur.total_visits))}${td(penHtml(cur.penetration) + arrow(cur.penetration, prev?.penetration))}${td(fmtInt(cur.new_loyalty_members))}${td(fmtInt(cur.total_loyalty_members))}${td(fmtPct(cur.aov_premium) + arrow(cur.aov_premium, prev?.aov_premium))}</tr>`
     : `<tr>${td(esc(loc.name), 'left', true)}${td('—')}${td('—')}${td('—')}${td('—')}${td('—')}</tr>`
   ).join('');
   return `<table role="presentation" cellspacing="0" cellpadding="0" style="width:100%;border-collapse:collapse;margin:0 0 24px">
-    <tr>${th('Store', 'left')}${th('Total visits')}${th('Penetration')}${th('New members')}${th('Total members')}${th('AOV premium')}</tr>
+    <tr>${th('Store', 'left')}${th('Total visits')}${th('Penetration')}${th('New')}${th('Total members')}${th('AOV premium')}</tr>
     ${rowsHtml}
   </table>
   <div style="font-size:11px;color:#6b7280;margin:-16px 0 24px">Penetration = loyalty visits ÷ total visits. <span style="color:#dc2626;font-weight:bold">Under 25%</span> · <span style="color:#ea580c;font-weight:bold">25–49.9%</span> · <span style="color:#16a34a;font-weight:bold">50%+</span></div>`;
