@@ -17,7 +17,8 @@ import {
   Store,
   Lock,
   CalendarRange,
-  Camera
+  Camera,
+  Gauge
 } from "lucide-react";
 import { useEmployee } from "@/lib/EmployeeContext";
 import { useToast } from "@/hooks/use-toast";
@@ -129,6 +130,12 @@ export function SidebarContent() {
           <BarChart3 className="w-4 h-4" />
           Reports
         </NavLink>
+        {isAdmin && (
+          <NavLink to="/store-metrics" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
+            <Gauge className="w-4 h-4" />
+            Store Metrics
+          </NavLink>
+        )}
         <NavLink to="/settings" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
           <Settings className="w-4 h-4" />
           Settings

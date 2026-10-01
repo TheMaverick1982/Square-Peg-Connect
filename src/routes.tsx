@@ -23,6 +23,7 @@ import PublicLargeReservationForm from "./pages/PublicLargeReservationForm";
 import PublicPhotoUpload from "./pages/PublicPhotoUpload";
 import PublicMarketingRequestForm from "./pages/PublicMarketingRequestForm";
 import StaffPhotos from "./pages/StaffPhotos";
+import StoreMetrics from "./pages/StoreMetrics";
 import { Navigate } from "react-router-dom";
 
 export const routes = [
@@ -72,6 +73,7 @@ export const routes = [
       { path: "ai-personalize", element: <AIPersonalize /> },
       { path: "reminders", element: <Reminders /> },
       { path: "reports", element: <Reports /> },
+      { path: "store-metrics", element: <StoreMetrics /> },
       { path: "settings", element: <Settings /> },
     ]
   }
