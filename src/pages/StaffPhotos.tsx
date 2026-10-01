@@ -8,7 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { format } from "date-fns";
-import { Camera, MapPin, Download, Expand, X, Loader2, Calendar, Trash2 } from "lucide-react";
+import { Camera, MapPin, Download, Expand, X, Loader2, Calendar, Trash2, Check } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogClose } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -66,15 +66,13 @@ export default function StaffPhotos() {
     }))
   );
 
-  const toggleSelection = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    const newSelected = new Set(selectedIds);
-    if (newSelected.has(id)) {
-      newSelected.delete(id);
-    } else {
-      newSelected.add(id);
-    }
-    setSelectedIds(newSelected);
+  const toggleSelection = (id: string, e?: React.SyntheticEvent) => {
+    e?.stopPropagation();
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
   };
 
   const toggleSelectAll = () => {
@@ -286,6 +284,12 @@ export default function StaffPhotos() {
             <Label htmlFor="select-all" className="text-sm font-medium cursor-pointer">
               Select All {allPhotos.length} Photos
             </Label>
+            <span className="text-xs text-muted-foreground ml-2 hidden sm:inline">
+              {selectedIds.size > 0 ? `${selectedIds.size} selected · click photos to add or remove` : "Tip: tick the box on a photo to start picking"}
+            </span>
+            {selectedIds.size > 0 && (
+              <Button variant="ghost" size="sm" className="h-7 text-xs ml-auto" onClick={() => setSelectedIds(new Set())}>Clear selection</Button>
+            )}
           </div>
           
           <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 gap-4 space-y-4 pb-12">
@@ -294,9 +298,10 @@ export default function StaffPhotos() {
               
               return (
                 <Card 
-                  key={i} 
-                  className={`break-inside-avoid overflow-hidden group cursor-pointer transition-all ${isSelected ? 'ring-2 ring-primary' : 'hover:ring-2 ring-primary/50'}`}
-                  onClick={() => setSelectedPhoto(photo)}
+                  key={photo.id ?? i} 
+                  className={`break-inside-avoid overflow-hidden group cursor-pointer transition-all ${isSelected ? 'ring-4 ring-primary' : 'hover:ring-2 ring-primary/50'}`}
+                  // While picking photos, clicking anywhere on a photo selects it; otherwise it opens full screen.
+                  onClick={() => (selectedIds.size > 0 ? toggleSelection(photo.id) : setSelectedPhoto(photo))}
                 >
                   <div className="relative">
                     <img 
@@ -306,22 +311,36 @@ export default function StaffPhotos() {
                       loading="lazy"
                     />
                     
-                    {/* Checkbox overlay */}
-                    <div 
-                      className={`absolute top-2 left-2 z-10 p-1.5 rounded-md transition-opacity ${isSelected ? 'opacity-100 bg-background/80' : 'opacity-0 group-hover:opacity-100 bg-background/50 hover:bg-background/80'}`}
+                    {/* Select button: always visible, big hit area (works on phones/iPads too). */}
+                    <button
+                      type="button"
+                      aria-label={isSelected ? "Deselect photo" : "Select photo"}
+                      aria-pressed={isSelected}
+                      className={`absolute top-0 left-0 z-10 p-2.5 ${isSelected ? '' : 'opacity-90 hover:opacity-100'}`}
                       onClick={(e) => toggleSelection(photo.id, e)}
                     >
-                      <Checkbox 
-                        checked={isSelected} 
-                        // Prevent the click from bubbling to the Card (which opens full screen)
-                        onClick={(e) => e.stopPropagation()}
-                        // The actual toggle is handled by the wrapper div's onClick
-                      />
-                    </div>
+                      <span className={`flex items-center justify-center w-7 h-7 rounded-md border-2 shadow-sm transition-colors ${isSelected ? 'bg-primary border-primary text-primary-foreground' : 'bg-background/90 border-white'}`}>
+                        {isSelected && <Check className="w-4 h-4" strokeWidth={3} />}
+                      </span>
+                    </button>
 
-                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
-                      <Expand className="w-8 h-8 text-white" />
-                    </div>
+                    {selectedIds.size === 0 ? (
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                        <Expand className="w-8 h-8 text-white" />
+                      </div>
+                    ) : (
+                      <>
+                        {isSelected && <div className="absolute inset-0 bg-primary/15 pointer-events-none" />}
+                        <button
+                          type="button"
+                          title="View full screen"
+                          className="absolute bottom-2 right-2 z-10 h-8 w-8 rounded-full bg-background/90 shadow-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={(e) => { e.stopPropagation(); setSelectedPhoto(photo); }}
+                        >
+                          <Expand className="w-4 h-4" />
+                        </button>
+                      </>
+                    )}
                     
                     <Button 
                       size="icon" 
