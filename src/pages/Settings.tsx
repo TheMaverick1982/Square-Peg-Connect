@@ -5,12 +5,13 @@ import { locations } from "@/lib/data";
 import { type EmployeeProfile, useEmployee } from "@/lib/EmployeeContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { LocationPicker } from "@/components/LocationPicker";
 import { inviteTeamMember, removeTeamMember } from "@/lib/teamApi";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
-import { Shield, ShieldAlert, Store, UserCog, Settings as SettingsIcon, UploadCloud, FileArchive, Trash2, Link as LinkIcon, Loader2, UserPlus, Mail } from "lucide-react";
+import { Shield, ShieldAlert, Store, UserCog, Settings as SettingsIcon, UploadCloud, FileArchive, Trash2, Link as LinkIcon, Loader2, UserPlus, Mail, Pencil } from "lucide-react";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuCheckboxItem } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
@@ -234,6 +235,75 @@ function AddTeamMember() {
   );
 }
 
+function EditMemberButton({ employee }: { employee: EmployeeProfile }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState(employee.name || "");
+  const [email, setEmail] = useState(/@/.test(employee.email || "") ? employee.email : "");
+  const [busy, setBusy] = useState(false);
+
+  const save = async () => {
+    const cleanEmail = email.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+      toast({ title: "Check the email", description: "Enter a valid email address.", variant: "destructive" });
+      return;
+    }
+    setBusy(true);
+    try {
+      if (cleanEmail !== (employee.email || "").toLowerCase()) {
+        const { data: dupe } = await supabase.from('employee_profiles').select('id').ilike('email', cleanEmail).neq('id', employee.id).maybeSingle();
+        if (dupe) throw new Error("Another team member already uses that email.");
+      }
+      const { error } = await supabase.from('employee_profiles')
+        .update({ name: name.trim() || cleanEmail, email: cleanEmail })
+        .eq('id', employee.id);
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ['employee_profiles'] });
+      const emailChanged = cleanEmail !== (employee.email || "").toLowerCase();
+      toast({
+        title: "Saved",
+        description: emailChanged ? `Use "Send login email" so they can sign in with ${cleanEmail}.` : "Team member updated.",
+      });
+      setOpen(false);
+    } catch (err) {
+      toast({ title: "Couldn't save", description: (err as Error).message, variant: "destructive" });
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <>
+      <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs"
+        onClick={() => { setName(employee.name || ""); setEmail(/@/.test(employee.email || "") ? employee.email : ""); setOpen(true); }}>
+        <Pencil className="w-3.5 h-3.5 mr-1" /> Edit
+      </Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit team member</DialogTitle>
+            <DialogDescription>Role and locations can be changed directly in the team list.</DialogDescription>
+          </DialogHeader>
+          <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); save(); }}>
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Name</label>
+              <Input value={name} onChange={(e) => setName(e.target.value)} className="mt-1" autoFocus />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Email (their login)</label>
+              <Input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="mt-1" placeholder="name@squarepegpizzeria.com" />
+              <p className="text-xs text-muted-foreground mt-1">If you change this, they sign in with the new email. Send them a login email afterward.</p>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+              <Button type="submit" disabled={busy}>{busy ? "Saving…" : "Save"}</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
 function RemoveMemberButton({ id, email, name }: { id: string; email: string; name: string }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -400,8 +470,9 @@ function TeamManagementTab() {
 
                 <div className="col-span-2 text-right text-sm text-muted-foreground flex flex-col items-end gap-1">
                   <span>{(employee as any).created_at ? format(new Date((employee as any).created_at), "MMM d, yyyy") : "—"}</span>
-                  <div className="flex gap-1">
+                  <div className="flex flex-wrap justify-end gap-1">
                     {/@/.test(employee.email || '') && <SendLoginEmailButton email={employee.email} />}
+                    <EditMemberButton employee={employee} />
                     <RemoveMemberButton id={employee.id} email={employee.email} name={employee.name} />
                   </div>
                 </div>
