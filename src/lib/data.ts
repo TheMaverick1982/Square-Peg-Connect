@@ -8,15 +8,15 @@ export interface Location {
 }
 
 export const locations: Location[] = [
-  { id: "loc-1", name: "Storrs", vendestaId: "ven-storrs-001", address: "9 Dog Lane, Storrs, CT 06268", phone: "(860) 548-6086", email: "storrs@squarepegpizzeria.com" },
-  { id: "loc-2", name: "Vernon", vendestaId: "ven-vernon-002", address: "226 Talcottville Road, Vernon, CT 06066", phone: "(860) 858-6927", email: "vernon@squarepegpizzeria.com" },
-  { id: "loc-3", name: "Shelton", vendestaId: "ven-shelton-003", address: "901 Bridgeport Avenue, Shelton, CT 06484", phone: "(203) 538-5182", email: "shelton@squarepegpizzeria.com" },
-  { id: "loc-4", name: "Preston", vendestaId: "ven-preston-004", address: "164 Route 2, Preston, CT 06365", phone: "(860) 800-4740", email: "preston@squarepegpizzeria.com" },
-  { id: "loc-5", name: "Glastonbury", vendestaId: "ven-glastonbury-005", address: "Hebron Avenue, Glastonbury, CT 06033", phone: "(860) 659-1717", email: "glastonbury@squarepegpizzeria.com" },
-  { id: "loc-6", name: "East Hartford", vendestaId: "ven-easthartford-006", address: "111 Brewer Street, East Hartford, CT 06118", phone: "(860) 568-1811", email: "ehartford@squarepegpizzeria.com" },
-  { id: "loc-7", name: "Plainville", vendestaId: "ven-plainville-007", address: "17 Farmington Ave, Plainville, CT 06062", phone: "(860) 793-1811", email: "plainville@squarepegpizzeria.com" },
-  { id: "loc-8", name: "Delray Beach", vendestaId: "ven-delray-008", address: "814 E Atlantic Ave, Delray Beach, FL 33483", phone: "(561) 908-2511", email: "delraybeach@squarepegpizzeria.com" },
-  { id: "loc-9", name: "Berlin", vendestaId: "ven-berlin-009", address: "555 Farmington Ave, Berlin, CT 06037", phone: "(860) 828-5555", email: "berlin@squarepegpizzeria.com" },
+  { id: "loc-1", name: "Storrs", vendestaId: "ven-storrs-001", address: "9 Dog Ln, Storrs, CT 06268", phone: "(860) 454-6038", email: "storrs@squarepegpizzeria.com" },
+  { id: "loc-2", name: "Vernon", vendestaId: "ven-vernon-002", address: "226 Talcottville Rd, Vernon, CT 06066", phone: "(860) 926-0088", email: "vernon@squarepegpizzeria.com" },
+  { id: "loc-3", name: "Shelton", vendestaId: "ven-shelton-003", address: "320 Howe Ave, Unit 6, Shelton, CT 06484", phone: "(203) 538-5044", email: "shelton@squarepegpizzeria.com" },
+  { id: "loc-4", name: "Preston", vendestaId: "ven-preston-004", address: "353 CT-165, Preston, CT 06365", phone: "(860) 319-0930", email: "preston@squarepegpizzeria.com" },
+  { id: "loc-5", name: "Glastonbury", vendestaId: "ven-glastonbury-005", address: "1001 Hebron Ave, Glastonbury, CT 06033", phone: "(860) 286-0415", email: "glastonbury@squarepegpizzeria.com" },
+  { id: "loc-6", name: "East Hartford", vendestaId: "ven-easthartford-006", address: "130 Long Hill St, East Hartford, CT 06108", phone: "(860) 509-4221", email: "ehartford@squarepegpizzeria.com" },
+  { id: "loc-7", name: "Plainville", vendestaId: "ven-plainville-007", address: "400 New Britain Ave, Plainville, CT 06062", phone: "(860) 996-0363", email: "plainville@squarepegpizzeria.com" },
+  { id: "loc-8", name: "Delray Beach", vendestaId: "ven-delray-008", address: "4957 W Atlantic Ave, Delray Beach, FL 33445", phone: "(561) 566-8828", email: "delraybeach@squarepegpizzeria.com" },
+  { id: "loc-9", name: "Berlin", vendestaId: "ven-berlin-009", address: "151 Webster Square Rd, Berlin, CT 06037", phone: "(860) 505-4072", email: "berlin@squarepegpizzeria.com" },
   { id: "loc-10", name: "Bolton", vendestaId: "ven-bolton-010", address: "270 West St, Bolton, CT 06043", phone: "(860) 791-7109", email: "bolton@squarepegpizzeria.com" },
 ];
 

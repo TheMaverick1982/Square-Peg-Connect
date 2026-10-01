@@ -55,3 +55,16 @@ commit;
 
 -- Added later: manager name shown on the weekly report (Store Metrics → Store setup)
 alter table public.store_metrics_baseline add column if not exists manager_name text;
+
+-- Manager names for the weekly report (from Brian's store list). Keeps starting member counts as they are.
+insert into public.store_metrics_baseline (location_id, manager_name) values
+  ('loc-7',  'Kirsten'),
+  ('loc-5',  'Joe Bennett'),
+  ('loc-2',  'Joe Bennett'),
+  ('loc-3',  'Christine Trombetta'),
+  ('loc-4',  'Andrew'),
+  ('loc-1',  'Matt'),
+  ('loc-6',  'Kimbo'),
+  ('loc-8',  'Anatoliy Dzhanumyan'),
+  ('loc-9',  'Jonathan')
+on conflict (location_id) do update set manager_name = excluded.manager_name, updated_at = now();

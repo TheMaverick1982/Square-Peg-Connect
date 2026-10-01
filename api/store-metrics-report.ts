@@ -200,8 +200,11 @@ export async function POST(request: Request): Promise<Response> {
   ]);
   if (rowsErr) return json(500, { error: rowsErr.message });
 
-  const recipients = ((settings?.recipients as string[] | undefined) || []).map((e) => e.trim()).filter((e) => /@/.test(e));
-  if (!recipients.length) return json(400, { error: 'Add at least one report recipient first.' });
+  // Every store's email gets the report automatically, plus the extra people listed on the page.
+  const storeEmails = locations.map((l) => l.email || '').filter((e) => /@/.test(e));
+  const extra = ((settings?.recipients as string[] | undefined) || []).map((e) => e.trim()).filter((e) => /@/.test(e));
+  const recipients = Array.from(new Set([...storeEmails, ...extra].map((e) => e.toLowerCase())));
+  if (!recipients.length) return json(400, { error: 'No recipients to send to.' });
 
   // Manager name: 1) typed in Store Metrics → Store setup, 2) Location Managers assigned to the store
   // in Settings → Team, 3) the team member whose email is the store's email.

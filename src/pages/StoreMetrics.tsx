@@ -196,7 +196,7 @@ export default function StoreMetrics() {
     },
     onSuccess: (count) => {
       queryClient.invalidateQueries({ queryKey: ["store_metrics_settings"] });
-      toast({ title: "Recipients saved", description: `${count} email${count === 1 ? "" : "s"} will get the report.` });
+      toast({ title: "Recipients saved", description: `${count} extra email${count === 1 ? "" : "s"} + all store emails will get the report.` });
     },
     onError: (e) => toast({ title: "Couldn't save", description: (e as Error).message, variant: "destructive" }),
   });
@@ -356,9 +356,9 @@ export default function StoreMetrics() {
               Save &amp; send report
             </Button>
           </div>
-          {!(settings?.recipients?.length) && (
-            <p className="text-xs text-amber-700 dark:text-amber-400 text-right mt-2">Add report recipients below before sending.</p>
-          )}
+          <p className="text-xs text-muted-foreground text-right mt-2">
+            Sends to all {locations.filter((l) => l.email).length} store emails{settings?.recipients?.length ? ` + ${settings.recipients.length} extra recipient${settings.recipients.length === 1 ? "" : "s"}` : ""}.
+          </p>
         </CardContent>
       </Card>
 
@@ -474,8 +474,11 @@ export default function StoreMetrics() {
         {/* ---------- recipients ---------- */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2"><Mail className="w-4 h-4" /> Report recipients</CardTitle>
-            <CardDescription>One email per line (or separated by commas). Everyone here gets the full all-stores report.</CardDescription>
+            <CardTitle className="text-base flex items-center gap-2"><Mail className="w-4 h-4" /> Extra report recipients</CardTitle>
+            <CardDescription>
+              Every store email gets the report automatically ({locations.map((l) => l.email?.split("@")[0]).filter(Boolean).join(", ")}).
+              Add key management people here, one email per line.
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             <Textarea rows={6} value={recipientsDraft} onChange={(e) => setRecipientsDraft(e.target.value)}
