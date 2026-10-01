@@ -28,11 +28,12 @@ const lastSunday = () => {
   const today = new Date();
   return format(isSunday(today) ? today : previousSunday(today), "yyyy-MM-dd");
 };
-type MetricKey = "penetration" | "total_loyalty_members" | "new_loyalty_members" | "loyalty_visits" | "non_loyalty_visits" | "loyalty_aov" | "non_loyalty_aov" | "aov_premium";
+type MetricKey = "penetration" | "total_visits" | "total_loyalty_members" | "new_loyalty_members" | "loyalty_visits" | "non_loyalty_visits" | "loyalty_aov" | "non_loyalty_aov" | "aov_premium";
 const METRICS: { key: MetricKey; label: string; fmt: (v: number | null) => string }[] = [
   { key: "penetration", label: "Loyalty penetration", fmt: fmtPct },
   { key: "total_loyalty_members", label: "Total loyalty members", fmt: fmtInt },
   { key: "new_loyalty_members", label: "New loyalty members", fmt: fmtInt },
+  { key: "total_visits", label: "Total visits", fmt: fmtInt },
   { key: "loyalty_visits", label: "Loyalty visits", fmt: fmtInt },
   { key: "non_loyalty_visits", label: "Non-loyalty visits", fmt: fmtInt },
   { key: "loyalty_aov", label: "Loyalty AOV", fmt: fmtMoney },
@@ -326,7 +327,7 @@ export default function StoreMetrics() {
                       <td className="py-2 pr-2 font-medium whitespace-nowrap">{loc.name}</td>
                       <td className="py-2 px-1 w-[110px]">{inp("loyalty_visits", "1")}</td>
                       <td className="py-2 px-1 w-[110px]">{inp("non_loyalty_visits", "1")}</td>
-                      <td className="py-2 px-2 text-right tabular-nums bg-muted/50 font-semibold">{fmtPct(pen)}</td>
+                      <td className={`py-2 px-2 text-right tabular-nums bg-muted/50 font-semibold ${pen === null ? "" : pen < 25 ? "text-red-600" : pen < 50 ? "text-orange-600" : "text-green-600"}`}>{fmtPct(pen)}</td>
                       <td className="py-2 px-1 w-[110px]">{inp("new_loyalty_members", "1")}</td>
                       <td className="py-2 px-2 text-right tabular-nums bg-muted/50 font-semibold">{fmtInt(total)}</td>
                       <td className="py-2 px-1 w-[120px]">{inp("loyalty_aov", "0.01")}</td>
