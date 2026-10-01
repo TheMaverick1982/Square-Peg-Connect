@@ -109,7 +109,10 @@ function penColor(v: number | null) {
   if (v < 50) return '#ea580c';
   return '#16a34a';
 }
-const penHtml = (v: number | null) => `<span style="color:${penColor(v)};font-weight:bold">${fmtPct(v)}</span>`;
+// Under 25% gets a solid red badge with white text so problem stores jump out.
+const penHtml = (v: number | null) => (v !== null && isFinite(v) && v < 25)
+  ? `<span style="background:#dc2626;color:#ffffff;font-weight:bold;border-radius:6px;padding:2px 7px;display:inline-block;line-height:1.3">${fmtPct(v)}</span>`
+  : `<span style="color:${penColor(v)};font-weight:bold">${fmtPct(v)}</span>`;
 
 function delta(cur: number | null, prev: number | null | undefined, kind: 'pts' | 'int' | 'money') {
   if (cur === null || prev === null || prev === undefined) return '';
@@ -160,14 +163,14 @@ function compareTable(stores: { loc: { name: string }; cur?: ComputedWeek; prev?
   const arrow = (cur: number | null, prev: number | null | undefined) =>
     cur === null || prev === null || prev === undefined || Math.abs(cur - prev) < 0.05 ? '' : cur > prev ? '&nbsp;<span style="color:#6b7280;font-size:10px">▲</span>' : '&nbsp;<span style="color:#6b7280;font-size:10px">▼</span>';
   const rowsHtml = stores.map(({ loc, cur, prev }) => cur
-    ? `<tr>${td(esc(loc.name), 'left', true)}${td(fmtInt(cur.total_visits))}${td(penHtml(cur.penetration) + arrow(cur.penetration, prev?.penetration))}${td(fmtInt(cur.new_loyalty_members))}${td(fmtInt(cur.total_loyalty_members))}${td(fmtPct(cur.aov_premium) + arrow(cur.aov_premium, prev?.aov_premium))}</tr>`
+    ? `<tr>${td(esc(loc.name), 'left', true)}${td(fmtInt(cur.loyalty_visits))}${td(fmtInt(cur.total_visits))}${td(penHtml(cur.penetration) + arrow(cur.penetration, prev?.penetration))}${td(fmtInt(cur.new_loyalty_members))}${td(fmtInt(cur.total_loyalty_members))}</tr>`
     : `<tr>${td(esc(loc.name), 'left', true)}${td('—')}${td('—')}${td('—')}${td('—')}${td('—')}</tr>`
   ).join('');
   return `<table role="presentation" cellspacing="0" cellpadding="0" style="width:100%;border-collapse:collapse;margin:0 0 24px">
-    <tr>${th('Store', 'left')}${th('Total visits')}${th('Penetration')}${th('New')}${th('Total members')}${th('AOV premium')}</tr>
+    <tr>${th('Store', 'left')}${th('# Loyalty visits')}${th('# Total visits')}${th('Penetration')}${th('New signups')}${th('Total loyalty members')}</tr>
     ${rowsHtml}
   </table>
-  <div style="font-size:11px;color:#6b7280;margin:-16px 0 24px">Penetration = loyalty visits ÷ total visits. <span style="color:#991b1b;font-weight:bold">Under 25%</span> · <span style="color:#ea580c;font-weight:bold">25–49.9%</span> · <span style="color:#16a34a;font-weight:bold">50%+</span></div>`;
+  <div style="font-size:11px;color:#6b7280;margin:-16px 0 24px">Penetration = loyalty visits ÷ total visits. <span style="background:#dc2626;color:#ffffff;font-weight:bold;border-radius:4px;padding:1px 5px">Under 25%</span> · <span style="color:#ea580c;font-weight:bold">25–49.9%</span> · <span style="color:#16a34a;font-weight:bold">50%+</span></div>`;
 }
 
 export async function POST(request: Request): Promise<Response> {
@@ -238,8 +241,8 @@ export async function POST(request: Request): Promise<Response> {
 
   const allPen = allLoyalty + allNon > 0 ? (allLoyalty / (allLoyalty + allNon)) * 100 : null;
   const html = `<div style="font-family:Arial,Helvetica,sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#111827">
-    <h2 style="margin:0 0 4px">Previous 7 Days Report</h2>
-    <div style="color:#6b7280;margin:0 0 16px">Week ending ${prettyDate(week)}</div>
+    <h1 style="margin:0 0 6px;font-size:30px;line-height:1.15;color:#111827">Weekly Loyalty Score Card</h1>
+    <div style="color:#6b7280;margin:0 0 18px;font-size:15px">Previous 7 days · week ending ${prettyDate(week)}</div>
     <div style="background:#f3f4f6;border-radius:8px;padding:12px 16px;margin:0 0 20px;font-size:14px">
       <b>All stores:</b> ${penHtml(allPen)} loyalty penetration · ${fmtInt(allLoyalty + allNon)} total visits · ${fmtInt(allNew)} new loyalty members · ${storesReported} of ${locations.length} stores reported
     </div>
@@ -254,7 +257,7 @@ export async function POST(request: Request): Promise<Response> {
     body: JSON.stringify({
       from: REPORT_FROM,
       to: recipients,
-      subject: `Store Metrics — week ending ${prettyDate(week)}`,
+      subject: `Weekly Loyalty Score Card — ${prettyDate(week)}`,
       html,
     }),
   });
