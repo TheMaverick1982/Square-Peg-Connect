@@ -14,6 +14,7 @@ const locations: { id: string; name: string; email?: string }[] = [
   { id: "loc-7", name: "Plainville", email: "plainville@squarepegpizzeria.com" },
   { id: "loc-8", name: "Delray Beach", email: "delraybeach@squarepegpizzeria.com" },
   { id: "loc-9", name: "Berlin", email: "berlin@squarepegpizzeria.com" },
+  { id: "loc-10", name: "Bolton", email: "bolton@squarepegpizzeria.com" },
 ];
 
 

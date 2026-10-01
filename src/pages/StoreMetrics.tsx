@@ -28,6 +28,9 @@ const lastSunday = () => {
   const today = new Date();
   return format(isSunday(today) ? today : previousSunday(today), "yyyy-MM-dd");
 };
+// Stable empty defaults — a fresh [] on every render would re-trigger the effects below forever.
+const NO_ROWS: (WeeklyMetricRow & { id: string })[] = [];
+const NO_BASELINES: { location_id: string; starting_loyalty_members: number }[] = [];
 const n = (s: string) => (s.trim() === "" ? null : Number(s));
 
 export default function StoreMetrics() {
@@ -41,7 +44,7 @@ export default function StoreMetrics() {
   const [chartLoc, setChartLoc] = useState<string>("all");
 
   // ---------- data ----------
-  const { data: allRows = [], isLoading: rowsLoading } = useQuery({
+  const { data: allRows = NO_ROWS, isLoading: rowsLoading, error: rowsError } = useQuery({
     queryKey: ["store_metrics_weekly"],
     queryFn: async () => {
       const { data, error } = await supabase.from("store_metrics_weekly").select("*").order("week_ending");
@@ -49,7 +52,7 @@ export default function StoreMetrics() {
       return (data || []) as (WeeklyMetricRow & { id: string })[];
     },
   });
-  const { data: baselines = [] } = useQuery({
+  const { data: baselines = NO_BASELINES } = useQuery({
     queryKey: ["store_metrics_baseline"],
     queryFn: async () => {
       const { data, error } = await supabase.from("store_metrics_baseline").select("*");
@@ -93,7 +96,7 @@ export default function StoreMetrics() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [baselines]);
 
-  useEffect(() => { setRecipientsDraft((settings?.recipients || []).join("\n")); }, [settings]);
+  useEffect(() => { if (settings) setRecipientsDraft(settings.recipients.join("\n")); }, [settings]);
 
   // Running total of loyalty members *before* the selected week, per store.
   const membersBefore = (locId: string) =>
@@ -246,6 +249,13 @@ export default function StoreMetrics() {
         </div>
       </div>
 
+      {rowsError && (
+        <div role="alert" className="rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/30 p-3 text-sm">
+          Couldn't load Store Metrics data. If this is the first time, run <code>supabase/store-metrics.sql</code> in the Supabase SQL Editor.
+          <span className="block text-xs text-muted-foreground mt-1">{(rowsError as Error).message}</span>
+        </div>
+      )}
+
       {/* ---------- entry ---------- */}
       <Card>
         <CardHeader className="pb-3">
@@ -279,21 +289,21 @@ export default function StoreMetrics() {
                   const pen = loyaltyPenetration(n(d.loyalty_visits) ?? 0, n(d.non_loyalty_visits) ?? 0);
                   const prem = aovPremium(n(d.loyalty_aov), n(d.non_loyalty_aov));
                   const total = membersBefore(loc.id) + (n(d.new_loyalty_members) ?? 0);
-                  const inp = (f: Field, step: string, ph: string) => (
-                    <Input type="number" inputMode="decimal" min={0} step={step} placeholder={ph}
+                  const inp = (f: Field, step: string) => (
+                    <Input type="number" inputMode="decimal" min={0} step={step}
                       value={d[f]} onChange={(e) => set(loc.id, f, e.target.value)}
                       className="h-8 text-right tabular-nums" aria-label={`${loc.name} ${f.replace(/_/g, " ")}`} />
                   );
                   return (
                     <tr key={loc.id}>
                       <td className="py-2 pr-2 font-medium whitespace-nowrap">{loc.name}</td>
-                      <td className="py-2 px-1 w-[110px]">{inp("loyalty_visits", "1", "0")}</td>
-                      <td className="py-2 px-1 w-[110px]">{inp("non_loyalty_visits", "1", "0")}</td>
+                      <td className="py-2 px-1 w-[110px]">{inp("loyalty_visits", "1")}</td>
+                      <td className="py-2 px-1 w-[110px]">{inp("non_loyalty_visits", "1")}</td>
                       <td className="py-2 px-2 text-right tabular-nums bg-muted/50 font-semibold">{fmtPct(pen)}</td>
-                      <td className="py-2 px-1 w-[110px]">{inp("new_loyalty_members", "1", "0")}</td>
+                      <td className="py-2 px-1 w-[110px]">{inp("new_loyalty_members", "1")}</td>
                       <td className="py-2 px-2 text-right tabular-nums bg-muted/50 font-semibold">{fmtInt(total)}</td>
-                      <td className="py-2 px-1 w-[120px]">{inp("loyalty_aov", "0.01", "0.00")}</td>
-                      <td className="py-2 px-1 w-[120px]">{inp("non_loyalty_aov", "0.01", "0.00")}</td>
+                      <td className="py-2 px-1 w-[120px]">{inp("loyalty_aov", "0.01")}</td>
+                      <td className="py-2 px-1 w-[120px]">{inp("non_loyalty_aov", "0.01")}</td>
                       <td className="py-2 px-2 text-right tabular-nums bg-muted/50 font-semibold">{fmtPct(prem)}</td>
                     </tr>
                   );
@@ -342,9 +352,9 @@ export default function StoreMetrics() {
             </div>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <MetricChart title="Loyalty penetration" data={chartData} dataKey="penetration" format={(v) => `${v}%`} />
+              <MetricChart title="Loyalty penetration" data={chartData} dataKey="penetration" format={(v) => `${v}%`} deltaFormat={(v) => `${v} pts`} />
               <MetricChart title="Total loyalty members" data={chartData} dataKey="members" format={(v) => v.toLocaleString("en-US")} />
-              <MetricChart title="Loyalty AOV premium" data={chartData} dataKey="premium" format={(v) => `${v}%`} />
+              <MetricChart title="Loyalty AOV premium" data={chartData} dataKey="premium" format={(v) => `${v}%`} deltaFormat={(v) => `${v} pts`} />
             </div>
           )}
         </CardContent>
@@ -398,11 +408,12 @@ export default function StoreMetrics() {
   );
 }
 
-function MetricChart({ title, data, dataKey, format: fmt }: {
+function MetricChart({ title, data, dataKey, format: fmt, deltaFormat }: {
   title: string;
   data: Array<Record<string, string | number | null>>;
   dataKey: string;
   format: (v: number) => string;
+  deltaFormat?: (v: number) => string;
 }) {
   const latest = [...data].reverse().find((d) => d[dataKey] !== null);
   const prior = latest ? [...data].reverse().filter((d) => d[dataKey] !== null)[1] : undefined;
@@ -415,7 +426,7 @@ function MetricChart({ title, data, dataKey, format: fmt }: {
           <span className="text-lg font-semibold tabular-nums">{latest ? fmt(latest[dataKey] as number) : "—"}</span>
           {change !== null && (
             <span className="text-xs text-muted-foreground ml-1.5 tabular-nums">
-              {change >= 0 ? "▲" : "▼"} {fmt(Math.abs(+change.toFixed(1)))}
+              {change >= 0 ? "▲" : "▼"} {(deltaFormat ?? fmt)(Math.abs(+change.toFixed(1)))} vs last wk
             </span>
           )}
         </div>
@@ -423,7 +434,7 @@ function MetricChart({ title, data, dataKey, format: fmt }: {
       <ChartContainer config={{ [dataKey]: { label: title, color: "hsl(var(--chart-1))" } }} className="h-[180px] w-full">
         <LineChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
           <CartesianGrid vertical={false} strokeOpacity={0.4} />
-          <XAxis dataKey="week" tickLine={false} axisLine={false} fontSize={11}
+          <XAxis dataKey="week" tickLine={false} axisLine={false} fontSize={11} tickMargin={6}
             tickFormatter={(w: string) => format(parseISO(w), "MMM d")} minTickGap={16} />
           <YAxis tickLine={false} axisLine={false} fontSize={11} width={44}
             tickFormatter={(v: number) => fmt(v)} domain={["auto", "auto"]} />
