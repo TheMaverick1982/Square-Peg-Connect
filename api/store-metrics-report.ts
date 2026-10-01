@@ -162,8 +162,8 @@ function compareTable(stores: { loc: { name: string }; cur?: ComputedWeek; prev?
     `<td style="padding:6px 3px;text-align:${align};font-size:12px;white-space:${align === 'left' ? 'normal' : 'nowrap'};border-bottom:1px solid #f3f4f6;${bold ? 'font-weight:bold;' : ''}color:${v === '—' ? '#9ca3af' : '#111827'}">${v}</td>`;
   const arrow = (cur: number | null, prev: number | null | undefined) =>
     cur === null || prev === null || prev === undefined || Math.abs(cur - prev) < 0.05 ? '' : cur > prev ? '&nbsp;<span style="color:#6b7280;font-size:10px">▲</span>' : '&nbsp;<span style="color:#6b7280;font-size:10px">▼</span>';
-  const rowsHtml = stores.map(({ loc, cur, prev }) => cur
-    ? `<tr>${td(esc(loc.name), 'left', true)}${td(fmtInt(cur.loyalty_visits))}${td(fmtInt(cur.total_visits))}${td(penHtml(cur.penetration) + arrow(cur.penetration, prev?.penetration))}${td(fmtInt(cur.new_loyalty_members))}${td(fmtInt(cur.total_loyalty_members))}</tr>`
+  const rowsHtml = stores.map(({ loc, cur, prev }, i) => cur
+    ? `<tr>${td(`<span style="color:#9ca3af;font-weight:normal">${i + 1}.</span> ${esc(loc.name)}`, 'left', true)}${td(fmtInt(cur.loyalty_visits))}${td(fmtInt(cur.total_visits))}${td(penHtml(cur.penetration) + arrow(cur.penetration, prev?.penetration))}${td(fmtInt(cur.new_loyalty_members))}${td(fmtInt(cur.total_loyalty_members))}</tr>`
     : `<tr>${td(esc(loc.name), 'left', true)}${td('—')}${td('—')}${td('—')}${td('—')}${td('—')}</tr>`
   ).join('');
   return `<table role="presentation" cellspacing="0" cellpadding="0" style="width:100%;border-collapse:collapse;margin:0 0 24px">
@@ -228,7 +228,7 @@ export async function POST(request: Request): Promise<Response> {
   };
 
   let allLoyalty = 0, allNon = 0, allNew = 0, storesReported = 0;
-  const perStore = locations.map((loc) => {
+  const perStore: { loc: (typeof locations)[number]; cur?: ComputedWeek; prev?: ComputedWeek }[] = locations.map((loc) => {
     const storeRows = ((rows || []) as WeeklyMetricRow[]).filter((r) => r.location_id === loc.id);
     const start = (baselines || []).find((b) => b.location_id === loc.id)?.starting_loyalty_members ?? 0;
     const hist = computeStoreHistory(storeRows, start);
@@ -237,6 +237,14 @@ export async function POST(request: Request): Promise<Response> {
     const prev = idx > 0 ? hist[idx - 1] : undefined;
     if (cur) { storesReported++; allLoyalty += cur.loyalty_visits; allNon += cur.non_loyalty_visits; allNew += cur.new_loyalty_members; }
     return { loc, cur, prev };
+  });
+  // Best performers first: highest loyalty penetration at the top, stores without numbers at the bottom.
+  perStore.sort((a, b) => {
+    const pa = a.cur?.penetration ?? null, pb = b.cur?.penetration ?? null;
+    if (pa === null && pb === null) return 0;
+    if (pa === null) return 1;
+    if (pb === null) return -1;
+    return pb - pa;
   });
   const sections = perStore.map(({ loc, cur, prev }) => storeSection(loc.name, managerFor(loc.id, loc.email), cur, prev));
   const summaryTable = compareTable(perStore);
