@@ -105,7 +105,7 @@ function prettyDate(iso: string) {
 // Penetration color bands: under 25% red, 25–49.9% orange, 50%+ green.
 function penColor(v: number | null) {
   if (v === null || !isFinite(v)) return '#111827';
-  if (v < 25) return '#dc2626';
+  if (v < 25) return '#991b1b';
   if (v < 50) return '#ea580c';
   return '#16a34a';
 }
@@ -167,7 +167,7 @@ function compareTable(stores: { loc: { name: string }; cur?: ComputedWeek; prev?
     <tr>${th('Store', 'left')}${th('Total visits')}${th('Penetration')}${th('New')}${th('Total members')}${th('AOV premium')}</tr>
     ${rowsHtml}
   </table>
-  <div style="font-size:11px;color:#6b7280;margin:-16px 0 24px">Penetration = loyalty visits ÷ total visits. <span style="color:#dc2626;font-weight:bold">Under 25%</span> · <span style="color:#ea580c;font-weight:bold">25–49.9%</span> · <span style="color:#16a34a;font-weight:bold">50%+</span></div>`;
+  <div style="font-size:11px;color:#6b7280;margin:-16px 0 24px">Penetration = loyalty visits ÷ total visits. <span style="color:#991b1b;font-weight:bold">Under 25%</span> · <span style="color:#ea580c;font-weight:bold">25–49.9%</span> · <span style="color:#16a34a;font-weight:bold">50%+</span></div>`;
 }
 
 export async function POST(request: Request): Promise<Response> {
