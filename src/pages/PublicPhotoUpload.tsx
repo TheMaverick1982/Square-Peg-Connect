@@ -95,19 +95,19 @@ export default function PublicPhotoUpload() {
         
       if (dbError) throw dbError;
       
-      // 3. Trigger email notification
-      const { error: fnError } = await supabase.functions.invoke('send-staff-photo-alert', {
-        body: { 
-          submission, 
-          location: locations.find(l => l.id === formData.location_id) 
-        }
-      });
-      
-      if (fnError) {
+      // 3. Email alert to the team (our own server function; recipients set in Staff Photos → Email alerts)
+      try {
+        const res = await fetch('/api/staff-photo-alert', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ location_id: formData.location_id, staff_name: formData.staff_name }),
+        });
+        if (!res.ok) console.error("Email notification failed:", await res.text());
+      } catch (fnError) {
         console.error("Email notification failed:", fnError);
         // We don't throw here because the photos were successfully uploaded
       }
-      
+
       return submission;
     },
     onSuccess: () => {

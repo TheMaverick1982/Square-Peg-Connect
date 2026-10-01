@@ -16,8 +16,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { format, addDays, parseISO, differenceInDays, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, subMonths, addMonths } from "date-fns";
-import { CalendarDays, AlertTriangle, Plus, CheckSquare, Megaphone, Share2, Mail, LayoutList, CalendarIcon, Loader2, CheckCircle2, UserCircle2, MapPin, Sparkles, ChevronLeft, ChevronRight, Briefcase, Store, XCircle, FileText, Download, Edit2, Trash2, ExternalLink, Image as ImageIcon, Link as LinkIcon, ClipboardList } from "lucide-react";
+import { CalendarDays, AlertTriangle, Plus, CheckSquare, Megaphone, Share2, Mail, LayoutList, CalendarIcon, Loader2, CheckCircle2, UserCircle2, MapPin, Sparkles, ChevronLeft, ChevronRight, Briefcase, Store, XCircle, FileText, Download, Edit2, Trash2, ExternalLink, Image as ImageIcon, Link as LinkIcon, ClipboardList, Archive, ArchiveRestore, History } from "lucide-react";
 
 function CustomPromptsManager() {
   const [open, setOpen] = useState(false);
@@ -157,7 +158,7 @@ const getUpcomingEvents = (customPrompts: any[] = []) => {
   today.setHours(0,0,0,0);
   const currentYear = today.getFullYear();
   
-  const allEvents = [...SEASONAL_EVENTS, ...customPrompts.map(p => ({ name: p.name, month: p.month, day: p.day, type: 'Custom' }))];
+  const allEvents: any[] = [...SEASONAL_EVENTS, ...customPrompts.map(p => ({ name: p.name, month: p.month, day: p.day, type: 'Custom', source_campaign_id: p.source_campaign_id ?? null, notes: p.notes ?? null }))];
   
   const upcoming = allEvents.map(event => {
     let d = new Date(currentYear, event.month, event.day);
@@ -355,6 +356,10 @@ export default function MarketingPlanner() {
   const [activeTab, setActiveTab] = useState("planning");
   const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [showArchived, setShowArchived] = useState(false);
+  // When planning from a seasonal prompt, the campaign we're repeating from last year (tasks get copied).
+  const [copyFrom, setCopyFrom] = useState<any | null>(null);
+  const [copyTasks, setCopyTasks] = useState(true);
 
   const { data: customPrompts = [] } = useQuery({
     queryKey: ['custom_seasonal_prompts'],
@@ -416,11 +421,28 @@ export default function MarketingPlanner() {
         location_id: newCampaign.location_id === "all" ? null : newCampaign.location_id,
         status: 'planning'
       };
-      const { error } = await supabase.from('marketing_campaigns').insert(payload);
+      const { data: created, error } = await supabase.from('marketing_campaigns').insert(payload).select().single();
       if (error) throw error;
+      // Repeating last year's campaign: copy its tasks, moving due dates forward by the same gap.
+      if (copyFrom && copyTasks && created) {
+        const shift = differenceInDays(newCampaign.target_date, parseISO(copyFrom.target_date));
+        const oldTasks = tasks.filter((t: any) => t.campaign_id === copyFrom.id);
+        if (oldTasks.length) {
+          const { error: taskErr } = await supabase.from('marketing_tasks').insert(oldTasks.map((t: any) => ({
+            campaign_id: created.id,
+            title: t.title,
+            assigned_to: t.assigned_to,
+            due_date: format(addDays(parseISO(t.due_date), shift), 'yyyy-MM-dd'),
+            is_completed: false,
+          })));
+          if (taskErr) throw taskErr;
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['marketing_campaigns'] });
+      queryClient.invalidateQueries({ queryKey: ['marketing_tasks'] });
+      setCopyFrom(null);
       setIsDraftingCampaign(false);
       setNewCampaign({ title: "", description: "", target_date: new Date(), location_id: "all" });
       toast({ title: "Campaign created!" });
@@ -437,6 +459,51 @@ export default function MarketingPlanner() {
       toast({ title: "Campaign details updated!" });
     }
   });
+
+  const archiveCampaign = useMutation({
+    mutationFn: async ({ campaign, archive, remember }: { campaign: any; archive: boolean; remember?: boolean }) => {
+      const { error } = await supabase.from('marketing_campaigns')
+        .update({ archived_at: archive ? new Date().toISOString() : null }).eq('id', campaign.id);
+      if (error) throw error;
+      if (archive && remember) {
+        const d = parseISO(campaign.target_date);
+        const already = customPrompts.some((p: any) => p.source_campaign_id === campaign.id ||
+          (String(p.name).toLowerCase() === String(campaign.title).toLowerCase() && p.month === d.getMonth()));
+        if (!already) {
+          const { error: pErr } = await supabase.from('custom_seasonal_prompts').insert({
+            name: campaign.title, month: d.getMonth(), day: d.getDate(),
+            notes: campaign.description || null, source_campaign_id: campaign.id,
+          });
+          if (pErr) throw pErr;
+        }
+      }
+    },
+    onSuccess: (_d, v) => {
+      queryClient.invalidateQueries({ queryKey: ['marketing_campaigns'] });
+      queryClient.invalidateQueries({ queryKey: ['custom_seasonal_prompts'] });
+      toast({
+        title: v.archive ? "Campaign archived" : "Campaign restored",
+        description: v.archive && v.remember ? "It'll show up in Seasonal Prompts next year." : undefined,
+      });
+    },
+    onError: (e) => toast({ title: "Couldn't update campaign", description: (e as Error).message, variant: "destructive" }),
+  });
+
+  // Find what we did for this occasion last time (for Seasonal Prompts).
+  const findLastTime = (prompt: any) => {
+    const target = prompt.date as Date;
+    const name = String(prompt.name).toLowerCase();
+    const cutoff = addDays(target, -180);
+    const candidates = campaigns.filter((c: any) => {
+      const d = parseISO(c.target_date);
+      if (d >= cutoff) return false; // must be from a previous season
+      if (prompt.source_campaign_id && c.id === prompt.source_campaign_id) return true;
+      if (String(c.title).toLowerCase().includes(name.replace(/ promo$/, ''))) return true;
+      const lastYear = new Date(target.getFullYear() - 1, target.getMonth(), target.getDate());
+      return Math.abs(differenceInDays(d, lastYear)) <= 14 && String(c.title).toLowerCase().includes(name.split(/[\s(']/)[0]);
+    });
+    return candidates.sort((a: any, b: any) => b.target_date.localeCompare(a.target_date))[0] || null;
+  };
 
   // --- Task Mutations ---
   const createTask = useMutation({
@@ -640,10 +707,17 @@ export default function MarketingPlanner() {
     );
   };
 
-  const renderCampaignsView = (campaignList: any[]) => {
+  const renderCampaignsView = (allCampaigns: any[]) => {
+    const archivedList = allCampaigns.filter((c: any) => c.archived_at);
+    const activeList = allCampaigns.filter((c: any) => !c.archived_at);
+    const campaignList = showArchived ? [...archivedList].reverse() : activeList;
     return (
       <div className="space-y-4 m-0">
-        <div className="flex items-center justify-end mb-2">
+        <div className="flex items-center justify-end gap-2 mb-2">
+          <Button variant={showArchived ? "secondary" : "ghost"} size="sm" className="h-8 px-3"
+            onClick={() => setShowArchived((v) => !v)}>
+            <Archive className="w-4 h-4 mr-2" /> {showArchived ? "Back to active" : `Archived (${archivedList.length})`}
+          </Button>
           <div className="flex items-center bg-muted p-1 rounded-lg">
             <Button 
               variant={viewMode === "list" ? "secondary" : "ghost"} 
@@ -664,7 +738,7 @@ export default function MarketingPlanner() {
           </div>
         </div>
 
-        {viewMode === "calendar" ? (
+        {viewMode === "calendar" && !showArchived ? (
            renderCalendar(campaignList)
         ) : (
           <div className="grid gap-4 md:grid-cols-3">
@@ -687,7 +761,7 @@ export default function MarketingPlanner() {
                   </Button>
                   <Sheet open={isDraftingCampaign} onOpenChange={setIsDraftingCampaign}>
                     <SheetTrigger asChild>
-                      <Button size="sm" onClick={() => setNewCampaign({ title: "", description: "", target_date: new Date(), location_id: "all" })}>
+                      <Button size="sm" onClick={() => { setCopyFrom(null); setNewCampaign({ title: "", description: "", target_date: new Date(), location_id: "all" }); }}>
                         <Plus className="w-4 h-4 mr-2" /> Plan Campaign
                       </Button>
                     </SheetTrigger>
@@ -733,6 +807,20 @@ export default function MarketingPlanner() {
                           <Label>Description</Label>
                           <Textarea placeholder="High level goals for this season..." value={newCampaign.description} onChange={e => setNewCampaign({...newCampaign, description: e.target.value})} className="mt-1" />
                         </div>
+                        {copyFrom && (
+                          <div className="rounded-md border bg-muted/30 p-3 text-sm space-y-2">
+                            <div className="flex items-center gap-2 font-medium"><History className="w-4 h-4" /> Repeating last year's campaign</div>
+                            <div className="text-xs text-muted-foreground">
+                              {copyFrom.title} · {format(parseISO(copyFrom.target_date), "MMM d, yyyy")}
+                            </div>
+                            {tasks.filter((t: any) => t.campaign_id === copyFrom.id).length > 0 && (
+                              <label className="flex items-center gap-2 text-xs">
+                                <Checkbox checked={copyTasks} onCheckedChange={(v) => setCopyTasks(!!v)} />
+                                Copy its {tasks.filter((t: any) => t.campaign_id === copyFrom.id).length} tasks (due dates moved forward)
+                              </label>
+                            )}
+                          </div>
+                        )}
                         <Button className="w-full mt-4" onClick={() => createCampaign.mutate()} disabled={!newCampaign.title || createCampaign.isPending}>
                           {createCampaign.isPending ? "Saving..." : "Save Campaign"}
                         </Button>
@@ -747,7 +835,7 @@ export default function MarketingPlanner() {
               ) : campaignList.length === 0 ? (
                 <div className="text-center py-12 border-2 border-dashed rounded-lg bg-muted/20">
                   <Megaphone className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
-                  <h3 className="text-lg font-medium">No campaigns planned</h3>
+                  <h3 className="text-lg font-medium">{showArchived ? "No archived campaigns" : "No campaigns planned"}</h3>
                   <p className="text-sm text-muted-foreground mt-1 mb-4">Start planning 3+ months ahead to never miss a holiday.</p>
                 </div>
               ) : (
@@ -768,6 +856,7 @@ export default function MarketingPlanner() {
                         createTask={createTask} 
                         toggleTask={toggleTask}
                         updateCampaignDetails={updateCampaignDetails}
+                        archiveCampaign={archiveCampaign}
                       />
                     );
                   })}
@@ -786,25 +875,45 @@ export default function MarketingPlanner() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {upcomingPrompts.map(prompt => (
-                      <div key={prompt.name} className="flex items-center justify-between">
-                        <div>
+                    {upcomingPrompts.map(prompt => {
+                      const lastTime = findLastTime(prompt);
+                      const lastTasks = lastTime ? tasks.filter((t: any) => t.campaign_id === lastTime.id).length : 0;
+                      return (
+                      <div key={prompt.name} className="flex items-center justify-between gap-2">
+                        <div className="min-w-0">
                           <div className="text-sm font-medium">{prompt.name}</div>
                           <div className="text-xs text-muted-foreground">{format(prompt.date, "MMM d, yyyy")}</div>
+                          {lastTime && (
+                            <div className="text-[11px] text-primary mt-0.5 flex items-center gap-1 truncate" title={lastTime.description || lastTime.title}>
+                              <History className="w-3 h-3 shrink-0" />
+                              <span className="truncate">Last time: {lastTime.title} ({format(parseISO(lastTime.target_date), "yyyy")}){lastTasks ? ` · ${lastTasks} tasks` : ""}</span>
+                            </div>
+                          )}
+                          {!lastTime && prompt.notes && (
+                            <div className="text-[11px] text-muted-foreground mt-0.5 line-clamp-1" title={prompt.notes}>{prompt.notes}</div>
+                          )}
                         </div>
                         <Button 
                           variant="secondary" 
                           size="sm" 
                           className="h-7 text-xs bg-background hover:bg-background/80"
                           onClick={() => {
-                            setNewCampaign({ title: `${prompt.name} Promo`, description: "", target_date: prompt.date, location_id: "all" });
+                            setCopyFrom(lastTime);
+                            setCopyTasks(true);
+                            setNewCampaign({
+                              title: lastTime ? lastTime.title : `${prompt.name} Promo`,
+                              description: lastTime?.description || prompt.notes || "",
+                              target_date: prompt.date,
+                              location_id: lastTime?.location_id || "all",
+                            });
                             setIsDraftingCampaign(true);
                           }}
                         >
-                          Plan
+                          {lastTime ? "Repeat" : "Plan"}
                         </Button>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </CardContent>
               </Card>
@@ -1117,8 +1226,10 @@ export default function MarketingPlanner() {
 
 // Subcomponents
 
-function CampaignCard({ campaign, status, tasks, progress, createTask, toggleTask, updateCampaignDetails }: any) {
+function CampaignCard({ campaign, status, tasks, progress, createTask, toggleTask, updateCampaignDetails, archiveCampaign }: any) {
   const [isAssigning, setIsAssigning] = useState(false);
+  const [confirmArchive, setConfirmArchive] = useState(false);
+  const [remember, setRemember] = useState(true);
   const [newTask, setNewTask] = useState({ title: "", assigned_to: "", due_date: new Date() });
 
   const handleCreate = () => {
@@ -1136,7 +1247,9 @@ function CampaignCard({ campaign, status, tasks, progress, createTask, toggleTas
         <div>
           <div className="flex items-center gap-2 mb-1">
             <h3 className="font-semibold text-lg">{campaign.title}</h3>
-            <Badge className={status.color} variant="outline">{status.label}</Badge>
+            {campaign.archived_at
+              ? <Badge variant="outline" className="bg-muted text-muted-foreground">Archived</Badge>
+              : <Badge className={status.color} variant="outline">{status.label}</Badge>}
           </div>
           <div className="text-sm text-muted-foreground flex items-center gap-2">
             <CalendarDays className="w-3.5 h-3.5" />
@@ -1154,6 +1267,39 @@ function CampaignCard({ campaign, status, tasks, progress, createTask, toggleTas
             </div>
           </div>
           <CampaignDetailsSheet campaign={campaign} updateCampaignDetails={updateCampaignDetails} />
+          {campaign.archived_at ? (
+            <Button variant="outline" size="sm" disabled={archiveCampaign?.isPending}
+              onClick={() => archiveCampaign.mutate({ campaign, archive: false })}>
+              <ArchiveRestore className="w-4 h-4 mr-2" /> Restore
+            </Button>
+          ) : (
+            <Button variant="ghost" size="sm" onClick={() => { setRemember(true); setConfirmArchive(true); }}>
+              <Archive className="w-4 h-4 mr-2" /> Archive
+            </Button>
+          )}
+          <AlertDialog open={confirmArchive} onOpenChange={setConfirmArchive}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Archive "{campaign.title}"?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  It moves out of the active list. You can find it anytime under Archived and restore it.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <label className="flex items-start gap-2 text-sm rounded-md border p-3 bg-muted/30">
+                <Checkbox checked={remember} onCheckedChange={(v) => setRemember(!!v)} className="mt-0.5" />
+                <span>
+                  <span className="font-medium">Remind us next year</span>
+                  <span className="block text-xs text-muted-foreground">
+                    Adds it to Seasonal Prompts around {format(parseISO(campaign.target_date), "MMM d")}, with a one-click "Repeat" that copies this campaign and its tasks.
+                  </span>
+                </span>
+              </label>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={() => archiveCampaign.mutate({ campaign, archive: true, remember })}>Archive</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </div>
       <div className="p-4">

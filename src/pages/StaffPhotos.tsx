@@ -14,6 +14,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import * as VisuallyHidden from "@radix-ui/react-visually-hidden";
 import { useToast } from "@/hooks/use-toast";
+import { AlertRecipientsButton } from "@/components/AlertRecipientsButton";
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 
@@ -205,7 +206,12 @@ export default function StaffPhotos() {
           <p className="text-muted-foreground mt-1">Content submitted by team members from the floor.</p>
         </div>
         
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <AlertRecipientsButton
+            settingKey="staff_photos"
+            title="Staff photo email alerts"
+            description="These people get an email (with thumbnails) every time photos are uploaded on the Staff Photo form. One email per line."
+          />
           {selectedIds.size > 0 && (
             <>
               <Button 
