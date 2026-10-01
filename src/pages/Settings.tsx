@@ -234,21 +234,21 @@ function AddTeamMember() {
   );
 }
 
-function RemoveMemberButton({ email, name }: { email: string; name: string }) {
+function RemoveMemberButton({ id, email, name }: { id: string; email: string; name: string }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { profile } = useEmployee();
   const [busy, setBusy] = useState(false);
-  if (profile?.email?.toLowerCase() === email.toLowerCase()) return null;
+  if (profile?.id === id || (email && profile?.email?.toLowerCase() === email.toLowerCase())) return null;
   return (
     <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs text-destructive hover:text-destructive" disabled={busy}
       onClick={async () => {
         if (!window.confirm(`Remove ${name || email} from Square Peg Connect? They will lose access immediately.`)) return;
         setBusy(true);
         try {
-          await removeTeamMember(email);
+          await removeTeamMember(id);
           queryClient.invalidateQueries({ queryKey: ['employee_profiles'] });
-          toast({ title: "Removed", description: `${email} no longer has access.` });
+          toast({ title: "Removed", description: `${name || email} no longer has access.` });
         } catch (err) {
           toast({ title: "Couldn't remove", description: (err as Error).message, variant: "destructive" });
         } finally { setBusy(false); }
@@ -401,8 +401,8 @@ function TeamManagementTab() {
                 <div className="col-span-2 text-right text-sm text-muted-foreground flex flex-col items-end gap-1">
                   <span>{(employee as any).created_at ? format(new Date((employee as any).created_at), "MMM d, yyyy") : "—"}</span>
                   <div className="flex gap-1">
-                    <SendLoginEmailButton email={employee.email} />
-                    <RemoveMemberButton email={employee.email} name={employee.name} />
+                    {/@/.test(employee.email || '') && <SendLoginEmailButton email={employee.email} />}
+                    <RemoveMemberButton id={employee.id} email={employee.email} name={employee.name} />
                   </div>
                 </div>
               </div>

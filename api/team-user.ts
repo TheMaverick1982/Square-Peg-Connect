@@ -38,8 +38,22 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   // 2. What do they want?
-  let body: { action?: string; email?: string; name?: string; role?: string; locations?: string[]; redirectTo?: string };
+  let body: { action?: string; id?: string; email?: string; name?: string; role?: string; locations?: string[]; redirectTo?: string };
   try { body = await request.json(); } catch { return json(400, { error: 'Bad request.' }); }
+
+  if (body.action === 'remove') {
+    // Removes Connect access only. Their Supabase login is kept because the
+    // Loyalty Member Lookup shares the same user list. Works by row id, so old
+    // Vendasta entries saved without a real email can be removed too.
+    const id = String(body.id || '');
+    if (!id) return json(400, { error: 'Missing team member id.' });
+    const { data: target } = await admin.from('employee_profiles').select('id,email').eq('id', id).maybeSingle();
+    if (!target) return json(404, { error: 'That team member no longer exists.' });
+    if ((target.email || '').toLowerCase() === callerEmail) return json(400, { error: "You can't remove yourself." });
+    const { error } = await admin.from('employee_profiles').delete().eq('id', id);
+    if (error) return json(500, { error: error.message });
+    return json(200, { ok: true });
+  }
 
   const email = (body.email || '').trim().toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json(400, { error: 'Enter a valid email.' });
@@ -55,15 +69,6 @@ export async function POST(request: Request): Promise<Response> {
     }
     return null;
   };
-
-  if (body.action === 'remove') {
-    if (email === callerEmail) return json(400, { error: "You can't remove yourself." });
-    // Removes Connect access only. Their Supabase login is kept because the
-    // Loyalty Member Lookup shares the same user list.
-    const { error } = await admin.from('employee_profiles').delete().ilike('email', email);
-    if (error) return json(500, { error: error.message });
-    return json(200, { ok: true });
-  }
 
   if (body.action !== 'invite') return json(400, { error: 'Unknown action.' });
 

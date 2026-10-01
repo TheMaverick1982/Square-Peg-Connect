@@ -22,14 +22,14 @@ export async function inviteTeamMember(body: {
 }
 
 /** Removes someone from the team list (they lose Connect access). */
-export async function removeTeamMember(email: string) {
+export async function removeTeamMember(id: string) {
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
   if (!token) throw new Error('Session expired. Sign in again.');
   const res = await fetch('/api/team-user', {
     method: 'POST',
     headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
-    body: JSON.stringify({ action: 'remove', email }),
+    body: JSON.stringify({ action: 'remove', id }),
   });
   const out = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(out.error || `Request failed (${res.status})`);
