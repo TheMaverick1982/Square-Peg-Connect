@@ -203,13 +203,17 @@ export async function POST(request: Request): Promise<Response> {
   const recipients = ((settings?.recipients as string[] | undefined) || []).map((e) => e.trim()).filter((e) => /@/.test(e));
   if (!recipients.length) return json(400, { error: 'Add at least one report recipient first.' });
 
+  // Manager name: 1) typed in Store Metrics → Store setup, 2) Location Managers assigned to the store
+  // in Settings → Team, 3) the team member whose email is the store's email.
   const managerFor = (locId: string, locEmail?: string) => {
+    const typed = (baselines || []).find((b) => b.location_id === locId)?.manager_name;
+    if (typed && String(typed).trim()) return String(typed).trim();
     const ps = (profiles || []).filter((p) => p.status !== 'disabled');
     const byStoreEmail = locEmail && ps.find((p) => (p.email || '').toLowerCase() === locEmail.toLowerCase());
-    if (byStoreEmail && byStoreEmail.name && !/@/.test(byStoreEmail.name)) return byStoreEmail.name;
     const assigned = ps.filter((p) => p.role === 'manager' &&
       ((Array.isArray(p.assigned_locations) && p.assigned_locations.includes(locId)) || p.assigned_location === locId));
     if (assigned.length) return assigned.map((p) => p.name || p.email).join(', ');
+    if (byStoreEmail && byStoreEmail.name && !/@/.test(byStoreEmail.name)) return byStoreEmail.name;
     return byStoreEmail ? (byStoreEmail.name || byStoreEmail.email) : '—';
   };
 

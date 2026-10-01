@@ -52,3 +52,6 @@ create policy "Admins: store metrics settings" on public.store_metrics_settings
   for all to authenticated using (public.is_team_admin()) with check (public.is_team_admin());
 
 commit;
+
+-- Added later: manager name shown on the weekly report (Store Metrics → Store setup)
+alter table public.store_metrics_baseline add column if not exists manager_name text;

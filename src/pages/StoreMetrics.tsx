@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { format, parseISO, previousSunday, isSunday } from "date-fns";
+import { format, parseISO, previousSunday, isSunday, addDays } from "date-fns";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, BarChart, Bar, LabelList } from "recharts";
 import { Gauge, Send, Save, Loader2, Mail, TrendingUp, Flag, History } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -43,7 +43,7 @@ const METRICS: { key: MetricKey; label: string; fmt: (v: number | null) => strin
 
 // Stable empty defaults — a fresh [] on every render would re-trigger the effects below forever.
 const NO_ROWS: (WeeklyMetricRow & { id: string })[] = [];
-const NO_BASELINES: { location_id: string; starting_loyalty_members: number }[] = [];
+const NO_BASELINES: { location_id: string; starting_loyalty_members: number; manager_name?: string | null }[] = [];
 const n = (s: string) => (s.trim() === "" ? null : Number(s));
 
 export default function StoreMetrics() {
@@ -53,6 +53,7 @@ export default function StoreMetrics() {
   const [week, setWeek] = useState(lastSunday());
   const [draft, setDraft] = useState<Draft>({});
   const [baselineDraft, setBaselineDraft] = useState<Record<string, string>>({});
+  const [managerDraft, setManagerDraft] = useState<Record<string, string>>({});
   const [recipientsDraft, setRecipientsDraft] = useState("");
   const [chartLoc, setChartLoc] = useState<string>("all");
   const [metric, setMetric] = useState<MetricKey>("penetration");
@@ -71,7 +72,7 @@ export default function StoreMetrics() {
     queryFn: async () => {
       const { data, error } = await supabase.from("store_metrics_baseline").select("*");
       if (error) throw error;
-      return (data || []) as { location_id: string; starting_loyalty_members: number }[];
+      return (data || []) as { location_id: string; starting_loyalty_members: number; manager_name?: string | null }[];
     },
   });
   const { data: settings } = useQuery({
@@ -105,8 +106,13 @@ export default function StoreMetrics() {
 
   useEffect(() => {
     const next: Record<string, string> = {};
-    for (const loc of locations) next[loc.id] = String(startFor(loc.id));
+    const mgr: Record<string, string> = {};
+    for (const loc of locations) {
+      next[loc.id] = String(startFor(loc.id));
+      mgr[loc.id] = baselines.find((b) => b.location_id === loc.id)?.manager_name ?? "";
+    }
     setBaselineDraft(next);
+    setManagerDraft(mgr);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [baselines]);
 
@@ -166,6 +172,7 @@ export default function StoreMetrics() {
       const rows = locations.map((loc) => ({
         location_id: loc.id,
         starting_loyalty_members: Math.max(0, Math.round(Number(baselineDraft[loc.id] || 0)) || 0),
+        manager_name: (managerDraft[loc.id] || "").trim() || null,
         updated_at: new Date().toISOString(),
       }));
       const { error } = await supabase.from("store_metrics_baseline").upsert(rows, { onConflict: "location_id" });
@@ -173,7 +180,7 @@ export default function StoreMetrics() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["store_metrics_baseline"] });
-      toast({ title: "Starting totals saved" });
+      toast({ title: "Store setup saved" });
     },
     onError: (e) => toast({ title: "Couldn't save", description: (e as Error).message, variant: "destructive" }),
   });
@@ -287,7 +294,7 @@ export default function StoreMetrics() {
       {/* ---------- entry ---------- */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Previous 7 days · week ending {format(parseISO(week), "EEE, MMM d, yyyy")}</CardTitle>
+          <CardTitle className="text-base">Previous 7 days · {format(addDays(parseISO(week), -6), "EEE MMM d")} – {format(parseISO(week), "EEE MMM d, yyyy")}</CardTitle>
           <CardDescription>Gray columns are calculated for you. Leave a store blank to skip it this week.</CardDescription>
         </CardHeader>
         <CardContent>
@@ -485,23 +492,28 @@ export default function StoreMetrics() {
         {/* ---------- baselines ---------- */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2"><Flag className="w-4 h-4" /> Starting loyalty totals</CardTitle>
-            <CardDescription>Each store's loyalty member count before the first week you enter. Weekly new members are added on top automatically.</CardDescription>
+            <CardTitle className="text-base flex items-center gap-2"><Flag className="w-4 h-4" /> Store setup</CardTitle>
+            <CardDescription>Manager name shown on the report, and each store's loyalty member count before the first week you entered (new members are added on top automatically).</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+            <div className="grid grid-cols-[1fr_1.4fr_auto] gap-x-3 gap-y-2 items-center text-sm">
+              <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Store</div>
+              <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Manager (on report)</div>
+              <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider text-right">Starting members</div>
               {locations.map((loc) => (
-                <label key={loc.id} className="flex items-center justify-between gap-2 text-sm">
+                <div key={loc.id} className="contents">
                   <span className="truncate">{loc.name}</span>
-                  <Input type="number" min={0} step="1" className="h-8 w-28 text-right tabular-nums"
+                  <Input className="h-8" placeholder="e.g. Jane Smith" aria-label={`${loc.name} manager`}
+                    value={managerDraft[loc.id] ?? ""} onChange={(e) => setManagerDraft((m) => ({ ...m, [loc.id]: e.target.value }))} />
+                  <Input type="number" min={0} step="1" className="h-8 w-28 text-right tabular-nums" aria-label={`${loc.name} starting members`}
                     value={baselineDraft[loc.id] ?? ""} onChange={(e) => setBaselineDraft((b) => ({ ...b, [loc.id]: e.target.value }))} />
-                </label>
+                </div>
               ))}
             </div>
             <div className="flex justify-end">
               <Button variant="outline" disabled={saveBaselines.isPending} onClick={() => saveBaselines.mutate()}>
                 {saveBaselines.isPending ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-                Save starting totals
+                Save store setup
               </Button>
             </div>
           </CardContent>
