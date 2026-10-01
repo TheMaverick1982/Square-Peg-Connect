@@ -17,7 +17,7 @@ export const locations: Location[] = [
   { id: "loc-7", name: "Plainville", vendestaId: "ven-plainville-007", address: "17 Farmington Ave, Plainville, CT 06062", phone: "(860) 793-1811", email: "plainville@squarepegpizzeria.com" },
   { id: "loc-8", name: "Delray Beach", vendestaId: "ven-delray-008", address: "814 E Atlantic Ave, Delray Beach, FL 33483", phone: "(561) 908-2511", email: "delraybeach@squarepegpizzeria.com" },
   { id: "loc-9", name: "Berlin", vendestaId: "ven-berlin-009", address: "555 Farmington Ave, Berlin, CT 06037", phone: "(860) 828-5555", email: "berlin@squarepegpizzeria.com" },
-  { id: "loc-10", name: "Bolton", vendestaId: "ven-bolton-010", email: "bolton@squarepegpizzeria.com" }, // TODO: add address + phone
+  { id: "loc-10", name: "Bolton", vendestaId: "ven-bolton-010", address: "270 West St, Bolton, CT 06043", phone: "(860) 791-7109", email: "bolton@squarepegpizzeria.com" },
 ];
 
 export type CateringStatus = "Requested" | "Waiting on you" | "Waiting on the customer" | "Confirmed" | "Completed" | "Cancelled";
