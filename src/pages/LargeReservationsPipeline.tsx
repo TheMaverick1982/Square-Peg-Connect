@@ -831,6 +831,7 @@ export default function LargeReservationsPipeline() {
                     <div className="col-span-2 min-w-0">
                       <div className="font-medium text-sm truncate">{order.name}</div>
                       {order.organization && <div className="text-xs text-muted-foreground truncate">{order.organization}</div>}
+                      {order.createdAt && <div className="text-[11px] text-muted-foreground/80 mt-0.5">Submitted {format(new Date(order.createdAt), "MMM d, yyyy")}</div>}
                     </div>
                     <div className="col-span-2 min-w-0">
                       <div className="text-sm truncate">{locations.find(l => l.id === order.locationId)?.name}</div>
@@ -935,7 +936,7 @@ export default function LargeReservationsPipeline() {
                 <div className="mt-4 pt-4 border-t flex justify-between items-center text-sm text-muted-foreground">
                   <span className="truncate pr-2">{order.email || order.phone}</span>
                   <span className="text-xs shrink-0 whitespace-nowrap bg-muted/50 px-2 py-1 rounded">
-                    {format(new Date(order.createdAt), "MMM d")}
+                    Submitted {format(new Date(order.createdAt), "MMM d, yyyy")}
                   </span>
                 </div>
               </div>
@@ -963,6 +964,7 @@ export default function LargeReservationsPipeline() {
                       <SheetTitle className="text-2xl break-words">{viewingOrder.name}</SheetTitle>
                       <SheetDescription className="mt-1">
                         Event Date: <strong className="text-foreground">{format(parseSafeDate(viewingOrder.eventDate), "EEEE, MMMM do, yyyy")}</strong>
+                        {viewingOrder.createdAt && <span className="block text-xs mt-0.5">Submitted on {format(new Date(viewingOrder.createdAt), "MMMM d, yyyy")}</span>}
                       </SheetDescription>
                     </div>
                     <div className="flex gap-2 ml-4 shrink-0">

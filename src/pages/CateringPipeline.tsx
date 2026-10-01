@@ -651,6 +651,7 @@ export default function CateringPipeline() {
                   <div className="col-span-3">
                     <div className="font-semibold text-sm text-foreground group-hover:text-primary transition-colors">{order.contactName}</div>
                     <div className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{order.eventName}</div>
+                    {order.createdAt && <div className="text-[11px] text-muted-foreground/80 mt-0.5">Submitted {format(new Date(order.createdAt), "MMM d, yyyy")}</div>}
                   </div>
                   
                   <div className="col-span-2 flex items-center gap-2 text-sm">
