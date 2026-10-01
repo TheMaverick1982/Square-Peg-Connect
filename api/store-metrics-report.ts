@@ -141,6 +141,24 @@ function storeSection(name: string, manager: string, cur: ComputedWeek | undefin
     </table></div>`;
 }
 
+// Quick side-by-side of every store for the week (stores without numbers show dashes).
+function compareTable(stores: { loc: { name: string }; cur?: ComputedWeek; prev?: ComputedWeek }[]) {
+  const th = (t: string, align = 'right') =>
+    `<th style="padding:6px 6px;text-align:${align};font-size:11px;color:#6b7280;font-weight:bold;text-transform:uppercase;border-bottom:2px solid #e5e7eb">${t}</th>`;
+  const td = (v: string, align = 'right', bold = false) =>
+    `<td style="padding:6px 6px;text-align:${align};font-size:13px;white-space:nowrap;border-bottom:1px solid #f3f4f6;${bold ? 'font-weight:bold;' : ''}color:${v === '—' ? '#9ca3af' : '#111827'}">${v}</td>`;
+  const arrow = (cur: number | null, prev: number | null | undefined) =>
+    cur === null || prev === null || prev === undefined || Math.abs(cur - prev) < 0.05 ? '' : cur > prev ? ' <span style="color:#6b7280">▲</span>' : ' <span style="color:#6b7280">▼</span>';
+  const rowsHtml = stores.map(({ loc, cur, prev }) => cur
+    ? `<tr>${td(esc(loc.name), 'left', true)}${td(fmtPct(cur.penetration) + arrow(cur.penetration, prev?.penetration))}${td(fmtInt(cur.new_loyalty_members))}${td(fmtInt(cur.total_loyalty_members))}${td(fmtPct(cur.aov_premium) + arrow(cur.aov_premium, prev?.aov_premium))}</tr>`
+    : `<tr>${td(esc(loc.name), 'left', true)}${td('—')}${td('—')}${td('—')}${td('—')}</tr>`
+  ).join('');
+  return `<table role="presentation" cellspacing="0" cellpadding="0" style="width:100%;border-collapse:collapse;margin:0 0 24px">
+    <tr>${th('Store', 'left')}${th('Penetration')}${th('New')}${th('Total members')}${th('AOV premium')}</tr>
+    ${rowsHtml}
+  </table>`;
+}
+
 export async function POST(request: Request): Promise<Response> {
   if (!SECRET_KEY) return json(500, { error: 'Server is missing SUPABASE_SECRET_KEY.' });
   if (!RESEND_API_KEY) return json(500, { error: 'Server is missing RESEND_API_KEY. Add it in Vercel → Settings → Environment Variables, then redeploy.' });
@@ -185,7 +203,7 @@ export async function POST(request: Request): Promise<Response> {
   };
 
   let allLoyalty = 0, allNon = 0, allNew = 0, storesReported = 0;
-  const sections = locations.map((loc) => {
+  const perStore = locations.map((loc) => {
     const storeRows = ((rows || []) as WeeklyMetricRow[]).filter((r) => r.location_id === loc.id);
     const start = (baselines || []).find((b) => b.location_id === loc.id)?.starting_loyalty_members ?? 0;
     const hist = computeStoreHistory(storeRows, start);
@@ -193,8 +211,10 @@ export async function POST(request: Request): Promise<Response> {
     const cur = idx >= 0 ? hist[idx] : undefined;
     const prev = idx > 0 ? hist[idx - 1] : undefined;
     if (cur) { storesReported++; allLoyalty += cur.loyalty_visits; allNon += cur.non_loyalty_visits; allNew += cur.new_loyalty_members; }
-    return storeSection(loc.name, managerFor(loc.id, loc.email), cur, prev);
+    return { loc, cur, prev };
   });
+  const sections = perStore.map(({ loc, cur, prev }) => storeSection(loc.name, managerFor(loc.id, loc.email), cur, prev));
+  const summaryTable = compareTable(perStore);
 
   if (!storesReported) return json(400, { error: 'No numbers are saved for that week yet.' });
 
@@ -205,6 +225,7 @@ export async function POST(request: Request): Promise<Response> {
     <div style="background:#f3f4f6;border-radius:8px;padding:12px 16px;margin:0 0 20px;font-size:14px">
       <b>All stores:</b> ${fmtPct(allPen)} loyalty penetration · ${fmtInt(allNew)} new loyalty members · ${storesReported} of ${locations.length} stores reported
     </div>
+    ${summaryTable}
     ${sections.join('\n')}
     <div style="color:#9ca3af;font-size:12px;margin-top:16px">Sent from Square Peg Connect · connect.squarepegpizzeria.com/store-metrics</div>
   </div>`;

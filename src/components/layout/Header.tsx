@@ -5,6 +5,7 @@ import { locations } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
+import { useIsOwner } from "@/lib/featureAccess";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
@@ -38,6 +39,7 @@ export function Header() {
   const { selectedLocationId, setSelectedLocationId } = useLocationContext();
   const { profile } = useEmployee();
   const auth = useAuth();
+  const isOwner = useIsOwner();
   const [isAlertsOpen, setIsAlertsOpen] = useState(false);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   
@@ -261,10 +263,12 @@ export function Header() {
                 <PartyPopper className="mr-2 h-4 w-4" />
                 <span>Tuesday Fundraiser</span>
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => navigate('/b2b-partnerships')}>
-                <Handshake className="mr-2 h-4 w-4" />
-                <span>B2B Contact</span>
-              </DropdownMenuItem>
+              {isOwner && (
+                <DropdownMenuItem onClick={() => navigate('/b2b-partnerships')}>
+                  <Handshake className="mr-2 h-4 w-4" />
+                  <span>B2B Contact</span>
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem onClick={() => navigate('/reminders')}>
                 <CheckSquare className="mr-2 h-4 w-4" />
                 <span>Task / Reminder</span>

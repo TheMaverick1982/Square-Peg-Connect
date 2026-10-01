@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format, parseISO, previousSunday, isSunday } from "date-fns";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid } from "recharts";
-import { Gauge, Send, Save, Loader2, Mail, TrendingUp, Flag } from "lucide-react";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, BarChart, Bar, LabelList } from "recharts";
+import { Gauge, Send, Save, Loader2, Mail, TrendingUp, Flag, History } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { locations } from "@/lib/data";
 import { useEmployee } from "@/lib/EmployeeContext";
@@ -28,6 +28,18 @@ const lastSunday = () => {
   const today = new Date();
   return format(isSunday(today) ? today : previousSunday(today), "yyyy-MM-dd");
 };
+type MetricKey = "penetration" | "total_loyalty_members" | "new_loyalty_members" | "loyalty_visits" | "non_loyalty_visits" | "loyalty_aov" | "non_loyalty_aov" | "aov_premium";
+const METRICS: { key: MetricKey; label: string; fmt: (v: number | null) => string }[] = [
+  { key: "penetration", label: "Loyalty penetration", fmt: fmtPct },
+  { key: "total_loyalty_members", label: "Total loyalty members", fmt: fmtInt },
+  { key: "new_loyalty_members", label: "New loyalty members", fmt: fmtInt },
+  { key: "loyalty_visits", label: "Loyalty visits", fmt: fmtInt },
+  { key: "non_loyalty_visits", label: "Non-loyalty visits", fmt: fmtInt },
+  { key: "loyalty_aov", label: "Loyalty AOV", fmt: fmtMoney },
+  { key: "non_loyalty_aov", label: "Non-loyalty AOV", fmt: fmtMoney },
+  { key: "aov_premium", label: "Loyalty AOV premium", fmt: fmtPct },
+];
+
 // Stable empty defaults — a fresh [] on every render would re-trigger the effects below forever.
 const NO_ROWS: (WeeklyMetricRow & { id: string })[] = [];
 const NO_BASELINES: { location_id: string; starting_loyalty_members: number }[] = [];
@@ -42,6 +54,7 @@ export default function StoreMetrics() {
   const [baselineDraft, setBaselineDraft] = useState<Record<string, string>>({});
   const [recipientsDraft, setRecipientsDraft] = useState("");
   const [chartLoc, setChartLoc] = useState<string>("all");
+  const [metric, setMetric] = useState<MetricKey>("penetration");
 
   // ---------- data ----------
   const { data: allRows = NO_ROWS, isLoading: rowsLoading, error: rowsError } = useQuery({
@@ -195,10 +208,24 @@ export default function StoreMetrics() {
   };
 
   // ---------- charts ----------
+  const perStore = useMemo(() => Object.fromEntries(
+    locations.map((loc) => [loc.id, computeStoreHistory(allRows.filter((r) => r.location_id === loc.id), startFor(loc.id))])
+  ) as Record<string, ComputedWeek[]>,
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  [allRows, baselines]);
+  const savedWeeks = useMemo(() => Array.from(new Set(allRows.map((r) => r.week_ending))).sort().reverse(), [allRows]);
+  const metricDef = METRICS.find((m) => m.key === metric)!;
+  const cellValue = (locId: string, wk: string): number | null => {
+    const w = perStore[locId]?.find((h) => h.week_ending === wk);
+    return w ? (w[metric] as number | null) : null;
+  };
+  const ranking = locations
+    .map((loc) => ({ name: loc.name, value: cellValue(loc.id, week) }))
+    .filter((r): r is { name: string; value: number } => r.value !== null && isFinite(r.value))
+    .sort((a, b) => b.value - a.value)
+    .map((r) => ({ ...r, label: metricDef.fmt(r.value) }));
+
   const chartData = useMemo(() => {
-    const perStore = Object.fromEntries(
-      locations.map((loc) => [loc.id, computeStoreHistory(allRows.filter((r) => r.location_id === loc.id), startFor(loc.id))])
-    ) as Record<string, ComputedWeek[]>;
     if (chartLoc !== "all") {
       return (perStore[chartLoc] || []).map((w) => ({
         week: w.week_ending,
@@ -225,7 +252,7 @@ export default function StoreMetrics() {
       return { week: wk, penetration: pen === null ? null : +pen.toFixed(1), members, premium: prem === null ? null : +prem.toFixed(1) };
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allRows, baselines, chartLoc]);
+  }, [perStore, allRows, baselines, chartLoc]);
 
   if (profileLoading) return null;
   if (profile?.role !== "admin") return <Navigate to="/" replace />;
@@ -357,6 +384,81 @@ export default function StoreMetrics() {
               <MetricChart title="Loyalty AOV premium" data={chartData} dataKey="premium" format={(v) => `${v}%`} deltaFormat={(v) => `${v} pts`} />
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* ---------- history & comparison ---------- */}
+      <Card>
+        <CardHeader className="pb-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 space-y-0">
+          <div>
+            <CardTitle className="text-base flex items-center gap-2"><History className="w-4 h-4" /> History &amp; store comparison</CardTitle>
+            <CardDescription>Pick a number to compare every store. Click a week to open it above.</CardDescription>
+          </div>
+          <Select value={metric} onValueChange={(v) => setMetric(v as MetricKey)}>
+            <SelectTrigger className="w-[220px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {METRICS.map((m) => <SelectItem key={m.key} value={m.key}>{m.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div>
+            <div className="text-sm font-medium mb-2">
+              Store ranking · {metricDef.label} · week ending {format(parseISO(week), "MMM d, yyyy")}
+            </div>
+            {ranking.length === 0 ? (
+              <div className="text-sm text-muted-foreground py-6 text-center">No numbers saved for this week yet.</div>
+            ) : (
+              <ChartContainer config={{ value: { label: metricDef.label, color: "hsl(var(--chart-1))" } }}
+                className="w-full" style={{ height: Math.max(120, ranking.length * 34 + 16) }}>
+                <BarChart data={ranking} layout="vertical" margin={{ top: 0, right: 64, left: 0, bottom: 0 }} barCategoryGap={6}>
+                  <XAxis type="number" hide domain={[0, "dataMax"]} />
+                  <YAxis type="category" dataKey="name" tickLine={false} axisLine={false} width={104} fontSize={12} />
+                  <ChartTooltip cursor={{ fillOpacity: 0.06 }}
+                    content={<ChartTooltipContent hideLabel formatter={(v, _n, item) => (
+                      <span><span className="text-muted-foreground mr-2">{item?.payload?.name}</span><span className="font-semibold tabular-nums">{metricDef.fmt(Number(v))}</span></span>
+                    )} />} />
+                  <Bar dataKey="value" fill="var(--color-value)" radius={[0, 4, 4, 0]} maxBarSize={22}>
+                    <LabelList dataKey="label" position="right" className="fill-foreground" fontSize={12} />
+                  </Bar>
+                </BarChart>
+              </ChartContainer>
+            )}
+          </div>
+
+          <div>
+            <div className="text-sm font-medium mb-2">All saved weeks · {metricDef.label}</div>
+            {savedWeeks.length === 0 ? (
+              <div className="text-sm text-muted-foreground py-6 text-center">Nothing saved yet.</div>
+            ) : (
+              <div className="overflow-x-auto -mx-2 px-2 max-h-[420px] overflow-y-auto border rounded-md">
+                <table className="w-full min-w-[900px] text-sm">
+                  <thead className="sticky top-0 bg-card z-10">
+                    <tr className="text-[11px] text-muted-foreground uppercase tracking-wider border-b">
+                      <th className="text-left font-semibold py-2 px-2">Week ending</th>
+                      {locations.map((l) => <th key={l.id} className="text-right font-semibold py-2 px-2 whitespace-nowrap">{l.name}</th>)}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {savedWeeks.map((wk) => (
+                      <tr key={wk} className={`hover:bg-muted/40 ${wk === week ? "bg-muted/60" : ""}`}>
+                        <td className="py-1.5 px-2 whitespace-nowrap">
+                          <button type="button" className="text-primary hover:underline font-medium"
+                            onClick={() => { setWeek(wk); window.scrollTo({ top: 0, behavior: "smooth" }); }}>
+                            {format(parseISO(wk), "MMM d, yyyy")}
+                          </button>
+                        </td>
+                        {locations.map((l) => {
+                          const v = cellValue(l.id, wk);
+                          return <td key={l.id} className={`py-1.5 px-2 text-right tabular-nums ${v === null ? "text-muted-foreground" : ""}`}>{metricDef.fmt(v)}</td>;
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
 

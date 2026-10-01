@@ -4,9 +4,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, DollarSign, CalendarDays, PartyPopper, UtensilsCrossed, Building2 } from "lucide-react";
 import { format } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
+import { useIsOwner } from "@/lib/featureAccess";
 
 export default function Dashboard() {
   const { selectedLocationId, selectedLocation } = useLocationContext();
+  const isOwner = useIsOwner();
 
   const { data: b2bContacts = [], isLoading: loadingB2b } = useQuery({
     queryKey: ['b2b_contacts', selectedLocationId],
@@ -209,7 +211,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card className="col-span-1">
+        {isOwner && <Card className="col-span-1">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Building2 className="w-5 h-5 text-primary" />
@@ -240,7 +242,7 @@ export default function Dashboard() {
               )}
             </div>
           </CardContent>
-        </Card>
+        </Card>}
       </div>
     </div>
   );

@@ -25,6 +25,7 @@ import PublicMarketingRequestForm from "./pages/PublicMarketingRequestForm";
 import StaffPhotos from "./pages/StaffPhotos";
 import StoreMetrics from "./pages/StoreMetrics";
 import { Navigate } from "react-router-dom";
+import { OwnerOnly } from "./components/OwnerOnly";
 
 export const routes = [
   {
@@ -63,8 +64,8 @@ export const routes = [
       { path: "tuesday-fundraisers", element: <FundraisersPipeline /> },
       { path: "store-events", element: <StoreEventsPipeline /> },
       { path: "large-reservations", element: <LargeReservationsPipeline /> },
-      { path: "b2b-partnerships", element: <B2BPartnerships /> },
-      { path: "guest-bounce-back", element: <GuestBounceBack /> },
+      { path: "b2b-partnerships", element: <OwnerOnly><B2BPartnerships /></OwnerOnly> },
+      { path: "guest-bounce-back", element: <OwnerOnly><GuestBounceBack /></OwnerOnly> },
       { path: "campaigns", element: <Campaigns /> },
       { path: "staff-photos", element: <StaffPhotos /> },
       { path: "team", element: <Navigate to="/settings" replace /> },

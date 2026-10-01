@@ -21,11 +21,13 @@ import {
   Gauge
 } from "lucide-react";
 import { useEmployee } from "@/lib/EmployeeContext";
+import { useIsOwner } from "@/lib/featureAccess";
 import { useToast } from "@/hooks/use-toast";
 
 export function SidebarContent() {
   const { profile } = useEmployee();
   const isAdmin = profile?.role === "admin";
+  const isOwner = useIsOwner();
   const { toast } = useToast();
 
   return (
@@ -74,14 +76,18 @@ export function SidebarContent() {
           <Users className="w-4 h-4" />
           Large Reservations
         </NavLink>
-        <NavLink to="/b2b-partnerships" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
-          <Handshake className="w-4 h-4" />
-          B2B Partnerships
-        </NavLink>
-        <NavLink to="/guest-bounce-back" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
-          <UserCheck className="w-4 h-4" />
-          Guest Bounce Back
-        </NavLink>
+        {isOwner && (
+          <>
+            <NavLink to="/b2b-partnerships" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
+              <Handshake className="w-4 h-4" />
+              B2B Partnerships
+            </NavLink>
+            <NavLink to="/guest-bounce-back" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
+              <UserCheck className="w-4 h-4" />
+              Guest Bounce Back
+            </NavLink>
+          </>
+        )}
 
         <div className="sidebar-group-title">Administration</div>
         <NavLink 
