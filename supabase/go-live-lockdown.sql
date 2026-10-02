@@ -91,3 +91,5 @@ revoke select on public.fundraisers from anon;
 grant select (event_date, location) on public.fundraisers to anon;
 
 commit;
+
+-- Added later: tolerate stray spaces/capitals in saved team emails (run supabase/team-email-cleanup.sql).

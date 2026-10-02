@@ -52,19 +52,28 @@ export function EmployeeProvider({ children }: { children: React.ReactNode }) {
       }
       setIsLoading(true);
 
-      const { data, error } = await supabase
+      // Tolerant lookup: ignores capitals and stray spaces, and copes with duplicate entries
+      // for the same email (picks the best one instead of locking the person out).
+      const { data: rows, error } = await supabase
         .from("employee_profiles")
         .select("*")
-        .ilike("email", email)
-        .maybeSingle();
+        .ilike("email", `%${email.replace(/[%_]/g, "\\$&")}%`);
 
       if (cancelled) return;
+
+      const rank: Record<string, number> = { admin: 0, manager: 1, employee: 2 };
+      const matches = ((rows || []) as EmployeeProfile[])
+        .filter((r) => (r.email || "").trim().toLowerCase() === email)
+        .sort((x, y) =>
+          Number(x.status === "disabled") - Number(y.status === "disabled") ||
+          (rank[x.role] ?? 9) - (rank[y.role] ?? 9));
+      const data = matches[0] ?? null;
 
       if (error) {
         console.error("Error loading employee profile:", error);
         setProfile(null);
       } else if (data) {
-        setProfile(data as EmployeeProfile);
+        setProfile(data);
       } else if (BOOTSTRAP_ADMIN_EMAILS.includes(email)) {
         const { data: created, error: insertError } = await supabase
           .from("employee_profiles")
