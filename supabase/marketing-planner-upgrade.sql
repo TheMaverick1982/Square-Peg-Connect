@@ -16,3 +16,6 @@ insert into public.notification_settings (key, recipients) values
 on conflict (key) do nothing;
 
 commit;
+
+-- Added later: optional "Planning starts" date per campaign.
+alter table public.marketing_campaigns add column if not exists planning_date date;

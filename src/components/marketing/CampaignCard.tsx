@@ -77,6 +77,7 @@ export function CampaignCard({ campaign, status, tasks, progress, createTask, to
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<any | null>(null);
   const [confirmArchive, setConfirmArchive] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [remember, setRemember] = useState(true);
   const [recap, setRecap] = useState({ worked: "", improve: "", results: "" });
 
@@ -107,7 +108,15 @@ export function CampaignCard({ campaign, status, tasks, progress, createTask, to
           </div>
           <div className="text-sm text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1">
             <span className="flex items-center gap-1.5"><CalendarDays className="w-3.5 h-3.5" />{dateRangeLabel(campaign)}</span>
+            {!archived && (
+              <button type="button" className="flex items-center gap-1 text-primary hover:underline text-xs font-medium" onClick={() => setDetailsOpen(true)}>
+                <Pencil className="w-3 h-3" /> Edit dates &amp; details
+              </button>
+            )}
             {locName && <span className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5" />{locName}</span>}
+            {campaign.planning_date && !archived && (
+              <span className="basis-full text-xs">Planning starts {format(parseISO(campaign.planning_date), "MMM d, yyyy")}</span>
+            )}
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 lg:justify-end">
@@ -117,7 +126,8 @@ export function CampaignCard({ campaign, status, tasks, progress, createTask, to
             </div>
             <span className="text-xs font-semibold tabular-nums">{tasks.length ? `${progress}%` : "No tasks"}</span>
           </div>
-          <CampaignDetailsSheet campaign={campaign} updateCampaignDetails={updateCampaignDetails} />
+          <Button variant="outline" size="sm" onClick={() => setDetailsOpen(true)}>Open Details</Button>
+          <CampaignDetailsSheet hideTrigger campaign={campaign} tasks={tasks} updateCampaignDetails={updateCampaignDetails} open={detailsOpen} onOpenChange={setDetailsOpen} />
           {archived ? (
             <Button variant="outline" size="sm" disabled={archiveCampaign?.isPending} onClick={() => archiveCampaign.mutate({ campaign, archive: false })}>
               <ArchiveRestore className="w-4 h-4 mr-2" /> Restore

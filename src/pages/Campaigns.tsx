@@ -737,6 +737,16 @@ export default function MarketingPlanner() {
                     </div>
                   ))}
                   
+                  {campaignList.filter(c => c.planning_date === dayYmd).map(camp => (
+                    <div key={`plan-${camp.id}`} role="button" tabIndex={0}
+                      className="text-[10px] px-1.5 py-1 rounded border border-dashed border-primary/40 text-primary font-medium truncate cursor-pointer hover:bg-primary/10"
+                      title={`Planning starts: ${camp.title} · click to open`}
+                      onClick={() => setDetailsCampaign(camp)}
+                      onKeyDown={(e) => { if (e.key === "Enter") setDetailsCampaign(camp); }}>
+                      Start planning: {camp.title}
+                    </div>
+                  ))}
+
                   {dayPrompt && dayCampaigns.length === 0 && (
                     <div 
                       className="text-[10px] px-1.5 py-1 rounded border border-dashed font-medium truncate bg-muted/30 text-muted-foreground cursor-pointer hover:bg-muted/50 hover:text-foreground transition-colors"
@@ -1081,6 +1091,7 @@ export default function MarketingPlanner() {
         <CampaignDetailsSheet
           hideTrigger
           campaign={campaigns.find((c: any) => c.id === detailsCampaign.id) || detailsCampaign}
+          tasks={tasks.filter((t: any) => t.campaign_id === detailsCampaign.id)}
           updateCampaignDetails={updateCampaignDetails}
           open={!!detailsCampaign}
           onOpenChange={(o) => { if (!o) setDetailsCampaign(null); }}

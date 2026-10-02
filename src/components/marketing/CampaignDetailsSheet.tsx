@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { format, parseISO } from "date-fns";
+import { useQueryClient } from "@tanstack/react-query";
+import { format, parseISO, addDays, differenceInCalendarDays } from "date-fns";
 import { Megaphone, Send, Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { locations } from "@/lib/data";
@@ -28,6 +29,7 @@ const buildForm = (c: any) => ({
   description: c.description || "",
   target_date: c.target_date || "",
   end_date: c.end_date || "",
+  planning_date: c.planning_date || "",
   location_id: c.location_id || "all",
   drinks_plan: c.drinks_plan || "", drinks_due_date: c.drinks_due_date || "", drinks_assigned_to: c.drinks_assigned_to || "",
   menu_plan: c.menu_plan || "", menu_due_date: c.menu_due_date || "", menu_assigned_to: c.menu_assigned_to || "",
@@ -48,9 +50,11 @@ const isLate = (due: string, content: string) => !!due && !content.trim() && due
  * Campaign details. Basics on top; the planning areas are collapsed until needed.
  * Works with its own "Open Details" button, or controlled via open/onOpenChange (used by the calendar).
  */
-export function CampaignDetailsSheet({ campaign, updateCampaignDetails, open: controlledOpen, onOpenChange, hideTrigger }: {
+export function CampaignDetailsSheet({ campaign, updateCampaignDetails, tasks = [], open: controlledOpen, onOpenChange, hideTrigger }: {
   campaign: any;
   updateCampaignDetails: any;
+  /** This campaign's tasks, so their due dates can move with the event. */
+  tasks?: any[];
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   hideTrigger?: boolean;
@@ -62,10 +66,14 @@ export function CampaignDetailsSheet({ campaign, updateCampaignDetails, open: co
   const { data: members } = useTeamMembers();
   const [f, setF] = useState<Form>(() => buildForm(campaign));
   const [sendingCreative, setSendingCreative] = useState(false);
+  const [shiftTasks, setShiftTasks] = useState(true);
+  const queryClient = useQueryClient();
+  const openDatedTasks = tasks.filter((t: any) => !t.is_completed && t.due_date);
+  const dayShift = f.target_date && campaign.target_date ? differenceInCalendarDays(parseISO(f.target_date), parseISO(campaign.target_date)) : 0;
   const set = <K extends keyof Form>(k: K, v: Form[K]) => setF((prev) => ({ ...prev, [k]: v }));
 
   // Reload the form each time the panel opens (or a different campaign is shown).
-  useEffect(() => { if (open) setF(buildForm(campaign)); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [open, campaign.id]);
+  useEffect(() => { if (open) { setF(buildForm(campaign)); setShiftTasks(true); } /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [open, campaign.id]);
 
   const handleSave = () => {
     if (!f.title.trim() || !f.target_date) {
@@ -88,10 +96,18 @@ export function CampaignDetailsSheet({ campaign, updateCampaignDetails, open: co
     };
     // Only send end_date when it's used, so saving still works before the database update is run.
     if (f.end_date || campaign.end_date) updates.end_date = f.end_date && f.end_date >= f.target_date ? f.end_date : null;
+    if (f.planning_date || campaign.planning_date) updates.planning_date = f.planning_date || null;
+    const moveTasksBy = shiftTasks && dayShift !== 0 ? dayShift : 0;
 
     updateCampaignDetails.mutate({ id: campaign.id, updates }, {
       onSuccess: async () => {
         setOpen(false);
+        // Event moved? Slide the open tasks' due dates by the same number of days.
+        if (moveTasksBy !== 0 && openDatedTasks.length) {
+          await Promise.all(openDatedTasks.map((t: any) =>
+            supabase.from("marketing_tasks").update({ due_date: format(addDays(parseISO(t.due_date), moveTasksBy), "yyyy-MM-dd") }).eq("id", t.id)));
+          queryClient.invalidateQueries({ queryKey: ["marketing_tasks"] });
+        }
         // Email anyone newly put in charge of an area.
         const checks = [
           ...PLAN_SECTIONS.map((s) => ({ email: f[`${s.key}_assigned_to`], type: s.emailLabel, due: f[`${s.key}_due_date`], old: campaign[`${s.key}_assigned_to`] })),
@@ -163,14 +179,30 @@ export function CampaignDetailsSheet({ campaign, updateCampaignDetails, open: co
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label>Start date</Label>
+                <Label>Event start</Label>
                 <Input type="date" value={f.target_date} onChange={(e) => set("target_date", e.target.value)} className="mt-1" />
               </div>
               <div>
-                <Label>End date <span className="text-muted-foreground font-normal">(optional)</span></Label>
+                <Label>Event end <span className="text-muted-foreground font-normal">(if more than one day)</span></Label>
                 <Input type="date" value={f.end_date} min={f.target_date} onChange={(e) => set("end_date", e.target.value)} className="mt-1" />
               </div>
             </div>
+            <div>
+              <Label>Planning starts <span className="text-muted-foreground font-normal">(optional)</span></Label>
+              <Input type="date" value={f.planning_date} max={f.target_date} onChange={(e) => set("planning_date", e.target.value)} className="mt-1 sm:w-1/2" />
+              <p className="text-[11px] text-muted-foreground mt-1">The day the team should begin working on this. Shows on the card and the calendar.</p>
+            </div>
+            {dayShift !== 0 && openDatedTasks.length > 0 && (
+              <label className="flex items-start gap-2 text-sm rounded-md border bg-amber-50 dark:bg-amber-950/20 border-amber-200 p-3 cursor-pointer">
+                <Checkbox checked={shiftTasks} onCheckedChange={(c) => setShiftTasks(!!c)} className="mt-0.5" />
+                <span>
+                  <span className="font-medium">Move {openDatedTasks.length} open task{openDatedTasks.length === 1 ? "" : "s"} too</span>
+                  <span className="block text-xs text-muted-foreground">
+                    The event moved {Math.abs(dayShift)} day{Math.abs(dayShift) === 1 ? "" : "s"} {dayShift > 0 ? "later" : "earlier"}. Shift their due dates by the same amount.
+                  </span>
+                </span>
+              </label>
+            )}
             <div>
               <Label>Location</Label>
               <Select value={f.location_id} onValueChange={(v) => set("location_id", v)}>
