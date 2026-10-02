@@ -16,6 +16,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
+import { useEmployee } from "@/lib/EmployeeContext";
+import { notifyMarketing, alertMarketingRequest } from "@/lib/notify";
+import { CAMPAIGN_TEMPLATES, eventsForYear, upcomingEvents, templateDueDate, isTaskOverdue, daysUntil, campaignRisk } from "@/lib/marketing";
+import { CampaignCard, dateRangeLabel } from "@/components/marketing/CampaignCard";
+import { CampaignDetailsSheet } from "@/components/marketing/CampaignDetailsSheet";
+import { TeamMemberSelect, memberLabel, useTeamMembers } from "@/components/marketing/TeamMemberSelect";
+import { AlertSettingsButton } from "@/components/AlertRecipientsButton";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { format, addDays, parseISO, differenceInDays, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, subMonths, addMonths } from "date-fns";
 import { CalendarDays, AlertTriangle, Plus, CheckSquare, Megaphone, Share2, Mail, LayoutList, CalendarIcon, Loader2, CheckCircle2, UserCircle2, MapPin, Sparkles, ChevronLeft, ChevronRight, Briefcase, Store, XCircle, FileText, Download, Edit2, Trash2, ExternalLink, Image as ImageIcon, Link as LinkIcon, ClipboardList, Archive, ArchiveRestore, History } from "lucide-react";
@@ -130,46 +137,9 @@ function CustomPromptsManager() {
   );
 }
 
-const SEASONAL_EVENTS = [
-  { name: "Super Bowl", month: 1, day: 9, type: 'Sports' },
-  { name: "Valentine's Day", month: 1, day: 14, type: 'Holiday' },
-  { name: "March Madness Begins", month: 2, day: 18, type: 'Sports' },
-  { name: "St. Patrick's Day", month: 2, day: 17, type: 'Holiday' },
-  { name: "Golf Season (The Masters)", month: 3, day: 10, type: 'Sports' },
-  { name: "Cinco de Mayo", month: 4, day: 5, type: 'Holiday' },
-  { name: "Mother's Day", month: 4, day: 11, type: 'Holiday' },
-  { name: "Father's Day", month: 5, day: 15, type: 'Holiday' },
-  { name: "4th of July", month: 6, day: 4, type: 'Holiday' },
-  { name: "Back to School", month: 7, day: 20, type: 'Season' },
-  { name: "Football Season Kickoff", month: 8, day: 5, type: 'Sports' },
-  { name: "NBA Season Begins", month: 9, day: 22, type: 'Sports' },
-  { name: "Halloween", month: 9, day: 31, type: 'Holiday' },
-  { name: "Veterans Day", month: 10, day: 11, type: 'Holiday' },
-  { name: "Thanksgiving", month: 10, day: 28, type: 'Holiday' },
-  { name: "Black Friday (Gift Card Promo)", month: 10, day: 29, type: 'Holiday' },
-  { name: "Toys for Tots Drop-off Launch", month: 11, day: 1, type: 'Community' },
-  { name: "Winter Coat Drive", month: 11, day: 10, type: 'Community' },
-  { name: "Christmas", month: 11, day: 25, type: 'Holiday' },
-  { name: "New Year's Eve", month: 11, day: 31, type: 'Holiday' }
-];
-
-const getUpcomingEvents = (customPrompts: any[] = []) => {
-  const today = new Date();
-  today.setHours(0,0,0,0);
-  const currentYear = today.getFullYear();
-  
-  const allEvents: any[] = [...SEASONAL_EVENTS, ...customPrompts.map(p => ({ name: p.name, month: p.month, day: p.day, type: 'Custom', source_campaign_id: p.source_campaign_id ?? null, notes: p.notes ?? null }))];
-  
-  const upcoming = allEvents.map(event => {
-    let d = new Date(currentYear, event.month, event.day);
-    if (d < today) {
-      d = new Date(currentYear + 1, event.month, event.day);
-    }
-    return { ...event, date: d };
-  }).sort((a, b) => a.date.getTime() - b.date.getTime());
-  
-  return upcoming.slice(0, 5); 
-};
+const blankCampaign = () => ({
+  title: "", description: "", target_date: new Date(), end_date: "", location_id: "all", template: "none", owner: "",
+});
 
 function MarketingSupportRequestSheet() {
   const [open, setOpen] = useState(false);
@@ -224,13 +194,9 @@ function MarketingSupportRequestSheet() {
         
       if (requestError) throw requestError;
 
-      // 3. Email Brian
-      await supabase.functions.invoke('notify-marketing-request', {
-        body: { 
-          request: supportRequest,
-          location: locations.find(l => l.id === data.location_id)
-        }
-      });
+      // 3. Email the marketing inbox (recipients set under Email alerts)
+      void supportRequest;
+      await alertMarketingRequest(data.title);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['marketing_campaigns'] });
@@ -410,19 +376,37 @@ export default function MarketingPlanner() {
 
   // --- Campaign Mutations ---
   const [isDraftingCampaign, setIsDraftingCampaign] = useState(false);
-  const [newCampaign, setNewCampaign] = useState({ title: "", description: "", target_date: new Date(), location_id: "all" });
+  const [newCampaign, setNewCampaign] = useState(blankCampaign());
+  const { profile } = useEmployee();
+  const myEmail = (profile?.email || "").trim().toLowerCase();
+  const { data: members } = useTeamMembers();
+  const [detailsCampaign, setDetailsCampaign] = useState<any | null>(null);
+  const [showAllTasks, setShowAllTasks] = useState(false);
+  const [sendingDigest, setSendingDigest] = useState(false);
 
   const createCampaign = useMutation({
     mutationFn: async () => {
-      const payload = {
+      const startYmd = format(newCampaign.target_date, 'yyyy-MM-dd');
+      const payload: Record<string, unknown> = {
         title: newCampaign.title,
         description: newCampaign.description,
-        target_date: format(newCampaign.target_date, 'yyyy-MM-dd'),
+        target_date: startYmd,
         location_id: newCampaign.location_id === "all" ? null : newCampaign.location_id,
         status: 'planning'
       };
+      if (newCampaign.end_date && newCampaign.end_date > startYmd) payload.end_date = newCampaign.end_date;
       const { data: created, error } = await supabase.from('marketing_campaigns').insert(payload).select().single();
       if (error) throw error;
+      // Template: ready-made task list, due dates counted back from the event.
+      const template = CAMPAIGN_TEMPLATES.find((t) => t.id === newCampaign.template);
+      if (template && created && !(copyFrom && copyTasks)) {
+        const owner = newCampaign.owner || myEmail;
+        const { error: tplErr } = await supabase.from('marketing_tasks').insert(template.tasks.map((t) => ({
+          campaign_id: created.id, title: t.title, assigned_to: owner,
+          due_date: templateDueDate(newCampaign.target_date, t.daysBefore), is_completed: false,
+        })));
+        if (tplErr) throw tplErr;
+      }
       // Repeating last year's campaign: copy its tasks, moving due dates forward by the same gap.
       if (copyFrom && copyTasks && created) {
         const shift = differenceInDays(newCampaign.target_date, parseISO(copyFrom.target_date));
@@ -444,9 +428,10 @@ export default function MarketingPlanner() {
       queryClient.invalidateQueries({ queryKey: ['marketing_tasks'] });
       setCopyFrom(null);
       setIsDraftingCampaign(false);
-      setNewCampaign({ title: "", description: "", target_date: new Date(), location_id: "all" });
+      setNewCampaign(blankCampaign());
       toast({ title: "Campaign created!" });
-    }
+    },
+    onError: (e) => toast({ title: "Couldn't create campaign", description: (e as Error).message, variant: "destructive" }),
   });
 
   const updateCampaignDetails = useMutation({
@@ -461,9 +446,14 @@ export default function MarketingPlanner() {
   });
 
   const archiveCampaign = useMutation({
-    mutationFn: async ({ campaign, archive, remember }: { campaign: any; archive: boolean; remember?: boolean }) => {
-      const { error } = await supabase.from('marketing_campaigns')
-        .update({ archived_at: archive ? new Date().toISOString() : null }).eq('id', campaign.id);
+    mutationFn: async ({ campaign, archive, remember, recap }: { campaign: any; archive: boolean; remember?: boolean; recap?: { worked: string; improve: string; results: string } }) => {
+      const updates: Record<string, unknown> = { archived_at: archive ? new Date().toISOString() : null };
+      if (archive && recap && (recap.worked.trim() || recap.improve.trim() || recap.results.trim())) {
+        updates.recap_worked = recap.worked.trim() || null;
+        updates.recap_improve = recap.improve.trim() || null;
+        updates.recap_results = recap.results.trim() || null;
+      }
+      const { error } = await supabase.from('marketing_campaigns').update(updates).eq('id', campaign.id);
       if (error) throw error;
       if (archive && remember) {
         const d = parseISO(campaign.target_date);
@@ -505,24 +495,60 @@ export default function MarketingPlanner() {
     return candidates.sort((a: any, b: any) => b.target_date.localeCompare(a.target_date))[0] || null;
   };
 
+  const planFromPrompt = (prompt: any) => {
+    const lastTime = findLastTime(prompt);
+    setCopyFrom(lastTime);
+    setCopyTasks(true);
+    setNewCampaign({
+      ...blankCampaign(),
+      title: lastTime ? lastTime.title : `${prompt.name} Promo`,
+      description: lastTime?.description || prompt.notes || "",
+      target_date: prompt.date,
+      location_id: lastTime?.location_id || "all",
+      template: lastTime ? "none" : "holiday",
+    });
+    setIsDraftingCampaign(true);
+  };
+
   // --- Task Mutations ---
   const createTask = useMutation({
-    mutationFn: async ({ campaign_id, title, assigned_to, due_date }: { campaign_id: string, title: string, assigned_to: string, due_date: Date }) => {
-      const payload = { campaign_id, title, assigned_to, due_date: format(due_date, 'yyyy-MM-dd') };
-      const { data, error } = await supabase.from('marketing_tasks').insert(payload).select('*, marketing_campaigns(title)').single();
+    mutationFn: async ({ campaign_id, title, assigned_to, due_date }: { campaign_id: string, title: string, assigned_to: string, due_date: string | Date }) => {
+      const due = typeof due_date === 'string' ? due_date : format(due_date, 'yyyy-MM-dd');
+      const payload = { campaign_id, title, assigned_to, due_date: due };
+      const { error } = await supabase.from('marketing_tasks').insert(payload);
       if (error) throw error;
-
-      // Notify assignee
-      if (assigned_to) {
-        await supabase.functions.invoke('send-marketing-task-assigned', {
-          body: { task: payload, campaign: { title: data.marketing_campaigns.title } }
-        }).catch(err => console.error("Error sending task assignment email", err));
+      if (assigned_to && assigned_to !== myEmail) {
+        const camp = campaigns.find((c: any) => c.id === campaign_id);
+        await notifyMarketing({ type: 'task_assigned', to: assigned_to, taskTitle: title, campaignTitle: camp?.title || '', dueDate: due });
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['marketing_tasks'] });
-      toast({ title: "Task assigned!" });
-    }
+      toast({ title: "Task added" });
+    },
+    onError: (e) => toast({ title: "Couldn't add task", description: (e as Error).message, variant: "destructive" }),
+  });
+
+  const updateTask = useMutation({
+    mutationFn: async ({ task, updates, campaignTitle }: { task: any; updates: { title: string; assigned_to: string; due_date: string }; campaignTitle?: string }) => {
+      const { error } = await supabase.from('marketing_tasks').update(updates).eq('id', task.id);
+      if (error) throw error;
+      // New owner? Let them know.
+      if (updates.assigned_to && updates.assigned_to !== (task.assigned_to || '') && updates.assigned_to !== myEmail) {
+        await notifyMarketing({ type: 'task_assigned', to: updates.assigned_to, taskTitle: updates.title, campaignTitle: campaignTitle || '', dueDate: updates.due_date });
+      }
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['marketing_tasks'] }); toast({ title: "Task updated" }); },
+    onError: (e) => toast({ title: "Couldn't update task", description: (e as Error).message, variant: "destructive" }),
+  });
+
+  const deleteTask = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('marketing_tasks').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['marketing_tasks'] }); toast({ title: "Task deleted" }); },
+    onError: (e) => toast({ title: "Couldn't delete task", description: (e as Error).message, variant: "destructive" }),
   });
 
   const toggleTask = useMutation({
@@ -572,7 +598,7 @@ export default function MarketingPlanner() {
       const payload = {
         title: newPost.title,
         content: newPost.content,
-        assigned_to: newPost.assigned_to,
+        assigned_to: newPost.assigned_to || myEmail,
         target_date: format(newPost.target_date, 'yyyy-MM-dd'),
         location_id: newPost.location_id === "all" ? null : newPost.location_id,
         media_url: newPost.media_url,
@@ -584,9 +610,7 @@ export default function MarketingPlanner() {
       if (error) throw error;
 
       // Notify social media manager (or admin if submitted by social team)
-      await supabase.functions.invoke('send-social-post-alert', {
-        body: { post: data, action: 'requested' }
-      }).catch(err => console.error("Error sending social post alert", err));
+      await notifyMarketing({ type: 'social_post', action: 'requested', post: data });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['social_posts'] });
@@ -606,9 +630,7 @@ export default function MarketingPlanner() {
       
       // Notify on approval, review request, or changes needed
       if (['approved', 'needs_approval', 'changes_needed'].includes(status)) {
-         await supabase.functions.invoke('send-social-post-alert', {
-           body: { post: { ...post, ...updates }, action: status, feedback }
-         });
+         await notifyMarketing({ type: 'social_post', action: status, post: { ...post, ...updates }, feedback });
       }
     },
     onSuccess: () => {
@@ -629,7 +651,30 @@ export default function MarketingPlanner() {
     return { label: 'Future Planning', color: 'bg-blue-100 text-blue-800 border-blue-200' };
   };
 
-  const upcomingPrompts = getUpcomingEvents(customPrompts);
+  const upcomingPrompts = upcomingEvents(customPrompts, 6);
+
+  const activeCampaignIds = new Set(campaigns.filter((c: any) => !c.archived_at).map((c: any) => c.id));
+  const openTasks = tasks
+    .filter((t: any) => !t.is_completed && activeCampaignIds.has(t.campaign_id))
+    .filter((t: any) => showAllTasks || (t.assigned_to || "").trim().toLowerCase() === myEmail)
+    .sort((a: any, b: any) => String(a.due_date || "9999").localeCompare(String(b.due_date || "9999")));
+  const overdueCount = openTasks.filter(isTaskOverdue).length;
+  const campaignRiskLevel = (c: any) => campaignRisk(c, tasks.filter((t: any) => t.campaign_id === c.id))?.level ?? "ok";
+
+  const sendMyDigest = async () => {
+    setSendingDigest(true);
+    try {
+      const { data } = await supabase.auth.getSession();
+      const res = await fetch("/api/marketing-digest", { method: "POST", headers: { authorization: `Bearer ${data.session?.access_token ?? ""}` } });
+      const out = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(out.error || `Request failed (${res.status})`);
+      toast(out.empty
+        ? { title: "Nothing to send", description: "You have no overdue tasks or tasks due in the next 7 days." }
+        : { title: "Digest sent", description: `Check ${myEmail}.` });
+    } catch (e) {
+      toast({ title: "Couldn't send digest", description: (e as Error).message, variant: "destructive" });
+    } finally { setSendingDigest(false); }
+  };
 
   const renderCalendar = (campaignList: any[]) => {
     const monthStart = startOfMonth(currentMonth);
@@ -658,9 +703,12 @@ export default function MarketingPlanner() {
         <div className="grid grid-cols-7 flex-1 auto-rows-fr overflow-y-auto">
           {days.map((day) => {
             const isCurrentMonth = isSameMonth(day, monthStart);
-            const dayCampaigns = campaignList.filter(c => isSameDay(parseISO(c.target_date), day));
-            // Find if this day has a seasonal prompt
-            const dayPrompt = upcomingPrompts.find(p => isSameDay(p.date, day));
+            const dayYmd = format(day, "yyyy-MM-dd");
+            // A campaign shows on every day from its start to its end date.
+            const dayCampaigns = campaignList.filter(c => dayYmd >= c.target_date && dayYmd <= (c.end_date && c.end_date > c.target_date ? c.end_date : c.target_date));
+            // Seasonal prompts for whichever month is on screen (not just the next few).
+            const dayPrompt = eventsForYear(day.getFullYear(), customPrompts).find(p => isSameDay(p.date, day));
+            const isToday = isSameDay(day, new Date());
 
             return (
               <div 
@@ -671,17 +719,21 @@ export default function MarketingPlanner() {
                 `}
               >
                 <div className="flex justify-between items-start mb-1">
-                  <span className="text-sm font-medium">{format(day, "d")}</span>
+                  <span className={`text-sm font-medium ${isToday ? "bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center" : ""}`}>{format(day, "d")}</span>
                 </div>
 
                 <div className="flex flex-col gap-1 mt-1">
                   {dayCampaigns.map(camp => (
                     <div 
                       key={camp.id}
-                      className="text-xs px-1.5 py-1 rounded border font-medium truncate bg-primary/10 text-primary border-primary/20 cursor-pointer hover:bg-primary/20"
-                      title={camp.title}
+                      className={`text-xs px-1.5 py-1 rounded border font-medium truncate cursor-pointer ${campaignRiskLevel(camp) === "risk" ? "bg-red-600 text-white border-red-600 hover:bg-red-700" : "bg-primary/10 text-primary border-primary/20 hover:bg-primary/20"}`}
+                      title={`${camp.title} · ${dateRangeLabel(camp)} · click to open`}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => setDetailsCampaign(camp)}
+                      onKeyDown={(e) => { if (e.key === "Enter") setDetailsCampaign(camp); }}
                     >
-                      {camp.title}
+                      {dayYmd === camp.target_date || day.getDay() === 0 ? camp.title : "\u00A0"}
                     </div>
                   ))}
                   
@@ -689,10 +741,7 @@ export default function MarketingPlanner() {
                     <div 
                       className="text-[10px] px-1.5 py-1 rounded border border-dashed font-medium truncate bg-muted/30 text-muted-foreground cursor-pointer hover:bg-muted/50 hover:text-foreground transition-colors"
                       title={`Suggested: ${dayPrompt.name}`}
-                      onClick={() => {
-                        setNewCampaign({ title: `${dayPrompt.name} Promo`, description: "", target_date: dayPrompt.date, location_id: "all" });
-                        setIsDraftingCampaign(true);
-                      }}
+                      onClick={() => planFromPrompt(dayPrompt)}
                     >
                       <Sparkles className="w-3 h-3 inline mr-1 opacity-50" />
                       {dayPrompt.name}
@@ -761,7 +810,7 @@ export default function MarketingPlanner() {
                   </Button>
                   <Sheet open={isDraftingCampaign} onOpenChange={setIsDraftingCampaign}>
                     <SheetTrigger asChild>
-                      <Button size="sm" onClick={() => { setCopyFrom(null); setNewCampaign({ title: "", description: "", target_date: new Date(), location_id: "all" }); }}>
+                      <Button size="sm" onClick={() => { setCopyFrom(null); setNewCampaign({ ...blankCampaign(), title: "", description: "", target_date: new Date(), location_id: "all" }); }}>
                         <Plus className="w-4 h-4 mr-2" /> Plan Campaign
                       </Button>
                     </SheetTrigger>
@@ -789,8 +838,41 @@ export default function MarketingPlanner() {
                             </SelectContent>
                           </Select>
                         </div>
+                        {!copyFrom && (
+                          <div className="rounded-md border bg-muted/30 p-3 space-y-2">
+                            <Label>Start from a template</Label>
+                            <Select value={newCampaign.template} onValueChange={v => setNewCampaign({...newCampaign, template: v})}>
+                              <SelectTrigger><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="none">No template (blank)</SelectItem>
+                                {CAMPAIGN_TEMPLATES.map(t => <SelectItem key={t.id} value={t.id}>{t.name} · {t.tasks.length} tasks</SelectItem>)}
+                              </SelectContent>
+                            </Select>
+                            {newCampaign.template !== "none" && (() => {
+                              const tpl = CAMPAIGN_TEMPLATES.find(t => t.id === newCampaign.template)!;
+                              return (
+                                <>
+                                  <p className="text-xs text-muted-foreground">{tpl.description} Due dates count back from the start date.</p>
+                                  <ul className="text-xs space-y-0.5 max-h-36 overflow-y-auto pr-1">
+                                    {tpl.tasks.map(t => (
+                                      <li key={t.title} className="flex justify-between gap-2">
+                                        <span className="truncate">{t.title}</span>
+                                        <span className="text-muted-foreground shrink-0 tabular-nums">{format(parseISO(templateDueDate(newCampaign.target_date, t.daysBefore)), "MMM d")}</span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                  <div>
+                                    <Label className="text-xs">Assign these tasks to</Label>
+                                    <TeamMemberSelect value={newCampaign.owner || myEmail} onChange={v => setNewCampaign({...newCampaign, owner: v})} allowNone={false} className="mt-1" />
+                                    <p className="text-[11px] text-muted-foreground mt-1">You can reassign individual tasks afterward.</p>
+                                  </div>
+                                </>
+                              );
+                            })()}
+                          </div>
+                        )}
                         <div>
-                          <Label>Target Date</Label>
+                          <Label>Start Date</Label>
                           <Popover>
                             <PopoverTrigger asChild>
                               <Button variant="outline" className="w-full mt-1 justify-start text-left font-normal">
@@ -804,6 +886,11 @@ export default function MarketingPlanner() {
                           </Popover>
                         </div>
                         <div>
+                          <Label>End Date <span className="text-muted-foreground font-normal">(optional, for multi-day promos)</span></Label>
+                          <Input type="date" className="mt-1" min={format(newCampaign.target_date, "yyyy-MM-dd")}
+                            value={newCampaign.end_date} onChange={e => setNewCampaign({...newCampaign, end_date: e.target.value})} />
+                        </div>
+                        <div>
                           <Label>Description</Label>
                           <Textarea placeholder="High level goals for this season..." value={newCampaign.description} onChange={e => setNewCampaign({...newCampaign, description: e.target.value})} className="mt-1" />
                         </div>
@@ -813,10 +900,18 @@ export default function MarketingPlanner() {
                             <div className="text-xs text-muted-foreground">
                               {copyFrom.title} · {format(parseISO(copyFrom.target_date), "MMM d, yyyy")}
                             </div>
+                            {(copyFrom.recap_results || copyFrom.recap_worked || copyFrom.recap_improve) && (
+                              <div className="text-xs space-y-1 border-t pt-2">
+                                <div className="font-medium">Last year's recap</div>
+                                {copyFrom.recap_results && <div><span className="text-muted-foreground">Results: </span>{copyFrom.recap_results}</div>}
+                                {copyFrom.recap_worked && <div><span className="text-muted-foreground">What worked: </span>{copyFrom.recap_worked}</div>}
+                                {copyFrom.recap_improve && <div><span className="text-muted-foreground">Do differently: </span>{copyFrom.recap_improve}</div>}
+                              </div>
+                            )}
                             {tasks.filter((t: any) => t.campaign_id === copyFrom.id).length > 0 && (
                               <label className="flex items-center gap-2 text-xs">
                                 <Checkbox checked={copyTasks} onCheckedChange={(v) => setCopyTasks(!!v)} />
-                                Copy its {tasks.filter((t: any) => t.campaign_id === copyFrom.id).length} tasks (due dates moved forward)
+                                Copy its {tasks.filter((t: any) => t.campaign_id === copyFrom.id).length === 1 ? "1 task" : `${tasks.filter((t: any) => t.campaign_id === copyFrom.id).length} tasks`} (due dates moved forward)
                               </label>
                             )}
                           </div>
@@ -855,6 +950,8 @@ export default function MarketingPlanner() {
                         progress={progress} 
                         createTask={createTask} 
                         toggleTask={toggleTask}
+                        updateTask={updateTask}
+                        deleteTask={deleteTask}
                         updateCampaignDetails={updateCampaignDetails}
                         archiveCampaign={archiveCampaign}
                       />
@@ -897,17 +994,7 @@ export default function MarketingPlanner() {
                           variant="secondary" 
                           size="sm" 
                           className="h-7 text-xs bg-background hover:bg-background/80"
-                          onClick={() => {
-                            setCopyFrom(lastTime);
-                            setCopyTasks(true);
-                            setNewCampaign({
-                              title: lastTime ? lastTime.title : `${prompt.name} Promo`,
-                              description: lastTime?.description || prompt.notes || "",
-                              target_date: prompt.date,
-                              location_id: lastTime?.location_id || "all",
-                            });
-                            setIsDraftingCampaign(true);
-                          }}
+                          onClick={() => planFromPrompt(prompt)}
                         >
                           {lastTime ? "Repeat" : "Plan"}
                         </Button>
@@ -919,26 +1006,46 @@ export default function MarketingPlanner() {
               </Card>
 
               <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm">My Tasks</CardTitle>
+                <CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0">
+                  <CardTitle className="text-sm">{showAllTasks ? "Everyone's Tasks" : "My Tasks"}{overdueCount > 0 && <Badge className="ml-2 bg-red-600 text-white hover:bg-red-600">{overdueCount} overdue</Badge>}</CardTitle>
+                  <button type="button" className="text-xs text-primary hover:underline" onClick={() => setShowAllTasks(v => !v)}>
+                    {showAllTasks ? "Show mine" : "Show everyone's"}
+                  </button>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {tasks.filter(t => !t.is_completed).length === 0 ? (
-                      <p className="text-xs text-muted-foreground italic">No pending tasks.</p>
+                    {openTasks.length === 0 ? (
+                      <p className="text-xs text-muted-foreground italic">{showAllTasks ? "No open tasks." : "Nothing assigned to you. Nice."}</p>
                     ) : (
-                      tasks.filter(t => !t.is_completed).slice(0, 8).map(task => (
-                        <div key={task.id} className="flex items-start gap-2 text-sm">
-                          <button onClick={() => toggleTask.mutate({ task_id: task.id, is_completed: true })} className="mt-0.5 text-muted-foreground hover:text-primary">
-                            <CheckSquare className="w-4 h-4" />
-                          </button>
-                          <div>
-                            <div className="font-medium line-clamp-1">{task.title}</div>
-                            <div className="text-[10px] text-muted-foreground">{task.assigned_to} • Due {format(parseISO(task.due_date), "MMM d")}</div>
+                      openTasks.slice(0, 10).map((task: any) => {
+                        const late = isTaskOverdue(task);
+                        const camp = campaigns.find((c: any) => c.id === task.campaign_id);
+                        return (
+                          <div key={task.id} className="flex items-start gap-2 text-sm">
+                            <button aria-label="Mark done" onClick={() => toggleTask.mutate({ task_id: task.id, is_completed: true })} className="mt-0.5 text-muted-foreground hover:text-primary">
+                              <CheckSquare className="w-4 h-4" />
+                            </button>
+                            <div className="min-w-0">
+                              <div className="font-medium line-clamp-1">{task.title}</div>
+                              <div className="text-[11px] text-muted-foreground">
+                                {camp?.title ? `${camp.title} · ` : ""}
+                                {showAllTasks ? `${memberLabel(members, task.assigned_to)} · ` : ""}
+                                <span className={late ? "text-red-700 font-semibold" : ""}>
+                                  {task.due_date ? (late ? `${-daysUntil(task.due_date)}d overdue` : `Due ${format(parseISO(task.due_date), "MMM d")}`) : "No due date"}
+                                </span>
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      ))
+                        );
+                      })
                     )}
+                    {openTasks.length > 10 && <p className="text-[11px] text-muted-foreground">+ {openTasks.length - 10} more</p>}
+                  </div>
+                  <div className="border-t mt-4 pt-3">
+                    <p className="text-[11px] text-muted-foreground mb-2">Everyone gets their open and overdue tasks by email every Monday morning.</p>
+                    <Button variant="outline" size="sm" className="h-7 text-xs w-full" disabled={sendingDigest} onClick={sendMyDigest}>
+                      {sendingDigest ? <Loader2 className="w-3 h-3 mr-1.5 animate-spin" /> : <Mail className="w-3 h-3 mr-1.5" />} Email me my digest now
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -956,8 +1063,29 @@ export default function MarketingPlanner() {
           <h1 className="text-3xl font-bold tracking-tight">Marketing & Social Planner</h1>
           <p className="text-muted-foreground mt-1">Plan campaigns 3+ months out, assign tasks, and manage social approvals.</p>
         </div>
-        <MarketingSupportRequestSheet />
+        <div className="flex flex-wrap items-center gap-2">
+          <AlertSettingsButton
+            title="Marketing email alerts"
+            description="Who gets each kind of email. One email per line."
+            groups={[
+              { key: "marketing_requests", label: "Marketing support requests", description: "Gets an email when a store submits a support request (public form or Request Support)." },
+              { key: "social_approvals", label: "Social post approvers", description: "Gets an email when a post is uploaded or sent for approval." },
+              { key: "social_team", label: "Social / creative team", description: "Gets creative requests, plus approvals and change requests when a post has no named owner." },
+            ]}
+          />
+          <MarketingSupportRequestSheet />
+        </div>
       </div>
+
+      {detailsCampaign && (
+        <CampaignDetailsSheet
+          hideTrigger
+          campaign={campaigns.find((c: any) => c.id === detailsCampaign.id) || detailsCampaign}
+          updateCampaignDetails={updateCampaignDetails}
+          open={!!detailsCampaign}
+          onOpenChange={(o) => { if (!o) setDetailsCampaign(null); }}
+        />
+      )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-4 max-w-3xl">
@@ -1225,585 +1353,6 @@ export default function MarketingPlanner() {
 }
 
 // Subcomponents
-
-function CampaignCard({ campaign, status, tasks, progress, createTask, toggleTask, updateCampaignDetails, archiveCampaign }: any) {
-  const [isAssigning, setIsAssigning] = useState(false);
-  const [confirmArchive, setConfirmArchive] = useState(false);
-  const [remember, setRemember] = useState(true);
-  const [newTask, setNewTask] = useState({ title: "", assigned_to: "", due_date: new Date() });
-
-  const handleCreate = () => {
-    createTask.mutate({ ...newTask, campaign_id: campaign.id }, {
-      onSuccess: () => {
-        setIsAssigning(false);
-        setNewTask({ title: "", assigned_to: "", due_date: new Date() });
-      }
-    });
-  };
-
-  return (
-    <Card className="overflow-hidden">
-      <div className="flex flex-col md:flex-row md:items-center justify-between p-4 border-b bg-muted/10">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <h3 className="font-semibold text-lg">{campaign.title}</h3>
-            {campaign.archived_at
-              ? <Badge variant="outline" className="bg-muted text-muted-foreground">Archived</Badge>
-              : <Badge className={status.color} variant="outline">{status.label}</Badge>}
-          </div>
-          <div className="text-sm text-muted-foreground flex items-center gap-2">
-            <CalendarDays className="w-3.5 h-3.5" />
-            Target: {format(parseISO(campaign.target_date), "MMM d, yyyy")}
-          </div>
-        </div>
-        <div className="mt-4 md:mt-0 flex items-center justify-end gap-6">
-          <div className="text-right">
-            <div className="text-sm font-medium mb-1">Task Progress</div>
-            <div className="flex items-center gap-3">
-              <div className="w-32 h-2 bg-muted rounded-full overflow-hidden">
-                <div className="h-full bg-primary transition-all" style={{ width: `${progress}%` }} />
-              </div>
-              <span className="text-xs font-semibold">{progress}%</span>
-            </div>
-          </div>
-          <CampaignDetailsSheet campaign={campaign} updateCampaignDetails={updateCampaignDetails} />
-          {campaign.archived_at ? (
-            <Button variant="outline" size="sm" disabled={archiveCampaign?.isPending}
-              onClick={() => archiveCampaign.mutate({ campaign, archive: false })}>
-              <ArchiveRestore className="w-4 h-4 mr-2" /> Restore
-            </Button>
-          ) : (
-            <Button variant="ghost" size="sm" onClick={() => { setRemember(true); setConfirmArchive(true); }}>
-              <Archive className="w-4 h-4 mr-2" /> Archive
-            </Button>
-          )}
-          <AlertDialog open={confirmArchive} onOpenChange={setConfirmArchive}>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Archive "{campaign.title}"?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  It moves out of the active list. You can find it anytime under Archived and restore it.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <label className="flex items-start gap-2 text-sm rounded-md border p-3 bg-muted/30">
-                <Checkbox checked={remember} onCheckedChange={(v) => setRemember(!!v)} className="mt-0.5" />
-                <span>
-                  <span className="font-medium">Remind us next year</span>
-                  <span className="block text-xs text-muted-foreground">
-                    Adds it to Seasonal Prompts around {format(parseISO(campaign.target_date), "MMM d")}, with a one-click "Repeat" that copies this campaign and its tasks.
-                  </span>
-                </span>
-              </label>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={() => archiveCampaign.mutate({ campaign, archive: true, remember })}>Archive</AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </div>
-      </div>
-      <div className="p-4">
-        {campaign.description && (
-          <p className="text-sm text-muted-foreground mb-4">{campaign.description}</p>
-        )}
-        
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Delegated Tasks</h4>
-            <Sheet open={isAssigning} onOpenChange={setIsAssigning}>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-7 text-xs gap-1"><Plus className="w-3 h-3" /> Assign Task</Button>
-              </SheetTrigger>
-              <SheetContent>
-                <SheetHeader className="mb-6">
-                  <SheetTitle>Assign Campaign Task</SheetTitle>
-                  <SheetDescription>Delegate work for {campaign.title}. They will receive an email alert.</SheetDescription>
-                </SheetHeader>
-                <div className="space-y-4">
-                  <div>
-                    <Label>Task Description</Label>
-                    <Input placeholder="e.g. Create Special Drink Menu" value={newTask.title} onChange={e => setNewTask({...newTask, title: e.target.value})} className="mt-1" />
-                  </div>
-                  <div>
-                    <Label>Assignee Email</Label>
-                    <Input placeholder="chef@squarepegpizzeria.com" value={newTask.assigned_to} onChange={e => setNewTask({...newTask, assigned_to: e.target.value})} className="mt-1" />
-                  </div>
-                  <div>
-                    <Label>Due Date</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" className="w-full mt-1 justify-start text-left font-normal">
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {newTask.due_date ? format(newTask.due_date, "PPP") : <span>Pick a date</span>}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
-                        <CalendarComponent mode="single" selected={newTask.due_date} onSelect={d => d && setNewTask({...newTask, due_date: d})} />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                  <Button className="w-full mt-4" onClick={handleCreate} disabled={!newTask.title || createTask.isPending}>
-                    {createTask.isPending ? "Assigning..." : "Assign Task & Email"}
-                  </Button>
-                </div>
-              </SheetContent>
-            </Sheet>
-          </div>
-
-          {tasks.length === 0 ? (
-            <div className="text-xs italic text-muted-foreground">No tasks assigned yet.</div>
-          ) : (
-            <div className="grid sm:grid-cols-2 gap-2">
-              {tasks.map((task: any) => (
-                <div key={task.id} className={`flex items-start gap-2 p-2 rounded border text-sm ${task.is_completed ? 'bg-muted/30' : 'bg-background'}`}>
-                  <button onClick={() => toggleTask.mutate({ task_id: task.id, is_completed: !task.is_completed })} className={`mt-0.5 shrink-0 ${task.is_completed ? 'text-primary' : 'text-muted-foreground hover:text-primary'}`}>
-                    {task.is_completed ? <CheckCircle2 className="w-4 h-4" /> : <CheckSquare className="w-4 h-4" />}
-                  </button>
-                  <div className="min-w-0">
-                    <div className={`font-medium line-clamp-1 ${task.is_completed ? 'line-through text-muted-foreground' : ''}`}>{task.title}</div>
-                    <div className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
-                      <UserCircle2 className="w-3 h-3" />
-                      <span className="truncate">{task.assigned_to}</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    </Card>
-  );
-}
-
-function CampaignDetailsSheet({ campaign, updateCampaignDetails }: any) {
-  const [open, setOpen] = useState(false);
-  const { toast } = useToast();
-  const [isAlertingSocial, setIsAlertingSocial] = useState(false);
-  const [formData, setFormData] = useState({
-    drinks_plan: campaign.drinks_plan || "",
-    drinks_due_date: campaign.drinks_due_date ? parseISO(campaign.drinks_due_date) : undefined,
-    drinks_assigned_to: campaign.drinks_assigned_to || "",
-    menu_plan: campaign.menu_plan || "",
-    menu_due_date: campaign.menu_due_date ? parseISO(campaign.menu_due_date) : undefined,
-    menu_assigned_to: campaign.menu_assigned_to || "",
-    activity_plan: campaign.activity_plan || "",
-    activity_due_date: campaign.activity_due_date ? parseISO(campaign.activity_due_date) : undefined,
-    activity_assigned_to: campaign.activity_assigned_to || "",
-    instore_plan: campaign.instore_plan || "",
-    instore_due_date: campaign.instore_due_date ? parseISO(campaign.instore_due_date) : undefined,
-    instore_assigned_to: campaign.instore_assigned_to || "",
-    promo_social: campaign.promo_social || false,
-    promo_como: campaign.promo_como || false,
-    promo_email: campaign.promo_email || false,
-    promo_in_store: campaign.promo_in_store || false,
-    promo_notes: campaign.promo_notes || "",
-    promo_due_date: campaign.promo_due_date ? parseISO(campaign.promo_due_date) : undefined,
-    promo_assigned_to: campaign.promo_assigned_to || "",
-    social_email: campaign.social_email || "",
-    como_notes: campaign.como_notes || "",
-    como_assigned_to: campaign.como_assigned_to || "",
-    email_notes: campaign.email_notes || "",
-    email_assigned_to: campaign.email_assigned_to || "",
-    in_store_notes: campaign.in_store_notes || "",
-    in_store_assigned_to: campaign.in_store_assigned_to || ""
-  });
-
-  const handleSave = async () => {
-    const updates = {
-      ...formData,
-      drinks_due_date: formData.drinks_due_date ? format(formData.drinks_due_date, 'yyyy-MM-dd') : null,
-      menu_due_date: formData.menu_due_date ? format(formData.menu_due_date, 'yyyy-MM-dd') : null,
-      activity_due_date: formData.activity_due_date ? format(formData.activity_due_date, 'yyyy-MM-dd') : null,
-      instore_due_date: formData.instore_due_date ? format(formData.instore_due_date, 'yyyy-MM-dd') : null,
-      promo_due_date: formData.promo_due_date ? format(formData.promo_due_date, 'yyyy-MM-dd') : null,
-    };
-    
-    updateCampaignDetails.mutate({ id: campaign.id, updates }, {
-      onSuccess: async () => {
-        setOpen(false);
-
-        // Check if any assignments were newly added or changed to trigger notifications
-        const assignmentsToCheck = [
-          { email: formData.drinks_assigned_to, type: "Drinks Menu", dueDate: updates.drinks_due_date, oldEmail: campaign.drinks_assigned_to },
-          { email: formData.menu_assigned_to, type: "Food Menu", dueDate: updates.menu_due_date, oldEmail: campaign.menu_assigned_to },
-          { email: formData.activity_assigned_to, type: "Activity", dueDate: updates.activity_due_date, oldEmail: campaign.activity_assigned_to },
-          { email: formData.instore_assigned_to, type: "In-Store Experience", dueDate: updates.instore_due_date, oldEmail: campaign.instore_assigned_to },
-          { email: formData.promo_assigned_to, type: "Master Promo Lead", dueDate: updates.promo_due_date, oldEmail: campaign.promo_assigned_to },
-          { email: formData.como_assigned_to, type: "Como (Loyalty)", dueDate: updates.promo_due_date, oldEmail: campaign.como_assigned_to },
-          { email: formData.email_assigned_to, type: "Email Broadcast", dueDate: updates.promo_due_date, oldEmail: campaign.email_assigned_to },
-          { email: formData.in_store_assigned_to, type: "In-Store Signage", dueDate: updates.promo_due_date, oldEmail: campaign.in_store_assigned_to }
-        ];
-
-        for (const assign of assignmentsToCheck) {
-          if (assign.email && assign.email !== assign.oldEmail) {
-             await supabase.functions.invoke('send-marketing-task-assigned', {
-               body: { 
-                 task: { 
-                   title: `Manage ${assign.type} for ${campaign.title}`, 
-                   assigned_to: assign.email, 
-                   due_date: assign.dueDate 
-                 }, 
-                 campaign: { title: campaign.title } 
-               }
-             }).catch(err => console.error(`Error notifying ${assign.email}`, err));
-          }
-        }
-      }
-    });
-  };
-
-  const handleAlertSocial = async () => {
-    setIsAlertingSocial(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('send-social-post-alert', {
-        body: { 
-          source: 'campaign',
-          campaign: campaign.title,
-          target_date: campaign.target_date,
-          due_date: formData.promo_due_date ? format(formData.promo_due_date, 'yyyy-MM-dd') : null,
-          guidance: formData.promo_notes
-        }
-      });
-      if (error || data?.error) throw new Error(error?.message || data?.error);
-      toast({ title: "Social Team Alerted", description: "An email notification has been sent with your creative guidance." });
-    } catch (err: any) {
-      toast({ title: "Alert Failed", description: err.message, variant: "destructive" });
-    } finally {
-      setIsAlertingSocial(false);
-    }
-  };
-
-  const isOverdue = (date?: Date, content?: string) => {
-    if (!date) return false;
-    // Overdue if the date is in the past AND the content plan is empty
-    return (new Date().getTime() > date.getTime() + 86400000) && (!content || content.trim() === "");
-  };
-
-  return (
-    <Sheet open={open} onOpenChange={setOpen}>
-      <SheetTrigger asChild>
-        <Button variant="outline" size="sm">Open Details</Button>
-      </SheetTrigger>
-      <SheetContent className="sm:max-w-xl w-full overflow-y-auto">
-        <SheetHeader className="mb-6">
-          <SheetTitle>{campaign.title} Planning</SheetTitle>
-          <SheetDescription>Detailed planning for drinks, menu, activities, and promotion.</SheetDescription>
-        </SheetHeader>
-        
-        <div className="space-y-8 pb-20">
-          <div className="space-y-4">
-            <div className="flex items-center justify-between border-b pb-2">
-              <h4 className="font-semibold">Drink Menu Plan</h4>
-              <div className="flex items-center gap-2">
-                <Input 
-                  placeholder="Assign To (Email)" 
-                  value={formData.drinks_assigned_to || ""}
-                  onChange={e => setFormData(f => ({...f, drinks_assigned_to: e.target.value}))}
-                  className="h-8 text-xs w-[180px]"
-                />
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" size="sm" className={`h-8 text-xs ${isOverdue(formData.drinks_due_date, formData.drinks_plan) ? 'text-destructive border-destructive' : ''}`}>
-                      <CalendarIcon className="mr-2 h-3 w-3" />
-                      {formData.drinks_due_date ? format(formData.drinks_due_date, "MMM d, yyyy") : <span>Set Due Date</span>}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <CalendarComponent mode="single" selected={formData.drinks_due_date} onSelect={d => setFormData(f => ({...f, drinks_due_date: d}))} />
-                  </PopoverContent>
-                </Popover>
-              </div>
-            </div>
-            <Textarea 
-              placeholder="List specific drinks, specials, or prep needed..." 
-              value={formData.drinks_plan}
-              onChange={e => setFormData(f => ({...f, drinks_plan: e.target.value}))}
-              className="min-h-[100px]"
-            />
-          </div>
-
-          <div className="space-y-4">
-            <div className="flex items-center justify-between border-b pb-2">
-              <h4 className="font-semibold">Food Menu Plan</h4>
-              <div className="flex items-center gap-2">
-                <Input 
-                  placeholder="Assign To (Email)" 
-                  value={formData.menu_assigned_to || ""}
-                  onChange={e => setFormData(f => ({...f, menu_assigned_to: e.target.value}))}
-                  className="h-8 text-xs w-[180px]"
-                />
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" size="sm" className={`h-8 text-xs ${isOverdue(formData.menu_due_date, formData.menu_plan) ? 'text-destructive border-destructive' : ''}`}>
-                      <CalendarIcon className="mr-2 h-3 w-3" />
-                      {formData.menu_due_date ? format(formData.menu_due_date, "MMM d, yyyy") : <span>Set Due Date</span>}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <CalendarComponent mode="single" selected={formData.menu_due_date} onSelect={d => setFormData(f => ({...f, menu_due_date: d}))} />
-                  </PopoverContent>
-                </Popover>
-              </div>
-            </div>
-            <Textarea 
-              placeholder="List specific food specials, prep needed, ingredients..." 
-              value={formData.menu_plan}
-              onChange={e => setFormData(f => ({...f, menu_plan: e.target.value}))}
-              className="min-h-[100px]"
-            />
-          </div>
-
-          <div className="space-y-4">
-            <div className="flex items-center justify-between border-b pb-2">
-              <h4 className="font-semibold">Activity & Event Plan</h4>
-              <div className="flex items-center gap-2">
-                <Input 
-                  placeholder="Assign To (Email)" 
-                  value={formData.activity_assigned_to || ""}
-                  onChange={e => setFormData(f => ({...f, activity_assigned_to: e.target.value}))}
-                  className="h-8 text-xs w-[180px]"
-                />
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" size="sm" className={`h-8 text-xs ${isOverdue(formData.activity_due_date, formData.activity_plan) ? 'text-destructive border-destructive' : ''}`}>
-                      <CalendarIcon className="mr-2 h-3 w-3" />
-                      {formData.activity_due_date ? format(formData.activity_due_date, "MMM d, yyyy") : <span>Set Due Date</span>}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <CalendarComponent mode="single" selected={formData.activity_due_date} onSelect={d => setFormData(f => ({...f, activity_due_date: d}))} />
-                  </PopoverContent>
-                </Popover>
-              </div>
-            </div>
-            <Textarea 
-              placeholder="Decorations, games, music, schedule of events..." 
-              value={formData.activity_plan}
-              onChange={e => setFormData(f => ({...f, activity_plan: e.target.value}))}
-              className="min-h-[100px]"
-            />
-          </div>
-
-          <div className="space-y-4">
-            <div className="flex items-center justify-between border-b pb-2">
-              <h4 className="font-semibold">In-Store Experience</h4>
-              <div className="flex items-center gap-2">
-                <Input 
-                  placeholder="Assign To (Email)" 
-                  value={formData.instore_assigned_to || ""}
-                  onChange={e => setFormData(f => ({...f, instore_assigned_to: e.target.value}))}
-                  className="h-8 text-xs w-[180px]"
-                />
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" size="sm" className={`h-8 text-xs ${isOverdue(formData.instore_due_date, formData.instore_plan) ? 'text-destructive border-destructive' : ''}`}>
-                      <CalendarIcon className="mr-2 h-3 w-3" />
-                      {formData.instore_due_date ? format(formData.instore_due_date, "MMM d, yyyy") : <span>Set Due Date</span>}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <CalendarComponent mode="single" selected={formData.instore_due_date} onSelect={d => setFormData(f => ({...f, instore_due_date: d}))} />
-                  </PopoverContent>
-                </Popover>
-              </div>
-            </div>
-            <Textarea 
-              placeholder="Staffing adjustments, decorations, table setups, vibe/music..." 
-              value={formData.instore_plan}
-              onChange={e => setFormData(f => ({...f, instore_plan: e.target.value}))}
-              className="min-h-[100px]"
-            />
-          </div>
-
-          <div className="space-y-4 bg-muted/20 p-4 rounded-lg border">
-            <div className="flex items-center justify-between border-b pb-2 mb-4">
-              <h4 className="font-semibold flex items-center gap-2"><Megaphone className="w-4 h-4 text-primary" /> Promotional Strategy</h4>
-              <div className="flex items-center gap-2">
-                <Input 
-                  placeholder="Promo Lead (Email)" 
-                  value={formData.promo_assigned_to || ""}
-                  onChange={e => setFormData(f => ({...f, promo_assigned_to: e.target.value}))}
-                  className="h-8 text-xs w-[180px] bg-background"
-                />
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" size="sm" className={`h-8 text-xs bg-background ${isOverdue(formData.promo_due_date, formData.promo_notes) ? 'text-destructive border-destructive' : ''}`}>
-                      <CalendarIcon className="mr-2 h-3 w-3" />
-                      {formData.promo_due_date ? format(formData.promo_due_date, "MMM d, yyyy") : <span>Master Promo Due Date</span>}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <CalendarComponent mode="single" selected={formData.promo_due_date} onSelect={d => setFormData(f => ({...f, promo_due_date: d}))} />
-                  </PopoverContent>
-                </Popover>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3 mb-4">
-              <div className="flex items-center space-x-2">
-                <Checkbox id="p-social" checked={formData.promo_social} onCheckedChange={c => setFormData(f => ({...f, promo_social: !!c}))} />
-                <Label htmlFor="p-social" className="text-sm cursor-pointer">Social Media</Label>
-              </div>
-              <label className="flex items-center space-x-2">
-                <Checkbox checked={formData.promo_como} onCheckedChange={(checked) => setFormData(f => ({...f, promo_como: !!checked}))} />
-                <span className="text-sm cursor-pointer">Como (Loyalty Members)</span>
-              </label>
-              <label className="flex items-center space-x-2">
-                <Checkbox checked={formData.promo_email} onCheckedChange={(checked) => setFormData(f => ({...f, promo_email: !!checked}))} />
-                <span className="text-sm cursor-pointer">Email Broadcast</span>
-              </label>
-              <label className="flex items-center space-x-2">
-                <Checkbox checked={formData.promo_in_store} onCheckedChange={(checked) => setFormData(f => ({...f, promo_in_store: !!checked}))} />
-                <span className="text-sm cursor-pointer">In-Store Signage</span>
-              </label>
-            </div>
-            
-              {formData.promo_social && (
-                <div className="bg-blue-50/50 dark:bg-blue-900/10 p-4 rounded-md border border-blue-100 dark:border-blue-900/30 space-y-3 mt-4">
-                  <h4 className="font-medium text-sm text-blue-800 dark:text-blue-300">Social Media Creative Alert</h4>
-                  <p className="text-xs text-blue-700/80 dark:text-blue-400/80">Send a direct request to the social media manager to prepare creative assets for this campaign.</p>
-                  
-                  <div className="space-y-3">
-                    <div>
-                      <Label className="text-xs">Social Team Email</Label>
-                      <Input 
-                        placeholder="social@example.com"
-                        className="h-8 mt-1 bg-white dark:bg-background"
-                        value={formData.social_email || ""}
-                        onChange={e => setFormData(f => ({...f, social_email: e.target.value}))}
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-xs">Creative Guidance / Notes</Label>
-                      <Textarea 
-                        placeholder="e.g., Needs to feel energetic. Make sure to feature the new cocktail prominently." 
-                        className="min-h-[80px] bg-white dark:bg-background"
-                        value={formData.promo_notes || ""}
-                        onChange={e => setFormData(f => ({...f, promo_notes: e.target.value}))}
-                      />
-                    </div>
-                  </div>
-                  
-                  <Button 
-                    size="sm" 
-                    type="button"
-                    disabled={!formData.social_email}
-                    onClick={async () => {
-                      try {
-                        const { error } = await supabase.from('social_posts').insert({
-                          title: `Campaign Creative: ${campaign.title}`,
-                          content: formData.promo_notes,
-                          target_date: campaign.target_date,
-                          location_id: campaign.location_id,
-                          status: 'Requested',
-                          campaign_id: campaign.id
-                        });
-                        
-                        if (error) throw error;
-                        
-                        await supabase.functions.invoke('send-social-post-alert', {
-                          body: { 
-                            type: "campaign_creative_request",
-                            campaignTitle: campaign.title,
-                            targetDate: campaign.target_date,
-                            notes: formData.promo_notes,
-                            locationId: campaign.location_id,
-                            socialEmail: formData.social_email,
-                            dueDate: formData.promo_due_date
-                          }
-                        });
-                        toast({ title: "Alert Sent", description: "The social media team has been notified and task queued." });
-                      } catch (e: any) {
-                        toast({ title: "Error", description: e.message, variant: "destructive" });
-                      }
-                    }}
-                  >
-                    Alert Social Team
-                  </Button>
-                </div>
-              )}
-              
-              {!formData.promo_social && (
-                <>
-                  <Label className="mt-4 block">Promotion Notes / Submit to Marketing</Label>
-                  <Textarea 
-                    placeholder="What specifically needs to be promoted? Assets needed? Details for social media..." 
-                    value={formData.promo_notes}
-                    onChange={e => setFormData(f => ({...f, promo_notes: e.target.value}))}
-                    className="min-h-[100px]"
-                  />
-                </>
-              )}
-              
-              {formData.promo_como && (
-                <div className="mt-4 space-y-1">
-                  <div className="flex items-center justify-between mb-1">
-                    <Label className="text-xs">Como (Loyalty) Strategy</Label>
-                    <Input 
-                      placeholder="Assign To (Email)" 
-                      value={formData.como_assigned_to || ""}
-                      onChange={e => setFormData(f => ({...f, como_assigned_to: e.target.value}))}
-                      className="h-7 text-xs w-[160px] bg-background"
-                    />
-                  </div>
-                  <Textarea 
-                    placeholder="Points multipliers, push notifications, offers..." 
-                    value={formData.como_notes || ""}
-                    onChange={e => setFormData(f => ({...f, como_notes: e.target.value}))}
-                    className="min-h-[60px] text-sm"
-                  />
-                </div>
-              )}
-              
-              {formData.promo_email && (
-                <div className="mt-4 space-y-1">
-                  <div className="flex items-center justify-between mb-1">
-                    <Label className="text-xs">Email Broadcast Details</Label>
-                    <Input 
-                      placeholder="Assign To (Email)" 
-                      value={formData.email_assigned_to || ""}
-                      onChange={e => setFormData(f => ({...f, email_assigned_to: e.target.value}))}
-                      className="h-7 text-xs w-[160px] bg-background"
-                    />
-                  </div>
-                  <Textarea 
-                    placeholder="Subject lines, audience segments, send dates..." 
-                    value={formData.email_notes || ""}
-                    onChange={e => setFormData(f => ({...f, email_notes: e.target.value}))}
-                    className="min-h-[60px] text-sm"
-                  />
-                </div>
-              )}
-
-              {formData.promo_in_store && (
-                <div className="mt-4 space-y-1">
-                  <div className="flex items-center justify-between mb-1">
-                    <Label className="text-xs">In-Store Signage Requirements</Label>
-                    <Input 
-                      placeholder="Assign To (Email)" 
-                      value={formData.in_store_assigned_to || ""}
-                      onChange={e => setFormData(f => ({...f, in_store_assigned_to: e.target.value}))}
-                      className="h-7 text-xs w-[160px] bg-background"
-                    />
-                  </div>
-                  <Textarea 
-                    placeholder="Table tents, TV screens, posters..." 
-                    value={formData.in_store_notes || ""}
-                    onChange={e => setFormData(f => ({...f, in_store_notes: e.target.value}))}
-                    className="min-h-[60px] text-sm"
-                  />
-                </div>
-              )}
-          </div>
-
-          <Button onClick={handleSave} className="w-full">
-            Save Details
-          </Button>
-        </div>
-      </SheetContent>
-    </Sheet>
-  );
-}
 
 function SocialPostCard({ post, updateStatus }: any) {
   const [isReviewing, setIsReviewing] = useState(false);

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { alertMarketingRequest } from "@/lib/notify";
 import { locations } from "@/lib/data";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -67,12 +68,8 @@ export default function PublicMarketingRequestForm() {
       if (requestError) throw requestError;
 
       // 3. Email Brian (Super Admin)
-      await supabase.functions.invoke('notify-marketing-request', {
-        body: { 
-          request: supportRequest,
-          location: locations.find(l => l.id === formData.location_id)
-        }
-      });
+      void supportRequest;
+      await alertMarketingRequest(formData.title);
 
       setIsSuccess(true);
     } catch (error: any) {
