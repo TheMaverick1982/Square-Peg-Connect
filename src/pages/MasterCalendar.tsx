@@ -1,3 +1,4 @@
+import { storeClock, tzForLocation, tzLabel } from "@/lib/tz";
 import { useState, useEffect } from "react";
 import { useLocationContext } from "@/lib/LocationContext";
 import { locations } from "@/lib/data";
@@ -75,7 +76,7 @@ export default function MasterCalendar() {
           unified.push({
             id: `ent-${row.id}`,
             title: row.title,
-            date: parseISO(row.start_date),
+            date: storeClock(row.start_date, tzForLocation(row.location_id)),
             locationId: row.location_id,
             type: "Entertainment",
             details: row.details,
@@ -362,7 +363,7 @@ export default function MasterCalendar() {
                       <div className="grid gap-3">
                         <div className="flex items-center text-sm">
                           <Clock className="w-4 h-4 text-muted-foreground mr-3 shrink-0" />
-                          <span>{format(new Date(viewingEvent.originalData.start_date), "h:mm a")} - {format(new Date(viewingEvent.originalData.end_date), "h:mm a")}</span>
+                          <span>{format(storeClock(viewingEvent.originalData.start_date, tzForLocation(viewingEvent.originalData.location_id)), "h:mm a")} - {format(storeClock(viewingEvent.originalData.end_date, tzForLocation(viewingEvent.originalData.location_id)), "h:mm a")} {tzLabel(viewingEvent.originalData.start_date, tzForLocation(viewingEvent.originalData.location_id))}</span>
                         </div>
                       </div>
                     </div>

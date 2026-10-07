@@ -1,3 +1,4 @@
+import { storeClock, tzForLocation, tzLabel } from "@/lib/tz";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -345,7 +346,7 @@ export default function Automations() {
                           <div className="text-xs text-muted-foreground mt-1 flex items-center gap-2">
                             <span>{log.event_type}</span>
                             <span>•</span>
-                            <span>{format(new Date(log.sent_at), "MMM d, yyyy 'at' h:mm a")}</span>
+                            <span>{format(storeClock(log.sent_at), "MMM d, yyyy 'at' h:mm a")} {tzLabel(log.sent_at)}</span>
                           </div>
                         </div>
                       </div>

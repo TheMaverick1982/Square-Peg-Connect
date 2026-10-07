@@ -1,3 +1,4 @@
+import { storeClock, tzForLocation, tzLabel } from "@/lib/tz";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -125,7 +126,7 @@ export default function StaffPhotosDashboard() {
                 <div className="flex justify-between items-start mb-2">
                   <div className="font-semibold">{sub.staff_name}</div>
                   <div className="text-xs text-muted-foreground">
-                    {format(new Date(sub.created_at), "MMM d, h:mm a")}
+                    {format(storeClock(sub.created_at, tzForLocation(sub.location_id)), "MMM d, h:mm a")} {tzLabel(sub.created_at, tzForLocation(sub.location_id))}
                   </div>
                 </div>
                 <div className="flex items-center text-xs text-muted-foreground mb-2">

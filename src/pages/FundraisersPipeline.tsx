@@ -1,3 +1,4 @@
+import { storeClock, tzForLocation } from "@/lib/tz";
 import { useState, useEffect } from "react";
 import { useLocationContext } from "@/lib/LocationContext";
 import { locations } from "@/lib/data";
@@ -723,7 +724,7 @@ export default function FundraisersPipeline() {
                   <div className="col-span-3">
                     <div className="font-semibold text-sm text-foreground group-hover:text-primary transition-colors">{order.organization}</div>
                     <div className="text-xs text-muted-foreground mt-0.5">{order.name}</div>
-                    {order.createdAt && <div className="text-[11px] text-muted-foreground/80 mt-0.5">Submitted {format(new Date(order.createdAt), "MMM d, yyyy")}</div>}
+                    {order.createdAt && <div className="text-[11px] text-muted-foreground/80 mt-0.5">Submitted {format(storeClock(order.createdAt, tzForLocation(order.locationId)), "MMM d, yyyy")}</div>}
                   </div>
                   
                   <div className="col-span-3 flex flex-col gap-1">
@@ -797,7 +798,7 @@ export default function FundraisersPipeline() {
                     <SheetTitle className="text-2xl break-words">{viewingOrder.organization}</SheetTitle>
                     <SheetDescription className="mt-1">
                       Preferred Event Date: <strong className="text-foreground">{format(parseSafeDate(viewingOrder.eventDate), "MMMM d, yyyy")}</strong>
-                      {viewingOrder.createdAt && <span className="block text-xs mt-0.5">Submitted on {format(new Date(viewingOrder.createdAt), "MMMM d, yyyy")}</span>}
+                      {viewingOrder.createdAt && <span className="block text-xs mt-0.5">Submitted on {format(storeClock(viewingOrder.createdAt, tzForLocation(viewingOrder.locationId)), "MMMM d, yyyy")}</span>}
                     </SheetDescription>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">

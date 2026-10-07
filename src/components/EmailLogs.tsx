@@ -1,3 +1,4 @@
+import { storeClock, tzForLocation, tzLabel } from "@/lib/tz";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { format } from "date-fns";
@@ -91,7 +92,7 @@ export function EmailLogs({ eventId, eventType }: { eventId: string, eventType: 
               </span>
               <span className="text-xs text-muted-foreground flex items-center shrink-0">
                 <Clock className="w-3 h-3 mr-1" />
-                {format(new Date(log.created_at), "MMM d, h:mm a")}
+                {format(storeClock(log.created_at), "MMM d, h:mm a")} {tzLabel(log.created_at)}
               </span>
             </div>
             <p className="text-xs text-muted-foreground truncate mb-1">

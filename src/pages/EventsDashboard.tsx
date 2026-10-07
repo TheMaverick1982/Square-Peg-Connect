@@ -17,6 +17,11 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, parseISO, addMonths, subMonths } from "date-fns";
 import { Calendar as CalendarIcon, MapPin, Clock, Users, Plus, Bell, ChevronLeft, ChevronRight, Repeat, Info, Edit2, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { storeClock, storeTimeToInstant, tzForLocation, tzLabel, tzFriendly } from "@/lib/tz";
+
+// Every event time is the store's local time, whoever is typing or viewing.
+const evtTz = (evt: { location_id?: string | null }) => tzForLocation(evt.location_id);
+const evtClock = (evt: any, field: "start_date" | "end_date" | "recurrence_end_date" = "start_date") => storeClock(evt[field], evtTz(evt));
 
 interface Event {
   id: string;
@@ -100,14 +105,14 @@ export default function EventsDashboard() {
     let allOccurrences: any[] = [];
     events.forEach(evt => {
       if (!evt.is_recurring) {
-        allOccurrences.push({ ...evt, displayDate: parseISO(evt.start_date) });
+        allOccurrences.push({ ...evt, displayDate: evtClock(evt) });
         return;
       }
       
       // Basic expansion for recurring events (just for display in current view)
       // In a real app with complex recurrence, you'd use rrule or similar
-      const startDate = parseISO(evt.start_date);
-      const endDateLimit = evt.no_end_date ? addMonths(currentMonth, 2) : parseISO(evt.recurrence_end_date || evt.start_date);
+      const startDate = evtClock(evt);
+      const endDateLimit = evt.no_end_date ? addMonths(currentMonth, 2) : storeClock(evt.recurrence_end_date || evt.start_date, evtTz(evt));
       
       let curr = startDate;
       // Safety limit to prevent infinite loops
@@ -201,7 +206,7 @@ export default function EventsDashboard() {
                 </div>
                 <div className="flex items-center gap-2 mb-3 pr-16 flex-wrap">
                   <div className="px-2 py-1 bg-primary/10 text-primary text-xs font-medium rounded shrink-0">
-                    {format(parseISO(event.start_date), "MMM d, yyyy")}
+                    {format(evtClock(event), "MMM d, yyyy")}
                   </div>
                   {event.is_recurring && (
                     <div className="flex items-center text-xs text-muted-foreground bg-muted px-2 py-1 rounded shrink-0 capitalize">
@@ -210,7 +215,7 @@ export default function EventsDashboard() {
                     </div>
                   )}
                   <div className="px-2 py-1 bg-muted text-muted-foreground text-xs font-medium rounded shrink-0">
-                    {format(parseISO(event.start_date), "EEEE")}
+                    {format(evtClock(event), "EEEE")}
                   </div>
                 </div>
                 
@@ -223,7 +228,7 @@ export default function EventsDashboard() {
                   </div>
                   <div className="flex items-center text-sm text-muted-foreground">
                     <Clock className="w-4 h-4 mr-2 opacity-70" />
-                    {format(parseISO(event.start_date), "h:mm a")} - {format(parseISO(event.end_date), "h:mm a")}
+                    {format(evtClock(event), "h:mm a")} - {format(evtClock(event, "end_date"), "h:mm a")} <span className="ml-1 text-xs opacity-70" title="Store local time">{tzLabel(event.start_date, evtTz(event))}</span>
                   </div>
                   {event.details && (
                     <div className="flex items-start text-sm text-muted-foreground mt-3 pt-3 border-t">
@@ -273,7 +278,7 @@ export default function EventsDashboard() {
                             eventToEdit={evt} 
                             triggerButton={
                               <div className="text-xs truncate px-1.5 py-0.5 bg-primary/10 text-primary rounded border border-primary/20 cursor-pointer hover:bg-primary/20 transition-colors" title={evt.title}>
-                                {format(parseISO(evt.start_date), "h:mma").toLowerCase()} {evt.title}
+                                {format(evtClock(evt), "h:mma").toLowerCase()} {evt.title}
                               </div>
                             } 
                           />
@@ -342,8 +347,8 @@ function EventSheet({ eventToEdit, triggerButton }: { eventToEdit?: Event, trigg
   useEffect(() => {
     if (open) {
       if (eventToEdit) {
-        const startDate = parseISO(eventToEdit.start_date);
-        const endDate = parseISO(eventToEdit.end_date);
+        const startDate = evtClock(eventToEdit);
+        const endDate = evtClock(eventToEdit, "end_date");
         
         setFormData({
           title: eventToEdit.title,
@@ -355,7 +360,7 @@ function EventSheet({ eventToEdit, triggerButton }: { eventToEdit?: Event, trigg
           is_recurring: eventToEdit.is_recurring,
           recurrence_pattern: eventToEdit.recurrence_pattern || "weekly",
           no_end_date: eventToEdit.no_end_date,
-          recurrence_end_date: eventToEdit.recurrence_end_date ? parseISO(eventToEdit.recurrence_end_date) : new Date(),
+          recurrence_end_date: eventToEdit.recurrence_end_date ? evtClock(eventToEdit, "recurrence_end_date") : new Date(),
           notify_emails: eventToEdit.notify_emails || "brian@brianhardy.com, darene.gtomp@gmail.com"
         });
       } else {
@@ -380,9 +385,15 @@ function EventSheet({ eventToEdit, triggerButton }: { eventToEdit?: Event, trigg
   const saveEvent = useMutation({
     mutationFn: async (data: typeof formData) => {
       // Combine dates and times for DB
+      // The times typed are the store's local time, not the time zone of whoever is typing.
+      const tz = tzForLocation(data.location_id === "all" ? null : data.location_id);
       const startDateStr = format(data.start_date, 'yyyy-MM-dd');
-      const startDateTime = new Date(`${startDateStr}T${data.start_time}:00`).toISOString();
-      const endDateTime = new Date(`${startDateStr}T${data.end_time}:00`).toISOString();
+      const startInstant = storeTimeToInstant(startDateStr, data.start_time, tz);
+      let endInstant = storeTimeToInstant(startDateStr, data.end_time, tz);
+      // Ends after midnight (e.g. 9:00 PM to 1:00 AM): the end is the next day.
+      if (endInstant <= startInstant) endInstant = storeTimeToInstant(format(new Date(data.start_date.getFullYear(), data.start_date.getMonth(), data.start_date.getDate() + 1), 'yyyy-MM-dd'), data.end_time, tz);
+      const startDateTime = startInstant.toISOString();
+      const endDateTime = endInstant.toISOString();
       
       const payload = {
         title: data.title,
@@ -393,7 +404,7 @@ function EventSheet({ eventToEdit, triggerButton }: { eventToEdit?: Event, trigg
         is_recurring: data.is_recurring,
         recurrence_pattern: data.is_recurring ? data.recurrence_pattern : null,
         no_end_date: data.no_end_date,
-        recurrence_end_date: (data.is_recurring && !data.no_end_date) ? data.recurrence_end_date.toISOString() : null,
+        recurrence_end_date: (data.is_recurring && !data.no_end_date) ? storeTimeToInstant(format(data.recurrence_end_date, 'yyyy-MM-dd'), "23:59", tz).toISOString() : null,
         notify_emails: data.notify_emails
       };
 
@@ -531,6 +542,9 @@ function EventSheet({ eventToEdit, triggerButton }: { eventToEdit?: Event, trigg
                 </div>
               </div>
             </div>
+            <p className="text-xs text-muted-foreground -mt-2">
+              Enter times as they are <span className="font-medium text-foreground">at the store ({tzFriendly(tzForLocation(formData.location_id === "all" ? null : formData.location_id))} time)</span>, wherever you are. Everyone sees the same time.
+            </p>
 
             <div className="border rounded-lg p-4 bg-muted/30 space-y-4">
               <div className="flex items-center space-x-2">

@@ -1,3 +1,4 @@
+import { storeClock, tzForLocation, tzLabel } from "@/lib/tz";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
@@ -429,7 +430,7 @@ export default function StaffPhotos() {
                 {selectedPhoto && (
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Calendar className="w-4 h-4" />
-                    {format(new Date(selectedPhoto.submission.created_at), "MMM d, yyyy h:mm a")}
+                    {format(storeClock(selectedPhoto.submission.created_at, tzForLocation(selectedPhoto.submission.location_id)), "MMM d, yyyy h:mm a")} {tzLabel(selectedPhoto.submission.created_at, tzForLocation(selectedPhoto.submission.location_id))}
                   </div>
                 )}
               </div>

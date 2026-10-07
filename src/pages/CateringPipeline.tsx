@@ -1,3 +1,4 @@
+import { storeClock, tzForLocation } from "@/lib/tz";
 import { useState, useEffect } from "react";
 import { useLocationContext } from "@/lib/LocationContext";
 import { locations, type CateringStatus, type CateringOrder } from "@/lib/data";
@@ -293,7 +294,7 @@ export default function CateringPipeline() {
       o.notes || "",
       o.totalAmount || 0,
       o.status,
-      format(new Date(o.createdAt), "yyyy-MM-dd")
+      format(storeClock(o.createdAt, tzForLocation(o.locationId)), "yyyy-MM-dd")
     ]);
     
     const csvContent = [
@@ -651,7 +652,7 @@ export default function CateringPipeline() {
                   <div className="col-span-3">
                     <div className="font-semibold text-sm text-foreground group-hover:text-primary transition-colors">{order.contactName}</div>
                     <div className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{order.eventName}</div>
-                    {order.createdAt && <div className="text-[11px] text-muted-foreground/80 mt-0.5">Submitted {format(new Date(order.createdAt), "MMM d, yyyy")}</div>}
+                    {order.createdAt && <div className="text-[11px] text-muted-foreground/80 mt-0.5">Submitted {format(storeClock(order.createdAt, tzForLocation(order.locationId)), "MMM d, yyyy")}</div>}
                   </div>
                   
                   <div className="col-span-2 flex items-center gap-2 text-sm">
@@ -710,7 +711,7 @@ export default function CateringPipeline() {
                   <div className="shrink-1 min-w-0 pr-4">
                     <SheetTitle className="text-2xl break-words">{viewingOrder.eventName}</SheetTitle>
                     <SheetDescription className="mt-1">
-                      Submitted on {format(new Date(viewingOrder.createdAt), "MMMM d, yyyy")}
+                      Submitted on {format(storeClock(viewingOrder.createdAt, tzForLocation(viewingOrder.locationId)), "MMMM d, yyyy")}
                     </SheetDescription>
                   </div>
                   <div className="flex items-center shrink-0">
