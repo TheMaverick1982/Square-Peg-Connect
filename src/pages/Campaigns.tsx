@@ -18,7 +18,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { useToast } from "@/hooks/use-toast";
 import { useEmployee } from "@/lib/EmployeeContext";
 import { notifyMarketing, alertMarketingRequest } from "@/lib/notify";
-import { CAMPAIGN_TEMPLATES, eventsForYear, upcomingEvents, templateDueDate, isTaskOverdue, daysUntil, campaignRisk } from "@/lib/marketing";
+import { CAMPAIGN_TEMPLATES, eventsForYear, upcomingEvents, templateDueDate, isTaskOverdue, daysUntil, campaignRisk, occursOn, nextEventDate } from "@/lib/marketing";
+import { EventDatesEditor } from "@/components/marketing/EventDatesEditor";
 import { CampaignCard, dateRangeLabel } from "@/components/marketing/CampaignCard";
 import { CampaignDetailsSheet } from "@/components/marketing/CampaignDetailsSheet";
 import { TeamMemberSelect, memberLabel, useTeamMembers } from "@/components/marketing/TeamMemberSelect";
@@ -138,7 +139,7 @@ function CustomPromptsManager() {
 }
 
 const blankCampaign = () => ({
-  title: "", description: "", target_date: new Date(), end_date: "", location_id: "all", template: "none", owner: "",
+  title: "", description: "", target_date: new Date(), end_date: "", event_dates: [] as string[], location_id: "all", template: "none", owner: "",
 });
 
 function MarketingSupportRequestSheet() {
@@ -395,6 +396,8 @@ export default function MarketingPlanner() {
         status: 'planning'
       };
       if (newCampaign.end_date && newCampaign.end_date > startYmd) payload.end_date = newCampaign.end_date;
+      const extraDates = newCampaign.event_dates.filter((d) => d && d !== startYmd);
+      if (extraDates.length) payload.event_dates = extraDates;
       const { data: created, error } = await supabase.from('marketing_campaigns').insert(payload).select().single();
       if (error) throw error;
       // Template: ready-made task list, due dates counted back from the event.
@@ -705,7 +708,7 @@ export default function MarketingPlanner() {
             const isCurrentMonth = isSameMonth(day, monthStart);
             const dayYmd = format(day, "yyyy-MM-dd");
             // A campaign shows on every day from its start to its end date.
-            const dayCampaigns = campaignList.filter(c => dayYmd >= c.target_date && dayYmd <= (c.end_date && c.end_date > c.target_date ? c.end_date : c.target_date));
+            const dayCampaigns = campaignList.filter(c => occursOn(c, dayYmd));
             // Seasonal prompts for whichever month is on screen (not just the next few).
             const dayPrompt = eventsForYear(day.getFullYear(), customPrompts).find(p => isSameDay(p.date, day));
             const isToday = isSameDay(day, new Date());
@@ -733,7 +736,7 @@ export default function MarketingPlanner() {
                       onClick={() => setDetailsCampaign(camp)}
                       onKeyDown={(e) => { if (e.key === "Enter") setDetailsCampaign(camp); }}
                     >
-                      {dayYmd === camp.target_date || day.getDay() === 0 ? camp.title : "\u00A0"}
+                      {dayYmd === camp.target_date || day.getDay() === 0 || (camp.event_dates || []).includes(dayYmd) ? camp.title : "\u00A0"}
                     </div>
                   ))}
                   
@@ -881,25 +884,10 @@ export default function MarketingPlanner() {
                             })()}
                           </div>
                         )}
-                        <div>
-                          <Label>Start Date</Label>
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <Button variant="outline" className="w-full mt-1 justify-start text-left font-normal">
-                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                {newCampaign.target_date ? format(newCampaign.target_date, "PPP") : <span>Pick a date</span>}
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0">
-                              <CalendarComponent mode="single" selected={newCampaign.target_date} onSelect={d => d && setNewCampaign({...newCampaign, target_date: d})} />
-                            </PopoverContent>
-                          </Popover>
-                        </div>
-                        <div>
-                          <Label>End Date <span className="text-muted-foreground font-normal">(optional, for multi-day promos)</span></Label>
-                          <Input type="date" className="mt-1" min={format(newCampaign.target_date, "yyyy-MM-dd")}
-                            value={newCampaign.end_date} onChange={e => setNewCampaign({...newCampaign, end_date: e.target.value})} />
-                        </div>
+                        <EventDatesEditor
+                          value={{ start: format(newCampaign.target_date, "yyyy-MM-dd"), end: newCampaign.end_date, extra: newCampaign.event_dates }}
+                          onChange={(v) => setNewCampaign({ ...newCampaign, target_date: parseISO(v.start), end_date: v.end, event_dates: v.extra })}
+                        />
                         <div>
                           <Label>Description</Label>
                           <Textarea placeholder="High level goals for this season..." value={newCampaign.description} onChange={e => setNewCampaign({...newCampaign, description: e.target.value})} className="mt-1" />
@@ -946,7 +934,7 @@ export default function MarketingPlanner() {
               ) : (
                 <div className="space-y-3">
                   {campaignList.map(camp => {
-                    const status = getHorizonStatus(camp.target_date);
+                    const status = getHorizonStatus(nextEventDate(camp));
                     const campTasks = tasks.filter(t => t.campaign_id === camp.id);
                     const completedTasks = campTasks.filter(t => t.is_completed).length;
                     const progress = campTasks.length > 0 ? Math.round((completedTasks / campTasks.length) * 100) : 0;

@@ -15,6 +15,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { TeamMemberSelect, memberLabel, useTeamMembers } from "./TeamMemberSelect";
+import { EventDatesEditor } from "./EventDatesEditor";
+import { PLAN_STATUSES, planStatusOf } from "@/lib/marketing";
 
 type PlanKey = "drinks" | "menu" | "activity" | "instore";
 const PLAN_SECTIONS: { key: PlanKey; title: string; emailLabel: string; placeholder: string }[] = [
@@ -30,6 +32,8 @@ const buildForm = (c: any) => ({
   target_date: c.target_date || "",
   end_date: c.end_date || "",
   planning_date: c.planning_date || "",
+  event_dates: (Array.isArray(c.event_dates) ? c.event_dates : []) as string[],
+  plan_status: planStatusOf(c) as string,
   location_id: c.location_id || "all",
   drinks_plan: c.drinks_plan || "", drinks_due_date: c.drinks_due_date || "", drinks_assigned_to: c.drinks_assigned_to || "",
   menu_plan: c.menu_plan || "", menu_due_date: c.menu_due_date || "", menu_assigned_to: c.menu_assigned_to || "",
@@ -97,6 +101,8 @@ export function CampaignDetailsSheet({ campaign, updateCampaignDetails, tasks = 
     // Only send end_date when it's used, so saving still works before the database update is run.
     if (f.end_date || campaign.end_date) updates.end_date = f.end_date && f.end_date >= f.target_date ? f.end_date : null;
     if (f.planning_date || campaign.planning_date) updates.planning_date = f.planning_date || null;
+    if (f.event_dates.length || (campaign.event_dates || []).length) updates.event_dates = f.event_dates.filter((d) => d !== f.target_date);
+    if (f.plan_status !== "auto" || campaign.plan_status) updates.plan_status = f.plan_status === "auto" ? null : f.plan_status;
     const moveTasksBy = shiftTasks && dayShift !== 0 ? dayShift : 0;
 
     updateCampaignDetails.mutate({ id: campaign.id, updates }, {
@@ -177,16 +183,23 @@ export function CampaignDetailsSheet({ campaign, updateCampaignDetails, tasks = 
               <Label>Campaign title</Label>
               <Input value={f.title} onChange={(e) => set("title", e.target.value)} className="mt-1" />
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Event start</Label>
-                <Input type="date" value={f.target_date} onChange={(e) => set("target_date", e.target.value)} className="mt-1" />
-              </div>
-              <div>
-                <Label>Event end <span className="text-muted-foreground font-normal">(if more than one day)</span></Label>
-                <Input type="date" value={f.end_date} min={f.target_date} onChange={(e) => set("end_date", e.target.value)} className="mt-1" />
-              </div>
+            <div>
+              <Label>Status</Label>
+              <Select value={f.plan_status} onValueChange={(v) => set("plan_status", v)}>
+                <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {PLAN_STATUSES.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.label}<span className="text-muted-foreground ml-2 text-xs">{p.hint}</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
+            <EventDatesEditor
+              value={{ start: f.target_date, end: f.end_date, extra: f.event_dates }}
+              onChange={(v) => setF((prev) => ({ ...prev, target_date: v.start, end_date: v.end, event_dates: v.extra }))}
+            />
             <div>
               <Label>Planning starts <span className="text-muted-foreground font-normal">(optional)</span></Label>
               <Input type="date" value={f.planning_date} max={f.target_date} onChange={(e) => set("planning_date", e.target.value)} className="mt-1 sm:w-1/2" />

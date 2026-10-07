@@ -151,19 +151,112 @@ export const daysUntil = (ymd: string) => Math.round((parseYmd(ymd).getTime() - 
 export const isTaskOverdue = (t: { due_date?: string | null; is_completed?: boolean }) =>
   !t.is_completed && !!t.due_date && daysUntil(t.due_date) < 0;
 
-export interface CampaignRisk { level: "ok" | "warn" | "risk"; label: string }
 
-/** Is this campaign on track? Looks at the date AND whether the work is getting done. */
-export function campaignRisk(campaign: { target_date: string; archived_at?: string | null }, tasks: any[]): CampaignRisk | null {
+// ---------- event dates (multi-day, extra days, repeats) ----------
+const toYmd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+type DatedCampaign = { target_date: string; end_date?: string | null; event_dates?: string[] | null };
+
+/** Does this campaign happen on this day? (start–end range, or one of its extra dates) */
+export function occursOn(c: DatedCampaign, ymd: string): boolean {
+  const end = c.end_date && c.end_date > c.target_date ? c.end_date : c.target_date;
+  return (ymd >= c.target_date && ymd <= end) || (c.event_dates || []).includes(ymd);
+}
+
+/** First day of each separate occurrence: the start date plus every extra date, sorted, no repeats. */
+export function occurrenceStarts(c: DatedCampaign): string[] {
+  return Array.from(new Set([c.target_date, ...(c.event_dates || [])])).filter(Boolean).sort();
+}
+
+/** Last day this campaign runs. */
+export function lastEventDate(c: DatedCampaign): string {
+  const all = [...occurrenceStarts(c), c.end_date || ""].filter(Boolean).sort();
+  return all[all.length - 1];
+}
+
+/** The next date it happens (today counts). If every date has passed, the last one. */
+export function nextEventDate(c: DatedCampaign, today = new Date()): string {
+  const t = toYmd(today);
+  const end = c.end_date && c.end_date > c.target_date ? c.end_date : c.target_date;
+  if (t >= c.target_date && t <= end) return t; // running right now
+  const next = occurrenceStarts(c).find((d) => d >= t);
+  return next || lastEventDate(c);
+}
+
+export type RepeatFrequency = "weekly" | "biweekly" | "monthly_date" | "monthly_weekday";
+export const REPEAT_OPTIONS: { id: RepeatFrequency; label: string }[] = [
+  { id: "weekly", label: "Every week" },
+  { id: "biweekly", label: "Every 2 weeks" },
+  { id: "monthly_weekday", label: "Every month, same weekday (e.g. 2nd Tuesday)" },
+  { id: "monthly_date", label: "Every month, same date (e.g. the 15th)" },
+];
+
+/** Dates after `start` that follow the repeat rule, up to and including `until` (max 60). */
+export function repeatDates(start: string, freq: RepeatFrequency, until: string, max = 60): string[] {
+  const s = parseYmd(start);
+  const out: string[] = [];
+  const nth = Math.ceil(s.getDate() / 7); // which week of the month the start falls in
+  for (let i = 1; out.length < max && i < 600; i++) {
+    let d: Date;
+    if (freq === "weekly") d = addDays(s, 7 * i);
+    else if (freq === "biweekly") d = addDays(s, 14 * i);
+    else if (freq === "monthly_date") {
+      d = new Date(s.getFullYear(), s.getMonth() + i, s.getDate());
+      if (d.getDate() !== s.getDate()) continue; // month has no such day (e.g. the 31st)
+    } else {
+      const y = s.getFullYear() + Math.floor((s.getMonth() + i) / 12), m = (s.getMonth() + i) % 12;
+      d = nthWeekday(y, m, s.getDay(), nth);
+      if (d.getMonth() !== m) d = nthWeekday(y, m, s.getDay(), -1); // no 5th one this month: use the last
+    }
+    const ymd = toYmd(d);
+    if (ymd > until) break;
+    out.push(ymd);
+  }
+  return out;
+}
+
+// ---------- manual status ----------
+export type PlanStatus = "auto" | "in_progress" | "on_track" | "ready" | "on_hold";
+export const PLAN_STATUSES: { id: PlanStatus; label: string; hint: string; badge: string }[] = [
+  { id: "auto", label: "Auto", hint: "Worked out from the tasks and dates", badge: "" },
+  { id: "in_progress", label: "In progress", hint: "Being worked on. Only overdue tasks raise a flag.", badge: "bg-blue-100 text-blue-900 border-blue-200" },
+  { id: "on_track", label: "On track", hint: "We've got this. No at-risk flags.", badge: "bg-green-100 text-green-900 border-green-200" },
+  { id: "ready", label: "Ready to go", hint: "Everything is done. No at-risk flags.", badge: "bg-green-600 text-white border-green-600" },
+  { id: "on_hold", label: "On hold", hint: "Paused. No at-risk flags.", badge: "bg-muted text-muted-foreground" },
+];
+export const planStatusOf = (c: { plan_status?: string | null }): PlanStatus =>
+  (PLAN_STATUSES.some((p) => p.id === c.plan_status) ? c.plan_status : "auto") as PlanStatus;
+
+/** Has anyone written anything in the plan itself (not just tasks)? */
+const hasPlanContent = (c: any) =>
+  ["drinks_plan", "menu_plan", "activity_plan", "instore_plan", "promo_notes", "como_notes", "email_notes", "in_store_notes"]
+    .some((k) => typeof c[k] === "string" && c[k].trim() !== "") ||
+  ["promo_social", "promo_como", "promo_email", "promo_in_store"].some((k) => !!c[k]);
+
+export interface CampaignRisk { level: "ok" | "warn" | "risk"; label: string; why: string }
+
+/**
+ * Is this campaign on track? Clears itself as work gets done:
+ *  - overdue tasks → flag goes away when they're completed or re-dated
+ *  - "no plan yet" → goes away once there are tasks or anything is written in the plan
+ *  - "behind" → goes away once half the tasks are done
+ * A manual status of On track / Ready / On hold switches the flags off; In progress keeps only the overdue flag.
+ */
+export function campaignRisk(campaign: any, tasks: any[]): CampaignRisk | null {
   if (campaign.archived_at) return null;
-  const days = daysUntil(campaign.target_date);
+  const status = planStatusOf(campaign);
+  if (status === "on_track" || status === "ready" || status === "on_hold") return null;
+  const days = daysUntil(nextEventDate(campaign));
   if (days < 0) return null;
   const open = tasks.filter((t) => !t.is_completed);
   const overdue = open.filter(isTaskOverdue).length;
   const progress = tasks.length ? (tasks.length - open.length) / tasks.length : 0;
-  if (overdue > 0) return { level: "risk", label: `At risk · ${overdue} overdue` };
-  if (tasks.length === 0 && days <= 30) return { level: "risk", label: "At risk · no plan yet" };
-  if (days <= 14 && open.length > 0 && progress < 0.5) return { level: "risk", label: "At risk · behind" };
-  if (tasks.length === 0 && days <= 60) return { level: "warn", label: "Needs a plan" };
+  const fix = " Or set the status to On track.";
+  if (overdue > 0) return { level: "risk", label: `At risk · ${overdue} overdue`, why: `${overdue} task${overdue === 1 ? " is" : "s are"} past due. Complete or re-date ${overdue === 1 ? "it" : "them"} and this clears.${fix}` };
+  if (status === "in_progress") return null;
+  const started = tasks.length > 0 || hasPlanContent(campaign);
+  if (!started && days <= 30) return { level: "risk", label: "At risk · no plan yet", why: `The event is ${days} day${days === 1 ? "" : "s"} away with no tasks or plan. Add a task or fill in the details and this clears.${fix}` };
+  if (days <= 14 && open.length > 0 && progress < 0.5) return { level: "risk", label: "At risk · behind", why: `Less than half the tasks are done with ${days} day${days === 1 ? "" : "s"} to go. This clears once half are complete.${fix}` };
+  if (!started && days <= 60) return { level: "warn", label: "Needs a plan", why: `No tasks or plan yet. Add a task or fill in the details and this clears.${fix}` };
   return null;
 }

@@ -19,3 +19,7 @@ commit;
 
 -- Added later: optional "Planning starts" date per campaign.
 alter table public.marketing_campaigns add column if not exists planning_date date;
+
+-- Added later: extra / repeating event dates, and a manual status per campaign.
+alter table public.marketing_campaigns add column if not exists event_dates date[] not null default '{}';
+alter table public.marketing_campaigns add column if not exists plan_status text;

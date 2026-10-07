@@ -2,7 +2,8 @@ import { useState } from "react";
 import { format, parseISO, addDays } from "date-fns";
 import { Archive, ArchiveRestore, CalendarDays, CheckCircle2, Circle, MapPin, Pencil, Plus, Trash2, UserCircle2, AlertTriangle, NotebookPen } from "lucide-react";
 import { locations } from "@/lib/data";
-import { campaignRisk, isTaskOverdue, daysUntil } from "@/lib/marketing";
+import { campaignRisk, isTaskOverdue, daysUntil, PLAN_STATUSES, planStatusOf, nextEventDate, occurrenceStarts } from "@/lib/marketing";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -82,6 +83,11 @@ export function CampaignCard({ campaign, status, tasks, progress, createTask, to
   const [recap, setRecap] = useState({ worked: "", improve: "", results: "" });
 
   const risk = campaignRisk(campaign, tasks);
+  const planStatus = planStatusOf(campaign);
+  const statusDef = PLAN_STATUSES.find((p) => p.id === planStatus)!;
+  const starts = occurrenceStarts(campaign);
+  const next = nextEventDate(campaign);
+  const upcomingCount = starts.filter((d) => d >= format(new Date(), "yyyy-MM-dd")).length;
   const archived = !!campaign.archived_at;
   const sorted = [...tasks].sort((a: any, b: any) =>
     Number(a.is_completed) - Number(b.is_completed) || String(a.due_date || "").localeCompare(String(b.due_date || "")));
@@ -100,14 +106,20 @@ export function CampaignCard({ campaign, status, tasks, progress, createTask, to
             {archived
               ? <Badge variant="outline" className="bg-muted text-muted-foreground">Archived</Badge>
               : <Badge className={status.color} variant="outline">{status.label}</Badge>}
+            {!archived && planStatus !== "auto" && <Badge variant="outline" className={statusDef.badge}>{statusDef.label}</Badge>}
             {risk && (
-              <Badge variant="outline" className={risk.level === "risk" ? "bg-red-600 text-white border-red-600" : "bg-amber-100 text-amber-900 border-amber-200"}>
+              <Badge variant="outline" title={risk.why} className={`cursor-help ${risk.level === "risk" ? "bg-red-600 text-white border-red-600" : "bg-amber-100 text-amber-900 border-amber-200"}`}>
                 <AlertTriangle className="w-3 h-3 mr-1" />{risk.label}
               </Badge>
             )}
           </div>
           <div className="text-sm text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1">
-            <span className="flex items-center gap-1.5"><CalendarDays className="w-3.5 h-3.5" />{dateRangeLabel(campaign)}</span>
+            <span className="flex items-center gap-1.5"><CalendarDays className="w-3.5 h-3.5" />{dateRangeLabel(campaign)}
+              {starts.length > 1 && <span className="text-xs">+ {starts.length - 1} more date{starts.length === 2 ? "" : "s"}</span>}
+            </span>
+            {starts.length > 1 && !archived && upcomingCount > 0 && next !== campaign.target_date && (
+              <span className="text-xs">Next: {format(parseISO(next), "EEE, MMM d")}</span>
+            )}
             {!archived && (
               <button type="button" className="flex items-center gap-1 text-primary hover:underline text-xs font-medium" onClick={() => setDetailsOpen(true)}>
                 <Pencil className="w-3 h-3" /> Edit dates &amp; details
@@ -126,6 +138,20 @@ export function CampaignCard({ campaign, status, tasks, progress, createTask, to
             </div>
             <span className="text-xs font-semibold tabular-nums">{tasks.length ? `${progress}%` : "No tasks"}</span>
           </div>
+          {!archived && (
+            <Select value={planStatus} onValueChange={(v) => updateCampaignDetails.mutate({ id: campaign.id, updates: { plan_status: v === "auto" ? null : v } })}>
+              <SelectTrigger className="h-8 w-[150px] text-xs" aria-label="Status" title={statusDef.hint}>
+                <span className="text-muted-foreground mr-1">Status:</span><SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PLAN_STATUSES.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    <span>{p.label}</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           <Button variant="outline" size="sm" onClick={() => setDetailsOpen(true)}>Open Details</Button>
           <CampaignDetailsSheet hideTrigger campaign={campaign} tasks={tasks} updateCampaignDetails={updateCampaignDetails} open={detailsOpen} onOpenChange={setDetailsOpen} />
           {archived ? (
@@ -141,6 +167,9 @@ export function CampaignCard({ campaign, status, tasks, progress, createTask, to
       </div>
 
       <div className="p-4">
+        {risk && !archived && (
+          <p className={`text-xs mb-3 rounded-md px-3 py-2 ${risk.level === "risk" ? "bg-red-50 text-red-900 dark:bg-red-950/30 dark:text-red-200" : "bg-amber-50 text-amber-900 dark:bg-amber-950/30 dark:text-amber-200"}`}>{risk.why}</p>
+        )}
         {campaign.description && <p className="text-sm text-muted-foreground mb-4 whitespace-pre-line">{campaign.description}</p>}
 
         {archived && hasRecap && (
