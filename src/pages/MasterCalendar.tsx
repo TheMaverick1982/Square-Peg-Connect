@@ -9,6 +9,27 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
+/** Every date an entertainment event happens (store-local), expanding weekly / monthly repeats. */
+function entertainmentDates(row: any): Date[] {
+  const tz = tzForLocation(row.location_id);
+  const first = storeClock(row.start_date, tz);
+  if (isNaN(first.getTime())) return [];
+  if (!row.is_recurring || !["weekly", "monthly"].includes(row.recurrence_pattern)) return [first];
+  // Open-ended repeats are drawn 18 months ahead.
+  const horizon = addMonths(new Date(), 18);
+  const until = row.no_end_date || !row.recurrence_end_date ? horizon : storeClock(row.recurrence_end_date, tz);
+  const limit = until < horizon ? until : horizon;
+  const out: Date[] = [];
+  for (let i = 0; i < 400; i++) {
+    const d = row.recurrence_pattern === "weekly"
+      ? new Date(first.getFullYear(), first.getMonth(), first.getDate() + 7 * i, first.getHours(), first.getMinutes())
+      : addMonths(first, i);
+    if (d > limit && i > 0) break;
+    out.push(d);
+  }
+  return out;
+}
+
 type EventType = "Entertainment" | "Fundraiser" | "StoreEvent" | "LargeReservation" | "Catering";
 
 interface UnifiedEvent {
@@ -73,14 +94,17 @@ export default function MasterCalendar() {
 
       if (entertainmentData) {
         entertainmentData.forEach((row: any) => {
-          unified.push({
-            id: `ent-${row.id}`,
-            title: row.title,
-            date: storeClock(row.start_date, tzForLocation(row.location_id)),
-            locationId: row.location_id,
-            type: "Entertainment",
-            details: row.details,
-            originalData: row
+          // Repeating entertainment shows on every date it happens, not just the first.
+          entertainmentDates(row).forEach((date, i) => {
+            unified.push({
+              id: `ent-${row.id}-${i}`,
+              title: row.title,
+              date,
+              locationId: row.location_id,
+              type: "Entertainment",
+              details: row.details,
+              originalData: row
+            });
           });
         });
       }
@@ -152,8 +176,9 @@ export default function MasterCalendar() {
   const handleNextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
 
   const filteredEvents = events.filter(e => {
-    if (selectedLocationId && e.locationId !== selectedLocationId) return false;
-    if (filterLocation !== "all" && e.locationId !== filterLocation) return false;
+    // Anything set to "All locations" (no store) shows for every store.
+    if (selectedLocationId && e.locationId && e.locationId !== selectedLocationId) return false;
+    if (filterLocation !== "all" && e.locationId && e.locationId !== filterLocation) return false;
     if (filterType !== "all" && e.type !== filterType) return false;
     if (filterStatus !== "all") {
       if (filterStatus === "confirmed" && e.status !== "Confirmed" && e.status !== "Completed" && e.type !== "Entertainment") return false;
