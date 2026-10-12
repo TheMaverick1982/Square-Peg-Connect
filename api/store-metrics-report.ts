@@ -135,11 +135,11 @@ function storeSection(name: string, manager: string, cur: ComputedWeek | undefin
       <div style="color:#b45309;font-size:14px">No numbers entered for this week.</div></div>`;
   }
   return `<div style="border:1px solid #e5e7eb;border-radius:8px;padding:16px;margin:0 0 16px">${head}
-    <div style="font-weight:bold;margin:8px 0 4px;color:#111827">Store Visits</div>
+    <div style="font-weight:bold;margin:8px 0 4px;color:#111827">Store Orders</div>
     <table style="font-size:14px;border-collapse:collapse">
       ${line('Loyalty Members', fmtInt(cur.loyalty_visits), delta(cur.loyalty_visits, prev?.loyalty_visits, 'int'))}
-      ${line('Non-Loyalty visits', fmtInt(cur.non_loyalty_visits), delta(cur.non_loyalty_visits, prev?.non_loyalty_visits, 'int'))}
-      ${line('Total Visits', fmtInt(cur.total_visits), delta(cur.total_visits, prev?.total_visits, 'int'))}
+      ${line('Non-Loyalty Orders', fmtInt(cur.non_loyalty_visits), delta(cur.non_loyalty_visits, prev?.non_loyalty_visits, 'int'))}
+      ${line('Total Orders', fmtInt(cur.total_visits), delta(cur.total_visits, prev?.total_visits, 'int'))}
       ${line('Loyalty Penetration', penHtml(cur.penetration), delta(cur.penetration, prev?.penetration, 'pts'))}
     </table>
     <table style="font-size:14px;border-collapse:collapse;margin-top:8px">
@@ -167,10 +167,10 @@ function compareTable(stores: { loc: { name: string }; cur?: ComputedWeek; prev?
     : `<tr>${td(esc(loc.name), 'left', true)}${td('—')}${td('—')}${td('—')}${td('—')}${td('—')}</tr>`
   ).join('');
   return `<table role="presentation" cellspacing="0" cellpadding="0" style="width:100%;border-collapse:collapse;margin:0 0 24px">
-    <tr>${th('Store', 'left')}${th('# Loyalty visits')}${th('# Total visits')}${th('Penetration')}${th('New signups')}${th('Total loyalty members')}</tr>
+    <tr>${th('Store', 'left')}${th('# Loyalty orders')}${th('# Total orders')}${th('Penetration')}${th('New signups')}${th('Total loyalty members')}</tr>
     ${rowsHtml}
   </table>
-  <div style="font-size:11px;color:#6b7280;margin:-16px 0 24px">Penetration = loyalty visits ÷ total visits. <span style="background:#dc2626;color:#ffffff;font-weight:bold;border-radius:4px;padding:1px 5px">Under 25%</span> · <span style="color:#ea580c;font-weight:bold">25–49.9%</span> · <span style="color:#16a34a;font-weight:bold">50%+</span></div>`;
+  <div style="font-size:11px;color:#6b7280;margin:-16px 0 24px">Penetration = loyalty orders ÷ total orders. <span style="background:#dc2626;color:#ffffff;font-weight:bold;border-radius:4px;padding:1px 5px">Under 25%</span> · <span style="color:#ea580c;font-weight:bold">25–49.9%</span> · <span style="color:#16a34a;font-weight:bold">50%+</span></div>`;
 }
 
 export async function POST(request: Request): Promise<Response> {
@@ -259,7 +259,7 @@ export async function POST(request: Request): Promise<Response> {
     <h1 style="margin:0 0 6px;font-size:30px;line-height:1.15;color:#111827">Weekly Loyalty Score Card</h1>
     <div style="color:#6b7280;margin:0 0 18px;font-size:15px">Previous 7 days · week ending ${prettyDate(week)}</div>
     <div style="background:#f3f4f6;border-radius:8px;padding:12px 16px;margin:0 0 20px;font-size:14px">
-      <b>All stores:</b> ${penHtml(allPen)} loyalty penetration · ${fmtInt(allLoyalty + allNon)} total visits · ${fmtInt(allNew)} new loyalty members · ${storesReported} of ${locations.length} stores reported
+      <b>All stores:</b> ${penHtml(allPen)} loyalty penetration · ${fmtInt(allLoyalty + allNon)} total orders · ${fmtInt(allNew)} new loyalty members · ${storesReported} of ${locations.length} stores reported
     </div>
     ${summaryTable}
     ${sections.join('\n')}
