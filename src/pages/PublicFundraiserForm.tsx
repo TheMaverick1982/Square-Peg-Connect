@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { locations } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
+import { captureAttribution, insertWithSource, type Attribution } from "@/lib/attribution";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,6 +27,7 @@ export default function PublicFundraiserForm() {
     notes: ""
   });
 
+  const [source] = useState<Attribution>(() => captureAttribution());
   const [bookedDates, setBookedDates] = useState<Date[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -80,7 +82,7 @@ export default function PublicFundraiserForm() {
     if (!formData.eventDate) return;
 
     setIsSubmitting(true);
-    const { error } = await supabase.from('fundraisers').insert([{
+    const { error } = await insertWithSource(supabase.from('fundraisers'), {
       name: formData.name,
       email: formData.email,
       phone: formData.phone,
@@ -91,7 +93,7 @@ export default function PublicFundraiserForm() {
       location: formData.locationId,
       event_date: format(formData.eventDate, 'yyyy-MM-dd'),
       status: 'Requested'
-    }]);
+    }, source);
 
     if (!error) {
       const location = locations.find(l => l.id === formData.locationId);
@@ -99,9 +101,12 @@ export default function PublicFundraiserForm() {
         body: {
           formData: {
             ...formData,
-            eventDate: format(formData.eventDate, 'yyyy-MM-dd')
+            eventDate: format(formData.eventDate, 'yyyy-MM-dd'),
+            leadSource: source.label
           },
-          locationName: location?.name || 'Unknown Location'
+          locationName: location?.name || 'Unknown Location',
+          leadSource: source.label,
+          sourceDetails: source
         }
       });
     }

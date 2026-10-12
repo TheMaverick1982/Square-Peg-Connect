@@ -54,6 +54,7 @@ export interface CateringOrder {
   quoteNotes?: string;
   orderPreference?: string;
   heardAboutUs?: string;
+  leadSource?: string;
 }
 
 export interface FundraiserEvent {

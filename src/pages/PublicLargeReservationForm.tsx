@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { locations } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
+import { captureAttribution, insertWithSource, type Attribution } from "@/lib/attribution";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -31,6 +32,7 @@ export default function PublicLargeReservationForm() {
     heardAboutUs: ""
   });
 
+  const [source] = useState<Attribution>(() => captureAttribution());
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
 
@@ -73,7 +75,7 @@ export default function PublicLargeReservationForm() {
       status: 'Requested'
     };
 
-    const { error } = await supabase.from('large_reservations').insert([orderData]);
+    const { error } = await insertWithSource(supabase.from('large_reservations'), orderData, source);
 
     if (error) {
       setIsSubmitting(false);
@@ -102,9 +104,12 @@ export default function PublicLargeReservationForm() {
           timeStart: orderData.time_start,
           timeFinish: orderData.time_finish,
           guestCount: orderData.guest_count,
-          heardAboutUs: orderData.heard_about_us
+          heardAboutUs: orderData.heard_about_us,
+          leadSource: source.label
         },
-        location
+        location,
+        leadSource: source.label,
+        sourceDetails: source
       }
     });
 

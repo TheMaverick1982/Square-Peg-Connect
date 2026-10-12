@@ -34,6 +34,7 @@ export interface FundraiserOrder {
   address: string;
   organization: string;
   payableTo?: string;
+  leadSource?: string;
   notes?: string;
   locationId: string;
   eventDate: string;
@@ -106,6 +107,7 @@ export default function FundraisersPipeline() {
         address: row.address,
         organization: row.organization,
         payableTo: row.payable_to,
+        leadSource: row.lead_source,
         notes: row.notes,
         locationId: row.location,
         eventDate: row.event_date,
@@ -799,6 +801,7 @@ export default function FundraisersPipeline() {
                     <SheetDescription className="mt-1">
                       Preferred Event Date: <strong className="text-foreground">{format(parseSafeDate(viewingOrder.eventDate), "MMMM d, yyyy")}</strong>
                       {viewingOrder.createdAt && <span className="block text-xs mt-0.5">Submitted on {format(storeClock(viewingOrder.createdAt, tzForLocation(viewingOrder.locationId)), "MMMM d, yyyy")}</span>}
+                      {viewingOrder.leadSource && <span className="block text-xs mt-0.5">Source: <span className="font-medium text-foreground">{viewingOrder.leadSource}</span></span>}
                     </SheetDescription>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">

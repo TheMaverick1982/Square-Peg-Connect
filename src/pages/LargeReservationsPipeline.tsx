@@ -48,6 +48,7 @@ export interface LargeReservationOrder {
   depositPaid?: boolean;
   depositAmount?: number;
   heardAboutUs?: string;
+  leadSource?: string;
   createdAt: string;
 }
 
@@ -150,6 +151,7 @@ export default function LargeReservationsPipeline() {
         depositPaid: row.deposit_paid || false,
         depositAmount: parseFloat(row.deposit_amount || 0),
         heardAboutUs: row.heard_about_us || "",
+        leadSource: row.lead_source || "",
         createdAt: row.created_at,
       }));
       setOrders(mappedOrders);
@@ -470,6 +472,7 @@ export default function LargeReservationsPipeline() {
         depositPaid: data.deposit_paid || false,
         depositAmount: parseFloat(data.deposit_amount || 0),
         heardAboutUs: data.heard_about_us || "",
+        leadSource: data.lead_source || "",
         status: data.status,
         totalSales: 0,
         createdAt: data.created_at,
@@ -966,6 +969,7 @@ export default function LargeReservationsPipeline() {
                       <SheetDescription className="mt-1">
                         Event Date: <strong className="text-foreground">{format(parseSafeDate(viewingOrder.eventDate), "EEEE, MMMM do, yyyy")}</strong>
                         {viewingOrder.createdAt && <span className="block text-xs mt-0.5">Submitted on {format(storeClock(viewingOrder.createdAt, tzForLocation(viewingOrder.locationId)), "MMMM d, yyyy")}</span>}
+                        {viewingOrder.leadSource && <span className="block text-xs mt-0.5">Source: <span className="font-medium text-foreground">{viewingOrder.leadSource}</span></span>}
                       </SheetDescription>
                     </div>
                     <div className="flex gap-2 ml-4 shrink-0">

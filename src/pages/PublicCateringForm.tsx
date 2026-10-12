@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
+import { captureAttribution, insertWithSource, type Attribution } from "@/lib/attribution";
 import { locations } from "@/lib/data";
 
 declare global {
@@ -34,32 +35,7 @@ export default function PublicCateringForm() {
     heardAboutUs: ""
   });
 
-  const [utmData, setUtmData] = useState<Record<string, string>>({});
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    
-    const params = new URLSearchParams(window.location.search);
-    const utmKeys = ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term"];
-    const currentUtms: Record<string, string> = {};
-    
-    let hasNewUtms = false;
-    utmKeys.forEach(key => {
-      const val = params.get(key);
-      if (val) {
-        currentUtms[key] = val;
-        sessionStorage.setItem(key, val);
-        hasNewUtms = true;
-      } else {
-        const stored = sessionStorage.getItem(key);
-        if (stored) {
-          currentUtms[key] = stored;
-        }
-      }
-    });
-    
-    setUtmData(currentUtms);
-  }, []);
+  const [utmData] = useState<Attribution>(() => captureAttribution());
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,7 +44,7 @@ export default function PublicCateringForm() {
 
     try {
       // 1. Insert into database
-      const { error: dbError } = await supabase.from('catering_requests').insert([{
+      const { error: dbError } = await insertWithSource(supabase.from('catering_requests'), {
         name: form.name,
         email: form.email,
         phone: form.phone,
@@ -85,7 +61,7 @@ export default function PublicCateringForm() {
         utm_campaign: utmData.utm_campaign || null,
         utm_content: utmData.utm_content || null,
         utm_term: utmData.utm_term || null
-      }]);
+      }, utmData);
 
       if (dbError) throw dbError;
 
@@ -103,7 +79,9 @@ export default function PublicCateringForm() {
           location: locationName,
           orderPreference: form.orderPreference,
           notes: form.notes,
-          heardAboutUs: form.heardAboutUs
+          heardAboutUs: form.heardAboutUs,
+          leadSource: utmData.label,
+          sourceDetails: utmData
         }
       });
       
