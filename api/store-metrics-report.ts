@@ -170,7 +170,7 @@ function compareTable(stores: { loc: { name: string }; cur?: ComputedWeek; prev?
     <tr>${th('Store', 'left')}${th('# Loyalty orders')}${th('# Total orders')}${th('Penetration')}${th('New signups')}${th('Total loyalty members')}</tr>
     ${rowsHtml}
   </table>
-  <div style="font-size:11px;color:#6b7280;margin:-16px 0 24px">Penetration = loyalty orders ÷ total orders. <span style="background:#dc2626;color:#ffffff;font-weight:bold;border-radius:4px;padding:1px 5px">Under 25%</span> · <span style="color:#ea580c;font-weight:bold">25–49.9%</span> · <span style="color:#16a34a;font-weight:bold">50%+</span></div>`;
+  <div style="font-size:11px;color:#6b7280;margin:-16px 0 24px">Penetration = loyalty orders ÷ total orders. <span style="background:#dc2626;color:#ffffff;font-weight:bold;border-radius:4px;padding:1px 5px">Under 25%</span> · <span style="color:#ea580c;font-weight:bold">25–49.9%</span> · <span style="color:#16a34a;font-weight:bold">50%+</span><br/>Online orders are not included in these numbers, since loyalty is not enabled for online orders.</div>`;
 }
 
 export async function POST(request: Request): Promise<Response> {
