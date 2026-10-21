@@ -91,10 +91,13 @@ Deno.serve(async (req) => {
 
     const apiKey = Deno.env.get('RESEND_API_KEY');
     if (!apiKey) return json({ error: 'RESEND_API_KEY is not set for Edge Functions.' }, 500);
-    const from = Deno.env.get('RESEND_FROM_EMAIL') || 'Square Peg Connect <notifications@updates.squarepegpizzeria.com>';
+    // Shows as "Carla at Square Peg Pizzeria"; replies go to Carla (catering@).
+    const fromSetting = Deno.env.get('RESEND_FROM_EMAIL') || 'notifications@updates.squarepegpizzeria.com';
+    const fromAddress = (fromSetting.match(/<([^>]+)>/)?.[1] || fromSetting).trim();
+    const from = `Carla at Square Peg Pizzeria <${fromAddress}>`;
     const promoPackUrl = `${Deno.env.get('SUPABASE_URL')}/storage/v1/object/public/marketing-assets/fundraisers/fundraiser-promo-pack.zip`;
 
-    const replyTo = [location.email, 'catering@squarepegpizzeria.com', 'hr@squarepegpizzeria.com'].filter(Boolean);
+    const replyTo = ['catering@squarepegpizzeria.com'];
 
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
