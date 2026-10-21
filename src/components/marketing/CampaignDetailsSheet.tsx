@@ -105,9 +105,10 @@ export function CampaignDetailsSheet({ campaign, updateCampaignDetails, tasks = 
     if (f.plan_status !== "auto" || campaign.plan_status) updates.plan_status = f.plan_status === "auto" ? null : f.plan_status;
     const moveTasksBy = shiftTasks && dayShift !== 0 ? dayShift : 0;
 
+    // Close right away; a red message appears if the save doesn't go through.
+    setOpen(false);
     updateCampaignDetails.mutate({ id: campaign.id, updates }, {
       onSuccess: async () => {
-        setOpen(false);
         // Event moved? Slide the open tasks' due dates by the same number of days.
         if (moveTasksBy !== 0 && openDatedTasks.length) {
           await Promise.all(openDatedTasks.map((t: any) =>

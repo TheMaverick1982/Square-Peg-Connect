@@ -159,24 +159,7 @@ function MarketingSupportRequestSheet() {
 
   const submitRequest = useMutation({
     mutationFn: async (data: typeof formData) => {
-      // 1. Create a Draft Campaign on the Horizon planner
-      const campaignPayload = {
-        title: `Support: ${data.title}`,
-        description: `Marketing Support Request.\nNeeds: ${data.support_needed}\nLinks: ${data.external_links}\nNotes: ${data.description}`,
-        target_date: format(data.target_date, 'yyyy-MM-dd'),
-        location_id: data.location_id === "all" ? null : data.location_id,
-        status: 'planning', // Puts it on the dashboard
-      };
-
-      const { data: campaign, error: campaignError } = await supabase
-        .from('marketing_campaigns')
-        .insert(campaignPayload)
-        .select()
-        .single();
-
-      if (campaignError) throw campaignError;
-
-      // 2. Also log it to the structured requests table just for records if we want, or just rely on campaigns.
+      // 1. Save the request first, so a failure doesn't leave an extra card on the planner.
       const requestPayload = {
         event_name: data.title,
         event_date: format(data.target_date, 'yyyy-MM-dd'),
@@ -194,6 +177,23 @@ function MarketingSupportRequestSheet() {
         .single();
         
       if (requestError) throw requestError;
+
+      // 2. Create a Draft Campaign on the Horizon planner
+      const campaignPayload = {
+        title: `Support: ${data.title}`,
+        description: `Marketing Support Request.\nNeeds: ${data.support_needed}\nLinks: ${data.external_links}\nNotes: ${data.description}`,
+        target_date: format(data.target_date, 'yyyy-MM-dd'),
+        location_id: data.location_id === "all" ? null : data.location_id,
+        status: 'planning', // Puts it on the dashboard
+      };
+
+      const { data: campaign, error: campaignError } = await supabase
+        .from('marketing_campaigns')
+        .insert(campaignPayload)
+        .select()
+        .single();
+
+      if (campaignError) throw campaignError;
 
       // 3. Email the marketing inbox (recipients set under Email alerts)
       void supportRequest;
@@ -445,7 +445,8 @@ export default function MarketingPlanner() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['marketing_campaigns'] });
       toast({ title: "Campaign details updated!" });
-    }
+    },
+    onError: (e) => toast({ title: "Couldn't save", description: (e as Error).message, variant: "destructive" }),
   });
 
   const archiveCampaign = useMutation({

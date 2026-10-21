@@ -33,23 +33,7 @@ export default function PublicMarketingRequestForm() {
     setIsSubmitting(true);
 
     try {
-      // 1. Create a Draft Campaign on the Horizon planner (Store Promotions tab)
-      const campaignPayload = {
-        title: `Support: ${formData.title}`,
-        description: `Marketing Support Request.\nNeeds: ${formData.support_needed}\nLinks: ${formData.external_links}\nNotes: ${formData.description}`,
-        target_date: format(formData.target_date, 'yyyy-MM-dd'),
-        location_id: formData.location_id,
-        status: 'planning',
-      };
-
-      // Public visitors can submit but not read back rows, so no .select() here.
-      const { error: campaignError } = await supabase
-        .from('marketing_campaigns')
-        .insert(campaignPayload);
-
-      if (campaignError) throw campaignError;
-
-      // 2. Log it to the structured requests table
+      // 1. Log it to the structured requests table
       const requestPayload = {
         event_name: formData.title,
         event_date: format(formData.target_date, 'yyyy-MM-dd'),
@@ -66,6 +50,22 @@ export default function PublicMarketingRequestForm() {
       const supportRequest = { ...requestPayload, created_at: new Date().toISOString() };
         
       if (requestError) throw requestError;
+
+      // 2. Create a Draft Campaign on the Horizon planner (Store Promotions tab)
+      const campaignPayload = {
+        title: `Support: ${formData.title}`,
+        description: `Marketing Support Request.\nNeeds: ${formData.support_needed}\nLinks: ${formData.external_links}\nNotes: ${formData.description}`,
+        target_date: format(formData.target_date, 'yyyy-MM-dd'),
+        location_id: formData.location_id,
+        status: 'planning',
+      };
+
+      // Public visitors can submit but not read back rows, so no .select() here.
+      const { error: campaignError } = await supabase
+        .from('marketing_campaigns')
+        .insert(campaignPayload);
+
+      if (campaignError) throw campaignError;
 
       // 3. Email Brian (Super Admin)
       void supportRequest;
