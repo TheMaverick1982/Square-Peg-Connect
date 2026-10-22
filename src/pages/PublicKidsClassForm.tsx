@@ -11,7 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { format, startOfDay, isBefore, addDays, addHours } from "date-fns";
+import { format, startOfDay, isBefore, addDays } from "date-fns";
 
 export default function PublicKidsClassForm() {
   const { toast } = useToast();
@@ -37,8 +37,8 @@ export default function PublicKidsClassForm() {
   const [isSuccess, setIsSuccess] = useState(false);
 
   const isDateDisabled = (date: Date) => {
-    // Needs at least 48 hours' notice: nothing before the day after tomorrow.
-    if (isBefore(date, startOfDay(addDays(new Date(), 2)))) return true;
+    // Needs at least 1 week's notice.
+    if (isBefore(date, startOfDay(addDays(new Date(), 7)))) return true;
     return false;
   };
 
@@ -54,8 +54,8 @@ export default function PublicKidsClassForm() {
     if (step === 2 && formData.eventDate && formData.timeStart) {
       const [h, m] = formData.timeStart.split(":").map(Number);
       const start = new Date(formData.eventDate); start.setHours(h || 0, m || 0, 0, 0);
-      if (isBefore(start, addHours(new Date(), 48))) {
-        toast({ title: "Please give us at least 48 hours' notice", description: "Pick a later date or time for your class.", variant: "destructive" });
+      if (isBefore(start, addDays(new Date(), 7))) {
+        toast({ title: "Please give us at least 1 week's notice", description: "Pick a later date or time for your class.", variant: "destructive" });
         return;
       }
     }
@@ -196,7 +196,7 @@ export default function PublicKidsClassForm() {
                   disabled={isDateDisabled}
                   className="rounded-md border shadow-sm w-fit"
                 />
-                <p className="mt-2 text-xs text-muted-foreground">Private classes need at least 48 hours' notice.</p>
+                <p className="mt-2 text-xs text-muted-foreground">Private classes need at least 1 week's notice.</p>
                 {formData.eventDate && (
                   <div className="mt-4 text-center">
                     <p className="text-sm font-semibold text-primary">
