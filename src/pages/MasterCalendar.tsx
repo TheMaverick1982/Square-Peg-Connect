@@ -30,7 +30,7 @@ function entertainmentDates(row: any): Date[] {
   return out;
 }
 
-type EventType = "Entertainment" | "Fundraiser" | "StoreEvent" | "LargeReservation" | "Catering";
+type EventType = "Entertainment" | "Fundraiser" | "StoreEvent" | "LargeReservation" | "KidsClass" | "Catering";
 
 interface UnifiedEvent {
   id: string;
@@ -81,12 +81,14 @@ export default function MasterCalendar() {
         { data: fundraisersData },
         { data: storeEventsData },
         { data: largeResData },
+        { data: kidsData },
         { data: cateringData }
       ] = await Promise.all([
         supabase.from('events').select('*'),
         supabase.from('fundraisers').select('*').is('deleted_at', null),
         supabase.from('store_events').select('*').is('deleted_at', null),
         supabase.from('large_reservations').select('*').is('deleted_at', null),
+        supabase.from('kids_classes').select('*').is('deleted_at', null),
         supabase.from('catering_requests').select('*')
       ]);
 
@@ -151,6 +153,20 @@ export default function MasterCalendar() {
         });
       }
 
+      if (kidsData) {
+        kidsData.forEach((row: any) => {
+          unified.push({
+            id: `kc-${row.id}`,
+            title: `Kids class: ${row.name}`,
+            date: parseISO(row.event_date),
+            locationId: row.location,
+            type: "KidsClass",
+            status: row.status,
+            originalData: row
+          });
+        });
+      }
+
       if (cateringData) {
         cateringData.forEach((row: any) => {
           unified.push({
@@ -193,6 +209,7 @@ export default function MasterCalendar() {
       case "Fundraiser": return "bg-pink-100 text-pink-800 border-pink-200";
       case "StoreEvent": return "bg-orange-100 text-orange-800 border-orange-200";
       case "LargeReservation": return "bg-blue-100 text-blue-800 border-blue-200";
+      case "KidsClass": return "bg-yellow-100 text-yellow-800 border-yellow-200";
       case "Catering": return "bg-green-100 text-green-800 border-green-200";
       default: return "bg-gray-100 text-gray-800 border-gray-200";
     }
@@ -304,6 +321,7 @@ export default function MasterCalendar() {
             <SelectItem value="Fundraiser">Fundraisers</SelectItem>
             <SelectItem value="StoreEvent">Store Events</SelectItem>
             <SelectItem value="LargeReservation">Large Reservations</SelectItem>
+            <SelectItem value="KidsClass">Kids Pizza Classes</SelectItem>
             <SelectItem value="Catering">Catering</SelectItem>
           </SelectContent>
         </Select>
@@ -406,7 +424,7 @@ export default function MasterCalendar() {
                   </>
                 )}
 
-                {["Fundraiser", "StoreEvent", "LargeReservation", "Catering"].includes(viewingEvent.type) && (
+                {["Fundraiser", "StoreEvent", "LargeReservation", "KidsClass", "Catering"].includes(viewingEvent.type) && (
                   <div className="space-y-4">
                     <h3 className="text-sm font-semibold border-b pb-2">Client Details</h3>
                     <div className="grid gap-3">
@@ -432,7 +450,7 @@ export default function MasterCalendar() {
                   </div>
                 )}
 
-                {["LargeReservation", "Catering"].includes(viewingEvent.type) && (
+                {["LargeReservation", "KidsClass", "Catering"].includes(viewingEvent.type) && (
                   <div className="space-y-4">
                     <h3 className="text-sm font-semibold border-b pb-2">Event Timing & Guests</h3>
                     <div className="grid grid-cols-2 gap-4">

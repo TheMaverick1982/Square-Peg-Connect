@@ -20,6 +20,8 @@ import EventsDashboard from "./pages/EventsDashboard";
 import StoreEventsPipeline from "./pages/StoreEventsPipeline";
 import LargeReservationsPipeline from "./pages/LargeReservationsPipeline";
 import PublicLargeReservationForm from "./pages/PublicLargeReservationForm";
+import KidsClassesPipeline from "./pages/KidsClassesPipeline";
+import PublicKidsClassForm from "./pages/PublicKidsClassForm";
 import PublicPhotoUpload from "./pages/PublicPhotoUpload";
 import PublicMarketingRequestForm from "./pages/PublicMarketingRequestForm";
 import StaffPhotos from "./pages/StaffPhotos";
@@ -39,6 +41,10 @@ export const routes = [
   {
     path: "/public/large-reservations",
     element: <PublicLargeReservationForm />
+  },
+  {
+    path: "/public/kids-classes",
+    element: <PublicKidsClassForm />
   },
   {
     path: "/public/photo-upload",
@@ -64,6 +70,7 @@ export const routes = [
       { path: "tuesday-fundraisers", element: <FundraisersPipeline /> },
       { path: "store-events", element: <StoreEventsPipeline /> },
       { path: "large-reservations", element: <LargeReservationsPipeline /> },
+      { path: "kids-classes", element: <KidsClassesPipeline /> },
       { path: "b2b-partnerships", element: <OwnerOnly><B2BPartnerships /></OwnerOnly> },
       { path: "guest-bounce-back", element: <OwnerOnly><GuestBounceBack /></OwnerOnly> },
       { path: "campaigns", element: <Campaigns /> },

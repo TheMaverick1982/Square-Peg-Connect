@@ -18,7 +18,8 @@ import {
   Lock,
   CalendarRange,
   Camera,
-  Gauge
+  Gauge,
+  Pizza
 } from "lucide-react";
 import { useEmployee } from "@/lib/EmployeeContext";
 import { useIsOwner } from "@/lib/featureAccess";
@@ -75,6 +76,10 @@ export function SidebarContent() {
         <NavLink to="/large-reservations" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
           <Users className="w-4 h-4" />
           Large Reservations
+        </NavLink>
+        <NavLink to="/kids-classes" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
+          <Pizza className="w-4 h-4" />
+          Kids Pizza Classes
         </NavLink>
         {isOwner && (
           <>
