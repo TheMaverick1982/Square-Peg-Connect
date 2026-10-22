@@ -851,7 +851,19 @@ export default function LargeReservationsPipeline() {
                       <div className="text-sm truncate">{order.phone || order.email}</div>
                     </div>
                     <div className="col-span-1">
-                      <span className={getStatusPillClass(order.status)}>{order.status}</span>
+                      <div onClick={(e) => e.stopPropagation()}>
+                      <Select value={order.status} onValueChange={(val) => updateOrderStatus(order.id, val)}>
+                        <SelectTrigger className={`h-7 text-xs border-none focus:ring-0 w-28 ${getStatusPillClass(order.status)}`}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Requested">Requested</SelectItem>
+                          <SelectItem value="Confirmed">Confirmed</SelectItem>
+                          <SelectItem value="Completed">Completed</SelectItem>
+                          <SelectItem value="Cancelled">Cancelled</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                     </div>
                     <div className="col-span-1 text-right">
                       <Button variant="ghost" size="sm" onClick={() => {
@@ -888,8 +900,18 @@ export default function LargeReservationsPipeline() {
                 }}
               >
                 <div className="flex justify-between items-start mb-3">
-                  <div className={getStatusPillClass(order.status)}>
-                    {order.status}
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <Select value={order.status} onValueChange={(val) => updateOrderStatus(order.id, val)}>
+                      <SelectTrigger className={`h-7 text-xs border-none focus:ring-0 w-32 ${getStatusPillClass(order.status)}`}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Requested">Requested</SelectItem>
+                        <SelectItem value="Confirmed">Confirmed</SelectItem>
+                        <SelectItem value="Completed">Completed</SelectItem>
+                        <SelectItem value="Cancelled">Cancelled</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="text-xs font-medium bg-muted px-2 py-1 rounded-md flex items-center gap-1.5 text-muted-foreground">
                     <CalendarIcon className="w-3.5 h-3.5" />

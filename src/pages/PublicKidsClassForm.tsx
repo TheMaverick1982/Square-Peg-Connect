@@ -11,7 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { format, startOfDay, isBefore } from "date-fns";
+import { format, startOfDay, isBefore, addDays, addHours } from "date-fns";
 
 export default function PublicKidsClassForm() {
   const { toast } = useToast();
@@ -37,8 +37,8 @@ export default function PublicKidsClassForm() {
   const [isSuccess, setIsSuccess] = useState(false);
 
   const isDateDisabled = (date: Date) => {
-    // Disable if in the past
-    if (isBefore(date, startOfDay(new Date()))) return true;
+    // Needs at least 48 hours' notice: nothing before the day after tomorrow.
+    if (isBefore(date, startOfDay(addDays(new Date(), 2)))) return true;
     return false;
   };
 
@@ -50,6 +50,14 @@ export default function PublicKidsClassForm() {
     if (step === 2 && !formData.eventDate) {
       toast({ title: "Please select a date" });
       return;
+    }
+    if (step === 2 && formData.eventDate && formData.timeStart) {
+      const [h, m] = formData.timeStart.split(":").map(Number);
+      const start = new Date(formData.eventDate); start.setHours(h || 0, m || 0, 0, 0);
+      if (isBefore(start, addHours(new Date(), 48))) {
+        toast({ title: "Please give us at least 48 hours' notice", description: "Pick a later date or time for your class.", variant: "destructive" });
+        return;
+      }
     }
     setStep(step + 1);
   };
@@ -117,7 +125,7 @@ export default function PublicKidsClassForm() {
           </CardHeader>
           <CardContent>
             <p className="text-muted-foreground">
-              Thanks for signing up for a kids pizza class at Square Peg Pizzeria!<br />
+              Thanks for requesting a private kids pizza class at Square Peg Pizzeria!<br />
               The store will be in touch to confirm the details.
             </p>
           </CardContent>
@@ -137,7 +145,7 @@ export default function PublicKidsClassForm() {
             className="h-full w-auto object-contain" 
           />
         </div>
-        <p className="text-muted-foreground tracking-widest uppercase text-sm font-semibold">Kids Pizza Class Signup</p>
+        <p className="text-muted-foreground tracking-widest uppercase text-sm font-semibold">Private Kids Pizza Class Signup</p>
       </div>
 
       <Card className="w-full max-w-lg">
@@ -155,7 +163,7 @@ export default function PublicKidsClassForm() {
             {step === 3 && "Your Details"}
           </CardTitle>
           <CardDescription>
-            {step === 1 && "Pick the Square Peg location for your class."}
+            {step === 1 && "Pick the Square Peg location for your private class."}
             {step === 2 && "Choose the date and time you'd like for your class."}
             {step === 3 && "Tell us about your group of kids."}
           </CardDescription>
@@ -188,6 +196,7 @@ export default function PublicKidsClassForm() {
                   disabled={isDateDisabled}
                   className="rounded-md border shadow-sm w-fit"
                 />
+                <p className="mt-2 text-xs text-muted-foreground">Private classes need at least 48 hours' notice.</p>
                 {formData.eventDate && (
                   <div className="mt-4 text-center">
                     <p className="text-sm font-semibold text-primary">
@@ -233,9 +242,9 @@ export default function PublicKidsClassForm() {
                 <Label htmlFor="guestCount">How many kids?</Label>
                 <Input id="guestCount" type="number" min="1" required value={formData.guestCount} onChange={e => setFormData({...formData, guestCount: e.target.value})} />
               </div>
-              {/* Location-specific room requirement */}
-              {(formData.locationId === "loc-7" || formData.locationId === "loc-5") && (
-                <div className="grid gap-4 bg-muted/20 p-4 rounded-lg border">
+              {/* Private room: shown for every location; stores without one set up a section instead */}
+              {formData.locationId && (
+                <div className="grid gap-2 bg-muted/20 p-4 rounded-lg border">
                   <div className="flex items-center justify-between">
                     <Label className="font-semibold text-primary">
                       {formData.locationId === "loc-7" ? "Banquet Room Required?" : "Private Dining Room Required?"}
@@ -245,6 +254,9 @@ export default function PublicKidsClassForm() {
                       onCheckedChange={(checked) => setFormData({...formData, requiresRoom: checked})}
                     />
                   </div>
+                  <p className="text-xs text-muted-foreground">
+                    Not all locations have a private room, but we can accommodate by creating a section for your group at locations without one.
+                  </p>
                 </div>
               )}
 
