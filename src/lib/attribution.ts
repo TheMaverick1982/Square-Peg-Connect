@@ -48,7 +48,9 @@ export function describeSource(a: Attribution): string {
   const paid = /cpc|ppc|paid|ads?$|display|paid_social|paidsocial/.test(medium);
   let label = "";
   if (a.gclid || a.gbraid || a.wbraid) label = "Google Ads";
-  else if (a.utm_source) {
+  else if (/^(e-?mail|newsletter)$/.test(medium) || /^(e-?mail|newsletter|mailchimp|klaviyo|constant ?contact|como)$/i.test(a.utm_source || "")) {
+    label = "Email campaign";
+  } else if (a.utm_source) {
     const name = nameForSource(a.utm_source);
     if (paid) label = ["Facebook", "Instagram"].includes(name) ? `Meta ad (${name})` : `${name} ad`;
     else if (name === "Google" && /business|gbp|maps|local/.test(medium + (a.utm_campaign || ""))) label = "Google Business Profile";
@@ -58,7 +60,7 @@ export function describeSource(a: Attribution): string {
   else if (a.ttclid) label = "TikTok ad";
   else if (a.sp_ref) label = referrerLabel(a.sp_ref);
   if (!label) label = a.sp_landing ? "Direct (typed address or bookmark)" : "Direct / unknown";
-  if (a.utm_campaign) label += ` — campaign: ${a.utm_campaign}`;
+  if (a.utm_campaign) label += label === "Email campaign" ? `: ${a.utm_campaign}` : ` — campaign: ${a.utm_campaign}`;
   return label;
 }
 

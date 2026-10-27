@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { LeadsReportButtons } from "@/components/LeadsReportButtons";
 
 type DateRange = {
   from: Date | undefined;
@@ -262,7 +263,8 @@ export default function Reports() {
           <h1 className="text-3xl font-bold tracking-tight">Reports & Analytics</h1>
           <p className="text-muted-foreground mt-1">System-wide performance metrics and pipeline health.</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <LeadsReportButtons />
           <Popover>
             <PopoverTrigger asChild>
               <Button variant="outline" className={cn("w-[280px] justify-start text-left font-normal", !dateRange?.from && "text-muted-foreground")}>
