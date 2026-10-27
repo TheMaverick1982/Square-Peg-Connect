@@ -14,9 +14,14 @@ export default function PublicPhotoUpload() {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
+  // A store's own link/QR code (?store=loc-5) picks that store automatically.
+  const presetStore = (() => {
+    const id = new URLSearchParams(window.location.search).get("store") || "";
+    return locations.some(l => l.id === id) ? id : "";
+  })();
   const [formData, setFormData] = useState({
     staff_name: "",
-    location_id: "",
+    location_id: presetStore,
     notes: ""
   });
   
@@ -138,7 +143,7 @@ export default function PublicPhotoUpload() {
           <Button 
             className="w-full" 
             onClick={() => {
-              setFormData({ staff_name: "", location_id: "", notes: "" });
+              setFormData({ staff_name: "", location_id: presetStore, notes: "" });
               setFiles([]);
               setPreviews([]);
               setIsSuccess(false);

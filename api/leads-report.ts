@@ -218,11 +218,31 @@ function render(w: ReturnType<typeof weeks>, data: Awaited<ReturnType<typeof loa
   const html = `<div style="font-family:Arial,Helvetica,sans-serif;max-width:820px;margin:0 auto;padding:24px;color:#111827">
     <div style="font-size:26px;font-weight:bold;margin:0 0 2px">${esc(title)}</div>
     <div style="color:#6b7280;margin:0 0 20px">Week of ${esc(weekLabel)} · compared with ${esc(short(w.prevStart))} – ${esc(short(w.prevEnd))}</div>
-    ${summary}${byStore}${sources}${leadList}${heldList}
+    ${summary}${byStore}${sources}${leadList}${heldList}${storeId ? photoReminder(storeId) : ''}
     <p style="margin:8px 0 0"><a href="${APP_URL}" style="background:#1f2937;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none;display:inline-block;font-weight:bold">Open Square Peg Connect</a></p>
   </div>`;
   const subject = storeId ? `Weekly Leads & Events Report — ${storeName(storeId)} — ${weekLabel}` : `Weekly Leads & Events Report — All Stores — ${weekLabel}`;
   return { subject, html };
+}
+
+// Store reports only: reminder to photograph every event, with that store's upload link + QR code.
+function photoReminder(storeId: string) {
+  const link = `${APP_URL}/public/photo-upload?store=${encodeURIComponent(storeId)}`;
+  const qr = `${APP_URL}/qr/photo-upload-${encodeURIComponent(storeId)}.png`;
+  return `<div style="border:2px dashed #f59e0b;background:#fffbeb;border-radius:10px;padding:16px 18px;margin:0 0 24px">
+    <table style="width:100%;border-collapse:collapse"><tr>
+      <td style="vertical-align:top;padding-right:14px">
+        <div style="font-size:16px;font-weight:bold;margin:0 0 6px">📸 Don't forget the pictures!</div>
+        <div style="font-size:14px;color:#374151;margin:0 0 10px">Take photos at every event this week, or assign someone to take them, and upload them so we can use them in marketing.</div>
+        <a href="${link}" style="background:#f59e0b;color:#111827;padding:9px 16px;border-radius:6px;text-decoration:none;display:inline-block;font-weight:bold;font-size:14px">Upload event photos</a>
+        <div style="font-size:12px;color:#6b7280;margin-top:8px;word-break:break-all">${esc(link)}</div>
+      </td>
+      <td style="width:130px;text-align:center;vertical-align:top">
+        <img src="${qr}" alt="QR code to upload photos" width="120" height="120" style="display:block;margin:0 auto;border:1px solid #e5e7eb;border-radius:6px;background:#fff" />
+        <div style="font-size:11px;color:#6b7280;margin-top:4px">Scan with your phone</div>
+      </td>
+    </tr></table>
+  </div>`;
 }
 
 async function send(to: string[], subject: string, html: string) {
