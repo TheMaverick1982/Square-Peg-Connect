@@ -14,6 +14,7 @@ import { format } from "date-fns";
 import { Shield, ShieldAlert, Store, UserCog, Settings as SettingsIcon, UploadCloud, FileArchive, Trash2, Link as LinkIcon, Loader2, UserPlus, Mail, Pencil } from "lucide-react";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuCheckboxItem } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { InboxConnectCard } from "@/components/InboxConnectCard";
 
 function MarketingAssetsTab() {
   const { toast } = useToast();
@@ -498,7 +499,7 @@ export default function Settings() {
         <p className="text-muted-foreground mt-1">Manage workspace preferences, integrations, and roles.</p>
       </div>
 
-      <Tabs defaultValue={defaultTab} className="flex-1 flex flex-col">
+      <Tabs defaultValue={new URLSearchParams(window.location.search).get("tab") === "inbox" ? "inbox" : defaultTab} className="flex-1 flex flex-col">
         <TabsList className="w-full justify-start border-b rounded-none h-12 bg-transparent p-0">
           <TabsTrigger 
             value="general" 
@@ -517,6 +518,12 @@ export default function Settings() {
             className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:shadow-none rounded-none h-12 px-6"
           >
             Marketing Assets
+          </TabsTrigger>
+          <TabsTrigger 
+            value="inbox" 
+            className="data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:shadow-none rounded-none h-12 px-6"
+          >
+            Catering Inbox
           </TabsTrigger>
           {isAdmin && (
             <TabsTrigger 
@@ -615,6 +622,10 @@ export default function Settings() {
 
         <TabsContent value="assets" className="flex-1 mt-6">
           <MarketingAssetsTab />
+        </TabsContent>
+
+        <TabsContent value="inbox" className="flex-1 mt-6">
+          <InboxConnectCard />
         </TabsContent>
 
         {isAdmin && (

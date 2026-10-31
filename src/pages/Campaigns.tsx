@@ -822,6 +822,12 @@ export default function MarketingPlanner() {
                   }}>
                     <LinkIcon className="w-4 h-4 mr-2" /> Share Intake Form
                   </Button>
+                  <Button variant="outline" size="sm" onClick={() => {
+                    navigator.clipboard.writeText(`${window.location.origin}${import.meta.env.BASE_URL}public/store-event`);
+                    toast({ title: "Link Copied!", description: "Store event form link copied. Add ?store=loc-5 (etc.) to pre-pick a store." });
+                  }}>
+                    <LinkIcon className="w-4 h-4 mr-2" /> Share Store Event Form
+                  </Button>
                   <Sheet open={isDraftingCampaign} onOpenChange={setIsDraftingCampaign}>
                     <SheetTrigger asChild>
                       <Button size="sm" onClick={() => { setCopyFrom(null); setNewCampaign({ ...blankCampaign(), title: "", description: "", target_date: new Date(), location_id: "all" }); }}>

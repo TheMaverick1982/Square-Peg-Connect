@@ -57,6 +57,10 @@ export function SidebarContent() {
           <Users className="w-4 h-4" />
           Contacts
         </NavLink>
+        <NavLink to="/customers" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
+          <UserCheck className="w-4 h-4" />
+          Customers
+        </NavLink>
         <NavLink to="/catering" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}>
           <UtensilsCrossed className="w-4 h-4" />
           Catering Orders

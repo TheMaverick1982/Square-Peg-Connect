@@ -24,6 +24,8 @@ import KidsClassesPipeline from "./pages/KidsClassesPipeline";
 import PublicKidsClassForm from "./pages/PublicKidsClassForm";
 import PublicPhotoUpload from "./pages/PublicPhotoUpload";
 import PublicMarketingRequestForm from "./pages/PublicMarketingRequestForm";
+import PublicStoreEventForm from "./pages/PublicStoreEventForm";
+import Customers from "./pages/Customers";
 import StaffPhotos from "./pages/StaffPhotos";
 import StoreMetrics from "./pages/StoreMetrics";
 import { Navigate } from "react-router-dom";
@@ -51,6 +53,10 @@ export const routes = [
     element: <PublicPhotoUpload />
   },
   {
+    path: "/public/store-event",
+    element: <PublicStoreEventForm />
+  },
+  {
     path: "/public/marketing-request",
     element: <PublicMarketingRequestForm />
   },
@@ -65,6 +71,7 @@ export const routes = [
       { index: true, element: <Dashboard /> },
       { path: "master-calendar", element: <MasterCalendar /> },
       { path: "contacts", element: <Contacts /> },
+      { path: "customers", element: <Customers /> },
       { path: "catering", element: <CateringPipeline /> },
       { path: "events", element: <EventsDashboard /> },
       { path: "tuesday-fundraisers", element: <FundraisersPipeline /> },

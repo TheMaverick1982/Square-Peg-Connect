@@ -170,7 +170,22 @@ export function CampaignCard({ campaign, status, tasks, progress, createTask, to
         {risk && !archived && (
           <p className={`text-xs mb-3 rounded-md px-3 py-2 ${risk.level === "risk" ? "bg-red-50 text-red-900 dark:bg-red-950/30 dark:text-red-200" : "bg-amber-50 text-amber-900 dark:bg-amber-950/30 dark:text-amber-200"}`}>{risk.why}</p>
         )}
-        {campaign.description && <p className="text-sm text-muted-foreground mb-4 whitespace-pre-line">{campaign.description}</p>}
+        {campaign.source === "store_form" && <div className="text-xs font-medium text-amber-700 mb-1">Submitted by the store{campaign.submitted_by ? ` · ${campaign.submitted_by}` : ""}</div>}
+        {campaign.description && <p className="text-sm text-muted-foreground mb-4 whitespace-pre-line">{campaign.description.split(/\nFiles:\n/)[0]}</p>}
+        {Array.isArray(campaign.attachments) && campaign.attachments.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-4">
+            {campaign.attachments.map((a: any, i: number) => (
+              <a key={i} href={a.url} target="_blank" rel="noreferrer" className="group block border rounded-md overflow-hidden bg-muted/30 hover:border-primary" title={a.name}>
+                {String(a.type || "").startsWith("image/")
+                  ? <img src={a.url} alt={a.name} className="h-20 w-20 object-cover" loading="lazy" />
+                  : <div className="h-20 w-28 flex flex-col items-center justify-center text-[11px] text-muted-foreground p-1 text-center">
+                      <span className="font-semibold uppercase">{String(a.type || "").startsWith("video/") ? "Video" : (a.name.split(".").pop() || "File")}</span>
+                      <span className="truncate w-full">{a.name}</span>
+                    </div>}
+              </a>
+            ))}
+          </div>
+        )}
 
         {archived && hasRecap && (
           <div className="rounded-md border bg-muted/30 p-3 mb-4 text-sm space-y-1.5">
