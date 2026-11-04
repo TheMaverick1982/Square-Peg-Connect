@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
+import { alertNewLead } from "@/lib/leadEmail";
 import { captureAttribution, insertWithSource, type Attribution } from "@/lib/attribution";
 import { locations } from "@/lib/data";
 
@@ -29,6 +30,7 @@ export default function PublicCateringForm() {
     company: "",
     eventDate: "",
     guestCount: "",
+    pickupTime: "",
     locationId: "",
     orderPreference: "",
     notes: "",
@@ -53,6 +55,7 @@ export default function PublicCateringForm() {
         guest_count: parseInt(form.guestCount || "0", 10),
         location: form.locationId,
         order_preference: form.orderPreference,
+        ...(form.pickupTime ? { pickup_time: form.pickupTime } : {}),
         notes: form.notes,
         heard_about_us: form.heardAboutUs,
         status: "Requested",
@@ -65,26 +68,9 @@ export default function PublicCateringForm() {
 
       if (dbError) throw dbError;
 
-      const locationName = locations.find(l => l.id === form.locationId)?.name || form.locationId;
+      // 2. Email the catering team + the store
+      await alertNewLead("catering", form.email);
 
-      // 2. Trigger notification
-      await supabase.functions.invoke('send-catering-inbound-email', {
-        body: {
-          name: form.name,
-          email: form.email,
-          phone: form.phone,
-          company: form.company,
-          eventDate: form.eventDate,
-          guestCount: form.guestCount,
-          location: locationName,
-          orderPreference: form.orderPreference,
-          notes: form.notes,
-          heardAboutUs: form.heardAboutUs,
-          leadSource: utmData.label,
-          sourceDetails: utmData
-        }
-      });
-      
       // 3. Fire Meta Pixel Lead event
       if (typeof window !== 'undefined' && window.fbq) {
         window.fbq('track', 'Lead');
@@ -222,6 +208,17 @@ export default function PublicCateringForm() {
                   value={form.guestCount}
                   onChange={(e) => setForm({ ...form, guestCount: e.target.value })}
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="pickupTime">Pickup / ready time</Label>
+                <Input
+                  id="pickupTime"
+                  type="time"
+                  value={form.pickupTime}
+                  onChange={(e) => setForm({ ...form, pickupTime: e.target.value })}
+                />
+                <p className="text-xs text-muted-foreground">What time would you like the food ready?</p>
               </div>
             </div>
 

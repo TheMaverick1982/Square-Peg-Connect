@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { locations } from "@/lib/data";
+import { storeLocations as locations } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
+import { alertNewLead } from "@/lib/leadEmail";
 import { captureAttribution, insertWithSource, type Attribution } from "@/lib/attribution";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -102,14 +103,8 @@ export default function PublicKidsClassForm() {
     }]);
     if (crmError) console.error("Error syncing to CRM:", crmError);
 
-    // Email the team + the store (server looks up the signup that was just saved)
-    try {
-      await fetch('/api/kids-class-email', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ mode: 'new', email: formData.email }),
-      });
-    } catch { /* the signup is saved even if the email fails */ }
+    // Email the team + the store
+    await alertNewLead("kids_class", formData.email);
 
     setIsSubmitting(false);
     setIsSuccess(true);

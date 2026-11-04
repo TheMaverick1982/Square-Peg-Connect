@@ -24,6 +24,7 @@ const STORES: { id: string; name: string; email: string }[] = [
   { id: 'loc-8', name: 'Delray Beach', email: 'delraybeach@squarepegpizzeria.com' },
   { id: 'loc-9', name: 'Berlin', email: 'berlin@squarepegpizzeria.com' },
   { id: 'loc-10', name: 'Bolton', email: 'bolton@squarepegpizzeria.com' },
+  { id: 'loc-11', name: 'Food Truck', email: 'catering@squarepegpizzeria.com' },
 ];
 const storeName = (id?: string | null) => STORES.find((s) => s.id === id)?.name || (id ? String(id) : 'No store');
 

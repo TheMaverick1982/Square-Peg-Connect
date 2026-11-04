@@ -3,6 +3,9 @@ import { useState, useEffect } from "react";
 import { useLocationContext } from "@/lib/LocationContext";
 import { locations } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
+import { emailToStore } from "@/lib/leadEmail";
+import { OrderExtras } from "@/components/OrderExtras";
+import { EventTypeBadge } from "@/lib/eventTypes";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -48,6 +51,7 @@ export interface LargeReservationOrder {
   depositPaid?: boolean;
   depositAmount?: number;
   heardAboutUs?: string;
+  eventType?: string;
   leadSource?: string;
   createdAt: string;
 }
@@ -151,6 +155,7 @@ export default function LargeReservationsPipeline() {
         depositPaid: row.deposit_paid || false,
         depositAmount: parseFloat(row.deposit_amount || 0),
         heardAboutUs: row.heard_about_us || "",
+        eventType: row.event_type || undefined,
         leadSource: row.lead_source || "",
         createdAt: row.created_at,
       }));
@@ -239,24 +244,14 @@ export default function LargeReservationsPipeline() {
   const handleEmailDetailsToLocation = async () => {
     if (!viewingOrder) return;
     setIsSendingDetails(true);
-
-    const location = locations.find(l => l.id === viewingOrder.locationId) || locations[0];
-
-    const { data, error } = await supabase.functions.invoke('send-large-reservation-details', {
-      body: {
-        order: viewingOrder,
-        location
-      }
-    });
-
-    setIsSendingDetails(false);
-
-    if (error || data?.error) {
-      toast({ title: "Email Failed", description: data?.error || error?.message, variant: "destructive" });
-      return;
+    try {
+      const r = await emailToStore("large_reservation", viewingOrder.id);
+      toast({ title: "Details Sent!", description: `Reservation details were emailed to ${r.store} (${r.to}).` });
+    } catch (err) {
+      toast({ title: "Email Failed", description: (err as Error).message, variant: "destructive" });
+    } finally {
+      setIsSendingDetails(false);
     }
-
-    toast({ title: "Details Sent!", description: `Reservation details have been emailed to ${location.name}.` });
   };
 
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
@@ -454,6 +449,9 @@ export default function LargeReservationsPipeline() {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } else if (data) {
       toast({ title: "Success", description: "Reservation manually added." });
+      emailToStore("large_reservation", data.id)
+        .then((r) => toast({ title: "Store notified", description: `Details emailed to ${r.store}.` }))
+        .catch((err) => toast({ title: "Saved, but the store email failed", description: (err as Error).message, variant: "destructive" }));
       setOrders([...orders, {
         id: data.id,
         name: data.name,
@@ -833,7 +831,7 @@ export default function LargeReservationsPipeline() {
                       )}
                     </div>
                     <div className="col-span-2 min-w-0">
-                      <div className="font-medium text-sm truncate">{order.name}</div>
+                      <div className="font-medium text-sm truncate flex items-center gap-1.5">{order.name} <EventTypeBadge value={order.eventType} /></div>
                       {order.organization && <div className="text-xs text-muted-foreground truncate">{order.organization}</div>}
                       {order.createdAt && <div className="text-[11px] text-muted-foreground/80 mt-0.5">Submitted {format(storeClock(order.createdAt, tzForLocation(order.locationId)), "MMM d, yyyy")}</div>}
                     </div>
@@ -920,6 +918,7 @@ export default function LargeReservationsPipeline() {
                 </div>
 
                 <h3 className="font-semibold text-lg line-clamp-1 mb-1 group-hover:text-primary transition-colors">{order.name}</h3>
+                {order.eventType && <div className="mb-1"><EventTypeBadge value={order.eventType} /></div>}
                 {order.organization && <p className="text-sm text-muted-foreground line-clamp-1">{order.organization}</p>}
                 
                 <div className="mt-4 space-y-2.5 flex-1">
@@ -1285,6 +1284,20 @@ export default function LargeReservationsPipeline() {
                           </div>
                         </div>
                       )}
+
+                      <OrderExtras
+                        key={viewingOrder.id}
+                        table="large_reservations"
+                        kind="large_reservation"
+                        id={viewingOrder.id}
+                        onSaved={(c) => {
+                          if ("event_type" in c) {
+                            const eventType = c.event_type || undefined;
+                            setOrders((prev) => prev.map((o) => (o.id === viewingOrder.id ? { ...o, eventType } : o)));
+                            setViewingOrder((v) => (v ? { ...v, eventType } : v));
+                          }
+                        }}
+                      />
 
                       {viewingOrder.heardAboutUs && (
                         <div className="space-y-4">

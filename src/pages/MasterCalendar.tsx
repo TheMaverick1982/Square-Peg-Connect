@@ -4,10 +4,12 @@ import { useLocationContext } from "@/lib/LocationContext";
 import { locations } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, startOfMonth, endOfMonth, isSameMonth, isSameDay, addMonths, subMonths, isToday, parseISO } from "date-fns";
-import { ChevronLeft, ChevronRight, LayoutList, CalendarDays, Loader2, Filter, MapPin, Users, Mail, Phone, Building, FileText, DollarSign, CalendarIcon, Clock, CheckCircle2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Pencil, LayoutList, CalendarDays, Loader2, Filter, MapPin, Users, Mail, Phone, Building, FileText, DollarSign, CalendarIcon, Clock, CheckCircle2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { CalendarEventEditor } from "@/components/CalendarEventEditor";
+import { eventTypeStyle } from "@/lib/eventTypes";
 
 /** Every date an entertainment event happens (store-local), expanding weekly / monthly repeats. */
 function entertainmentDates(row: any): Date[] {
@@ -67,6 +69,8 @@ export default function MasterCalendar() {
   const [events, setEvents] = useState<UnifiedEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [viewingEvent, setViewingEvent] = useState<UnifiedEvent | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   // Determine if the user is an admin based on context logic equivalent 
   // (Assuming we check if selectedLocationId is null or we can toggle to "all")
@@ -186,7 +190,7 @@ export default function MasterCalendar() {
     };
 
     fetchAllEvents();
-  }, []);
+  }, [reloadKey]);
 
   const handlePrevMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
   const handleNextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
@@ -203,7 +207,10 @@ export default function MasterCalendar() {
     return true;
   });
 
-  const getEventStyle = (type: EventType) => {
+  const getEventStyle = (type: EventType, row?: any) => {
+    // Catering / reservations with a "Type of event" use its color (Pizza Class red, EZ Cater orange).
+    const special = (type === "Catering" || type === "LargeReservation") ? eventTypeStyle(row?.event_type) : undefined;
+    if (special) return special.calendar;
     switch (type) {
       case "Entertainment": return "bg-purple-100 text-purple-800 border-purple-200";
       case "Fundraiser": return "bg-pink-100 text-pink-800 border-pink-200";
@@ -258,7 +265,7 @@ export default function MasterCalendar() {
                     <div 
                       key={e.id}
                       onClick={() => setViewingEvent(e)}
-                      className={`text-xs px-1.5 py-1 rounded border font-medium truncate cursor-pointer hover:opacity-80 transition-opacity ${getEventStyle(e.type)}`}
+                      className={`text-xs px-1.5 py-1 rounded border font-medium truncate cursor-pointer hover:opacity-80 transition-opacity ${getEventStyle(e.type, e.originalData)}`}
                       title={`${e.title} (${e.type})`}
                     >
                       {filterLocation === "all" && <span className="font-bold mr-1">{locations.find(l => l.id === e.locationId)?.name?.substring(0,3)}</span>}
@@ -343,6 +350,9 @@ export default function MasterCalendar() {
           <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-orange-100 border border-orange-200"></div> Store Events</div>
           <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-blue-100 border border-blue-200"></div> Reservations</div>
           <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-green-100 border border-green-200"></div> Catering</div>
+          <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-yellow-100 border border-yellow-200"></div> Kids Classes</div>
+          <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-red-100 border border-red-300"></div> Pizza Class</div>
+          <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-orange-200 border border-orange-400"></div> EZ Cater</div>
         </div>
       </div>
 
@@ -358,22 +368,36 @@ export default function MasterCalendar() {
       )}
 
       {/* View Event Sheet */}
-      <Sheet open={!!viewingEvent} onOpenChange={(open) => !open && setViewingEvent(null)}>
+      <Sheet open={!!viewingEvent} onOpenChange={(open) => { if (!open) { setViewingEvent(null); setIsEditing(false); } }}>
         <SheetContent className="sm:max-w-md w-full overflow-y-auto border-l-0 shadow-2xl">
           {viewingEvent && (
             <>
               <div className="flex items-start justify-between pb-6 border-b shrink-0">
                 <div className="min-w-0 flex-1">
-                  <SheetTitle className="text-2xl break-words">{viewingEvent.title}</SheetTitle>
+                  <SheetTitle className="text-2xl break-words pr-2">{viewingEvent.title}</SheetTitle>
                   <SheetDescription className="mt-1">
-                    <span className={`inline-flex px-2 py-0.5 rounded text-xs font-semibold mr-2 ${getEventStyle(viewingEvent.type)}`}>
-                      {viewingEvent.type.replace(/([A-Z])/g, ' $1').trim()}
+                    <span className={`inline-flex px-2 py-0.5 rounded text-xs font-semibold mr-2 ${getEventStyle(viewingEvent.type, viewingEvent.originalData)}`}>
+                      {viewingEvent.type.replace(/([A-Z])/g, ' $1').trim()}{viewingEvent.originalData?.event_type ? ` · ${viewingEvent.originalData.event_type}` : ""}
                     </span>
                     <strong className="text-foreground">{format(viewingEvent.date, "EEEE, MMMM do, yyyy")}</strong>
                   </SheetDescription>
                 </div>
+                {!isEditing && (
+                  <Button variant="outline" size="sm" className="shrink-0 mr-6" onClick={() => setIsEditing(true)}>
+                    <Pencil className="w-4 h-4 mr-1.5" /> Edit
+                  </Button>
+                )}
               </div>
 
+              {isEditing ? (
+                <CalendarEventEditor
+                  key={viewingEvent.id}
+                  type={viewingEvent.type}
+                  row={viewingEvent.originalData}
+                  onCancel={() => setIsEditing(false)}
+                  onSaved={() => { setIsEditing(false); setViewingEvent(null); setReloadKey((k) => k + 1); }}
+                />
+              ) : (
               <div className="py-6 space-y-6">
                 <div className="grid grid-cols-2 gap-6 bg-muted/10 p-5 rounded-xl border border-border/50">
                   {viewingEvent.status && (
@@ -454,6 +478,12 @@ export default function MasterCalendar() {
                   <div className="space-y-4">
                     <h3 className="text-sm font-semibold border-b pb-2">Event Timing & Guests</h3>
                     <div className="grid grid-cols-2 gap-4">
+                      {viewingEvent.originalData.pickup_time && (
+                        <div>
+                          <span className="text-xs text-muted-foreground block">Pickup time</span>
+                          <div className="text-sm font-medium">{formatTime12Hour(viewingEvent.originalData.pickup_time)}</div>
+                        </div>
+                      )}
                       {viewingEvent.originalData.time_start && (
                         <div>
                           <span className="text-xs text-muted-foreground block">Time</span>
@@ -501,6 +531,7 @@ export default function MasterCalendar() {
                 )}
 
               </div>
+              )}
             </>
           )}
         </SheetContent>

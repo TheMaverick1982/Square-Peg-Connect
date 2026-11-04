@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { locations } from "@/lib/data";
+import { storeLocations as locations } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
+import { alertNewLead } from "@/lib/leadEmail";
 import { captureAttribution, insertWithSource, type Attribution } from "@/lib/attribution";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -94,24 +95,8 @@ export default function PublicLargeReservationForm() {
     }]);
     if (crmError) console.error("Error syncing to CRM:", crmError);
 
-    // Trigger email notification
-    const location = locations.find(l => l.id === formData.locationId) || locations[0];
-    await supabase.functions.invoke('send-large-reservation-email', {
-      body: {
-        order: {
-          ...orderData,
-          eventDate: orderData.event_date,
-          timeStart: orderData.time_start,
-          timeFinish: orderData.time_finish,
-          guestCount: orderData.guest_count,
-          heardAboutUs: orderData.heard_about_us,
-          leadSource: source.label
-        },
-        location,
-        leadSource: source.label,
-        sourceDetails: source
-      }
-    });
+    // Email the team + the store
+    await alertNewLead("large_reservation", formData.email);
 
     setIsSubmitting(false);
     setIsSuccess(true);

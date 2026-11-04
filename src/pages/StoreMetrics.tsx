@@ -5,7 +5,7 @@ import { format, parseISO, previousSunday, isSunday, addDays } from "date-fns";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, BarChart, Bar, LabelList } from "recharts";
 import { Gauge, Send, Save, Loader2, Mail, TrendingUp, Flag, History } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { locations } from "@/lib/data";
+import { storeLocations as locations } from "@/lib/data";
 import { useEmployee } from "@/lib/EmployeeContext";
 import {
   computeStoreHistory, loyaltyPenetration, aovPremium, fmtPct, fmtMoney, fmtInt,

@@ -26,6 +26,7 @@ const LOCATION_NAMES: Record<string, string> = {
   "loc-8": "Delray Beach",
   "loc-9": "Berlin",
   "loc-10": "Bolton",
+  "loc-11": "Food Truck",
 };
 
 const json = (status: number, body: unknown) =>

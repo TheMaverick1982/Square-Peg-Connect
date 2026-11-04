@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { useLocationContext } from "@/lib/LocationContext";
 import { locations } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
+import { emailToStore } from "@/lib/leadEmail";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -239,29 +240,14 @@ export default function KidsClassesPipeline() {
   const handleEmailDetailsToLocation = async () => {
     if (!viewingOrder) return;
     setIsSendingDetails(true);
-
-    const location = locations.find(l => l.id === viewingOrder.locationId) || locations[0];
-
-    const { data: sess } = await supabase.auth.getSession();
-    let data: any = null; let error: any = null;
     try {
-      const res = await fetch('/api/kids-class-email', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', authorization: `Bearer ${sess.session?.access_token || ''}` },
-        body: JSON.stringify({ mode: 'details', id: viewingOrder.id }),
-      });
-      data = await res.json().catch(() => ({}));
-      if (!res.ok && !data?.error) data = { error: `Request failed (${res.status})` };
-    } catch (e) { error = e; }
-
-    setIsSendingDetails(false);
-
-    if (error || data?.error) {
-      toast({ title: "Email Failed", description: data?.error || error?.message, variant: "destructive" });
-      return;
+      const r = await emailToStore("kids_class", viewingOrder.id);
+      toast({ title: "Details Sent!", description: `Class details were emailed to ${r.store} (${r.to}).` });
+    } catch (err) {
+      toast({ title: "Email Failed", description: (err as Error).message, variant: "destructive" });
+    } finally {
+      setIsSendingDetails(false);
     }
-
-    toast({ title: "Details Sent!", description: `Class details have been emailed to ${location.name}.` });
   };
 
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
@@ -459,6 +445,9 @@ export default function KidsClassesPipeline() {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } else if (data) {
       toast({ title: "Success", description: "Class signup added." });
+      emailToStore("kids_class", data.id)
+        .then((r) => toast({ title: "Store notified", description: `Details emailed to ${r.store}.` }))
+        .catch((err) => toast({ title: "Saved, but the store email failed", description: (err as Error).message, variant: "destructive" }));
       setOrders([...orders, {
         id: data.id,
         name: data.name,

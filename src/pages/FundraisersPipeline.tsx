@@ -3,6 +3,8 @@ import { useState, useEffect } from "react";
 import { useLocationContext } from "@/lib/LocationContext";
 import { locations } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
+import { emailToStore } from "@/lib/leadEmail";
+import { EmailStoreButton } from "@/components/EmailStoreButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -355,6 +357,9 @@ export default function FundraisersPipeline() {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } else if (data) {
       toast({ title: "Success", description: "Fundraiser manually added." });
+      emailToStore("fundraiser", data.id)
+        .then((r) => toast({ title: "Store notified", description: `Details emailed to ${r.store}.` }))
+        .catch((err) => toast({ title: "Saved, but the store email failed", description: (err as Error).message, variant: "destructive" }));
       setOrders([...orders, {
         id: data.id,
         name: data.name,
@@ -1086,6 +1091,7 @@ export default function FundraisersPipeline() {
                         "Email Non-Profit"
                       )}
                     </Button>
+                    <EmailStoreButton kind="fundraiser" id={viewingOrder.id} className="w-full" label="Email details to store" />
                   </div>
                 </div>
 

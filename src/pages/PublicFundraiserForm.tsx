@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
-import { locations } from "@/lib/data";
+import { storeLocations as locations } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
+import { alertNewLead } from "@/lib/leadEmail";
 import { captureAttribution, insertWithSource, type Attribution } from "@/lib/attribution";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -96,19 +97,8 @@ export default function PublicFundraiserForm() {
     }, source);
 
     if (!error) {
-      const location = locations.find(l => l.id === formData.locationId);
-      await supabase.functions.invoke('send-fundraiser-alert', {
-        body: {
-          formData: {
-            ...formData,
-            eventDate: format(formData.eventDate, 'yyyy-MM-dd'),
-            leadSource: source.label
-          },
-          locationName: location?.name || 'Unknown Location',
-          leadSource: source.label,
-          sourceDetails: source
-        }
-      });
+      // Email the team + the store
+      await alertNewLead("fundraiser", formData.email);
     }
 
     setIsSubmitting(false);

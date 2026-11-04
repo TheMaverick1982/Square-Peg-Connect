@@ -23,6 +23,7 @@ const STORES: Record<string, { name: string; email: string }> = {
   'loc-8': { name: 'Delray Beach', email: 'delraybeach@squarepegpizzeria.com' },
   'loc-9': { name: 'Berlin', email: 'berlin@squarepegpizzeria.com' },
   'loc-10': { name: 'Bolton', email: 'bolton@squarepegpizzeria.com' },
+  'loc-11': { name: 'Food Truck', email: 'catering@squarepegpizzeria.com' },
 };
 
 const json = (status: number, body: unknown) =>

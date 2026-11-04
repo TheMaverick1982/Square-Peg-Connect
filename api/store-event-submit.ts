@@ -12,7 +12,7 @@ const BUCKET = 'store-event-files';
 // Keep in sync with src/lib/data.ts
 const STORES: Record<string, string> = {
   'loc-1': 'Storrs', 'loc-2': 'Vernon', 'loc-3': 'Shelton', 'loc-4': 'Preston', 'loc-5': 'Glastonbury',
-  'loc-6': 'East Hartford', 'loc-7': 'Plainville', 'loc-8': 'Delray Beach', 'loc-9': 'Berlin', 'loc-10': 'Bolton',
+  'loc-6': 'East Hartford', 'loc-7': 'Plainville', 'loc-8': 'Delray Beach', 'loc-9': 'Berlin', 'loc-10': 'Bolton', 'loc-11': 'Food Truck',
 };
 
 const json = (status: number, body: unknown) =>

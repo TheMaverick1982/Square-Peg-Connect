@@ -30,6 +30,9 @@ import { cn } from "@/lib/utils";
 import { QuoteBuilder } from "@/components/QuoteBuilder";
 import { EmailLogs } from "@/components/EmailLogs";
 import { ShareFormDialog } from "@/components/ShareFormDialog";
+import { OrderExtras } from "@/components/OrderExtras";
+import { EventTypeBadge } from "@/lib/eventTypes";
+import { emailToStore } from "@/lib/leadEmail";
 
 type TabState = "all" | "upcoming" | "unopened" | "past";
 
@@ -64,6 +67,7 @@ export default function CateringPipeline() {
     guestCount: "",
     locationId: "",
     orderPreference: "",
+    pickupTime: "",
     notes: ""
   });
 
@@ -105,7 +109,9 @@ export default function CateringPipeline() {
         paymentLink: row.payment_link,
         orderPreference: row.order_preference,
         heardAboutUs: row.heard_about_us,
-        leadSource: row.lead_source
+        leadSource: row.lead_source,
+        eventType: row.event_type || undefined,
+        pickupTime: row.pickup_time || undefined
       }));
       setOrders(mappedOrders);
     }
@@ -142,8 +148,10 @@ export default function CateringPipeline() {
         guest_count: parseInt(formData.guestCount, 10),
         location: formData.locationId,
         order_preference: formData.orderPreference,
+        pickup_time: formData.pickupTime || null,
         notes: formData.notes,
-        status: 'Confirmed'
+        status: 'Confirmed',
+        alert_sent_at: new Date().toISOString()
       }
     ]).select();
 
@@ -174,7 +182,9 @@ export default function CateringPipeline() {
         paymentLink: "",
         orderPreference: row.order_preference,
         heardAboutUs: row.heard_about_us,
-        leadSource: row.lead_source
+        leadSource: row.lead_source,
+        eventType: row.event_type || undefined,
+        pickupTime: row.pickup_time || undefined
       };
       setOrders([newOrder, ...orders]);
     }
@@ -191,15 +201,21 @@ export default function CateringPipeline() {
       guestCount: "",
       locationId: "",
       orderPreference: "",
+      pickupTime: "",
       notes: ""
     });
 
     const locationName = locations.find(l => l.id === formData.locationId)?.name || "Location";
 
-    toast({
-      title: "Catering Request Added",
-      description: `Assigned to ${locationName}. The manager has been notified.`,
-    });
+    // Email the assigned store.
+    const saved = data?.[0];
+    if (saved) {
+      emailToStore("catering", saved.id)
+        .then((r) => toast({ title: "Catering Request Added", description: `Assigned to ${locationName}. Details emailed to ${r.to}.` }))
+        .catch((err) => toast({ title: "Saved, but the store email failed", description: (err as Error).message, variant: "destructive" }));
+    } else {
+      toast({ title: "Catering Request Added", description: `Assigned to ${locationName}.` });
+    }
   };
 
   // Filter by location first (global + local)
@@ -538,6 +554,10 @@ export default function CateringPipeline() {
                     </div>
                   </div>
                   <div className="grid gap-2">
+                    <Label htmlFor="pickupTime">Pickup / ready time</Label>
+                    <Input id="pickupTime" type="time" name="pickupTime" value={formData.pickupTime} onChange={handleFormChange} />
+                  </div>
+                  <div className="grid gap-2">
                     <Label htmlFor="notes">Order Details / Notes</Label>
                     <Textarea id="notes" name="notes" placeholder="Dietary restrictions, delivery instructions, etc." value={formData.notes} onChange={handleFormChange} rows={4} />
                   </div>
@@ -652,7 +672,7 @@ export default function CateringPipeline() {
                   className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-muted/10 transition-colors cursor-pointer group"
                 >
                   <div className="col-span-3">
-                    <div className="font-semibold text-sm text-foreground group-hover:text-primary transition-colors">{order.contactName}</div>
+                    <div className="font-semibold text-sm text-foreground group-hover:text-primary transition-colors flex items-center gap-1.5 flex-wrap">{order.contactName} <EventTypeBadge value={order.eventType} /></div>
                     <div className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{order.eventName}</div>
                     {order.createdAt && <div className="text-[11px] text-muted-foreground/80 mt-0.5">Submitted {format(storeClock(order.createdAt, tzForLocation(order.locationId)), "MMM d, yyyy")}</div>}
                   </div>
@@ -837,6 +857,13 @@ export default function CateringPipeline() {
                       <div className="col-span-2 font-medium">{format(new Date(viewingOrder.eventDate), "MMMM d, yyyy")}</div>
                     </div>
 
+                    {viewingOrder.pickupTime && (
+                      <div className="grid grid-cols-3 gap-2 py-1 border-t border-border/50">
+                        <div className="text-muted-foreground">Pickup Time:</div>
+                        <div className="col-span-2 font-medium">{(() => { const [h, m] = viewingOrder.pickupTime!.split(":").map(Number); return `${((h + 11) % 12) + 1}:${String(m).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`; })()}</div>
+                      </div>
+                    )}
+
                     <div className="grid grid-cols-3 gap-2 py-1 border-t border-border/50">
                       <div className="text-muted-foreground">Guest Count:</div>
                       <div className="col-span-2 font-medium">{viewingOrder.guestCount} People</div>
@@ -868,6 +895,24 @@ export default function CateringPipeline() {
                     </div>
                   </div>
                 </div>
+
+                <OrderExtras
+                  key={viewingOrder.id}
+                  table="catering_requests"
+                  kind="catering"
+                  id={viewingOrder.id}
+                  showPickupTime
+                  showDeposit
+                  onSaved={(c) => {
+                    const patch: Partial<CateringOrder> = {};
+                    if ("event_type" in c) patch.eventType = c.event_type || undefined;
+                    if ("pickup_time" in c) patch.pickupTime = c.pickup_time || undefined;
+                    if (Object.keys(patch).length) {
+                      setOrders((prev) => prev.map((o) => (o.id === viewingOrder.id ? { ...o, ...patch } : o)));
+                      setViewingOrder((v) => (v ? { ...v, ...patch } : v));
+                    }
+                  }}
+                />
 
                 {/* Past Activity */}
                 <div className="space-y-4">

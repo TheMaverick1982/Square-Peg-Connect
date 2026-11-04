@@ -7,6 +7,8 @@ export interface Location {
   email?: string;
   /** IANA time zone of the store's address. All current stores are Eastern (Connecticut and Delray Beach, FL). */
   timeZone?: string;
+  /** Mobile unit (no dining room): left out of store-only forms and the loyalty score card. */
+  isFoodTruck?: boolean;
 }
 
 export const locations: Location[] = [
@@ -20,7 +22,11 @@ export const locations: Location[] = [
   { id: "loc-8", name: "Delray Beach", vendestaId: "ven-delray-008", address: "4957 W Atlantic Ave, Delray Beach, FL 33445", phone: "(561) 566-8828", email: "delraybeach@squarepegpizzeria.com", timeZone: "America/New_York" },
   { id: "loc-9", name: "Berlin", vendestaId: "ven-berlin-009", address: "151 Webster Square Rd, Berlin, CT 06037", phone: "(860) 505-4072", email: "berlin@squarepegpizzeria.com", timeZone: "America/New_York" },
   { id: "loc-10", name: "Bolton", vendestaId: "ven-bolton-010", address: "270 West St, Bolton, CT 06043", phone: "(860) 791-7109", email: "bolton@squarepegpizzeria.com", timeZone: "America/New_York" },
+  { id: "loc-11", name: "Food Truck", vendestaId: "ven-foodtruck-011", address: "", phone: "", email: "catering@squarepegpizzeria.com", timeZone: "America/New_York", isFoodTruck: true },
 ];
+
+/** Restaurants only (no food truck): dine-in forms like fundraisers, reservations, kids classes, and store metrics. */
+export const storeLocations: Location[] = locations.filter((l) => !l.isFoodTruck);
 
 export type CateringStatus = "Requested" | "Waiting on you" | "Waiting on the customer" | "Confirmed" | "Completed" | "Cancelled";
 
@@ -55,6 +61,8 @@ export interface CateringOrder {
   orderPreference?: string;
   heardAboutUs?: string;
   leadSource?: string;
+  eventType?: string;
+  pickupTime?: string;
 }
 
 export interface FundraiserEvent {
