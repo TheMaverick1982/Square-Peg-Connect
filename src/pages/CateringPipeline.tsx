@@ -3,8 +3,7 @@ import { useState, useEffect } from "react";
 import { useLocationContext } from "@/lib/LocationContext";
 import { locations, type CateringStatus, type CateringOrder } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
-import { IntakeBySelect } from "@/components/IntakeBySelect";
-import { currentUserEmail } from "@/lib/currentUser";
+import { IntakeBySelect, IntakeByField } from "@/components/IntakeBySelect";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -50,6 +49,7 @@ export default function CateringPipeline() {
   
   // Sheet states
   const [isNewSheetOpen, setIsNewSheetOpen] = useState(false);
+  const [newIntakeBy, setNewIntakeBy] = useState("");
   const [viewingOrder, setViewingOrder] = useState<CateringOrder | null>(null);
   
   // Financial tracking state
@@ -140,7 +140,7 @@ export default function CateringPipeline() {
     e.preventDefault();
     
     // Insert into Supabase
-    const intakeBy = await currentUserEmail();
+    const intakeBy = newIntakeBy || null;
     const { data, error } = await supabase.from('catering_requests').insert([
       {
         name: formData.contactName,
@@ -561,6 +561,7 @@ export default function CateringPipeline() {
                     <Label htmlFor="pickupTime">Pickup / ready time</Label>
                     <Input id="pickupTime" type="time" name="pickupTime" value={formData.pickupTime} onChange={handleFormChange} />
                   </div>
+                  <IntakeByField value={newIntakeBy} onChange={setNewIntakeBy} />
                   <div className="grid gap-2">
                     <Label htmlFor="notes">Order Details / Notes</Label>
                     <Textarea id="notes" name="notes" placeholder="Dietary restrictions, delivery instructions, etc." value={formData.notes} onChange={handleFormChange} rows={4} />

@@ -47,3 +47,32 @@ export function IntakeBySelect({ table, id }: { table: "catering_requests" | "fu
     </div>
   );
 }
+
+/** "Intake by" for the New Request forms. Starts on whoever is signed in; "" = Web lead. */
+export function IntakeByField({ value, onChange }: { value: string; onChange: (email: string) => void }) {
+  const { data: members = [] } = useTeamMembers();
+  useEffect(() => {
+    if (value) return;
+    let alive = true;
+    supabase.auth.getUser().then(({ data }) => {
+      const me = data.user?.email?.trim().toLowerCase();
+      if (alive && me) onChange(me);
+    });
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const known = !value || members.some((m) => m.email === value);
+  return (
+    <div className="grid gap-2">
+      <Label>Intake by</Label>
+      <Select value={value || WEB} onValueChange={(v) => onChange(v === WEB ? "" : v)}>
+        <SelectTrigger><SelectValue /></SelectTrigger>
+        <SelectContent>
+          <SelectItem value={WEB}>Web lead</SelectItem>
+          {members.map((m) => <SelectItem key={m.email} value={m.email}>{m.name || m.email}</SelectItem>)}
+          {!known && <SelectItem value={value}>{value}</SelectItem>}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}

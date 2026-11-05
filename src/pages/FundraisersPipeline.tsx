@@ -3,8 +3,7 @@ import { useState, useEffect } from "react";
 import { useLocationContext } from "@/lib/LocationContext";
 import { locations } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
-import { IntakeBySelect } from "@/components/IntakeBySelect";
-import { currentUserEmail } from "@/lib/currentUser";
+import { IntakeBySelect, IntakeByField } from "@/components/IntakeBySelect";
 import { emailToStore } from "@/lib/leadEmail";
 import { EmailStoreButton } from "@/components/EmailStoreButton";
 import { Button } from "@/components/ui/button";
@@ -80,6 +79,7 @@ export default function FundraisersPipeline() {
 
   const [isAddSheetOpen, setIsAddSheetOpen] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
+  const [newIntakeBy, setNewIntakeBy] = useState("");
   
   const [addFormData, setAddFormData] = useState({
     name: "", email: "", phone: "", address: "", organization: "", payableTo: "", notes: "", locationId: ""
@@ -340,7 +340,7 @@ export default function FundraisersPipeline() {
     const loc = addFormData.locationId || selectedLocationId || locations[0].id;
     const formattedDate = format(addFormDate, 'yyyy-MM-dd');
 
-    const intakeBy = await currentUserEmail();
+    const intakeBy = newIntakeBy || null;
     const { data, error } = await supabase.from('fundraisers').insert([{
       intake_by: intakeBy,
       name: addFormData.name,
@@ -948,6 +948,8 @@ export default function FundraisersPipeline() {
                 </form>
               ) : (
                 <div className="space-y-8">
+                <IntakeBySelect key={`intake-${viewingOrder.id}`} table="fundraisers" id={viewingOrder.id} />
+
                 {/* Status & Location */}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
@@ -1075,8 +1077,6 @@ export default function FundraisersPipeline() {
                   </h3>
                   <EmailLogs eventId={viewingOrder.id} eventType="Tuesday Fundraiser" />
                 </div>
-
-                <IntakeBySelect key={`intake-${viewingOrder.id}`} table="fundraisers" id={viewingOrder.id} />
 
                 {/* Email Confirmation Action */}
                 <div className="bg-muted/30 p-4 rounded-lg border">
@@ -1228,6 +1228,8 @@ export default function FundraisersPipeline() {
               <Label>Mailing Address</Label>
               <Input required value={addFormData.address} onChange={(e) => setAddFormData({...addFormData, address: e.target.value})} />
             </div>
+
+            <IntakeByField value={newIntakeBy} onChange={setNewIntakeBy} />
 
             <div className="space-y-2">
               <Label>Notes & Special Requests</Label>

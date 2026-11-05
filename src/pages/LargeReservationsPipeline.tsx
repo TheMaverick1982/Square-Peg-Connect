@@ -3,8 +3,7 @@ import { useState, useEffect } from "react";
 import { useLocationContext } from "@/lib/LocationContext";
 import { locations } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
-import { IntakeBySelect } from "@/components/IntakeBySelect";
-import { currentUserEmail } from "@/lib/currentUser";
+import { IntakeBySelect, IntakeByField } from "@/components/IntakeBySelect";
 import { emailToStore } from "@/lib/leadEmail";
 import { OrderExtras } from "@/components/OrderExtras";
 import { EventTypeBadge } from "@/lib/eventTypes";
@@ -104,6 +103,7 @@ export default function LargeReservationsPipeline() {
 
   const [isAddSheetOpen, setIsAddSheetOpen] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
+  const [newIntakeBy, setNewIntakeBy] = useState("");
   
   const [addFormData, setAddFormData] = useState({
     name: "", email: "", phone: "", organization: "", notes: "", locationId: "",
@@ -414,7 +414,7 @@ export default function LargeReservationsPipeline() {
     const loc = addFormData.locationId || selectedLocationId || locations[0].id;
     const formattedDate = format(addFormDate, 'yyyy-MM-dd');
 
-    const intakeBy = await currentUserEmail();
+    const intakeBy = newIntakeBy || null;
     const { data, error } = await supabase.from('large_reservations').insert([{
       intake_by: intakeBy,
       name: addFormData.name,
@@ -1203,6 +1203,7 @@ export default function LargeReservationsPipeline() {
                   // READ-ONLY VIEW
                   <>
                     <div className="space-y-6">
+                      <IntakeBySelect key={`intake-${viewingOrder.id}`} table="large_reservations" id={viewingOrder.id} />
                       <div className="grid grid-cols-2 gap-6 bg-muted/10 p-5 rounded-xl border border-border/50">
                         <div>
                           <Label className="text-xs text-muted-foreground mb-1 block">Status</Label>
@@ -1288,8 +1289,6 @@ export default function LargeReservationsPipeline() {
                           </div>
                         </div>
                       )}
-
-                      <IntakeBySelect key={`intake-${viewingOrder.id}`} table="large_reservations" id={viewingOrder.id} />
 
                       <OrderExtras
                         key={viewingOrder.id}
@@ -1624,6 +1623,8 @@ export default function LargeReservationsPipeline() {
                 )}
               </div>
             )}
+
+            <IntakeByField value={newIntakeBy} onChange={setNewIntakeBy} />
 
             <div className="space-y-2">
               <Label>Notes & Requests</Label>
