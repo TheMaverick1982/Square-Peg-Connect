@@ -225,7 +225,9 @@ export default function MasterCalendar() {
     // Anything set to "All locations" (no store) shows for every store.
     if (selectedLocationId && e.locationId && e.locationId !== selectedLocationId) return false;
     if (filterLocation !== "all" && e.locationId && e.locationId !== filterLocation) return false;
-    if (filterType !== "all" && e.type !== filterType) return false;
+    if (filterType === "MarketingStore") { if (e.type !== "Marketing" || !e.locationId) return false; }
+    else if (filterType === "MarketingGlobal") { if (e.type !== "Marketing" || e.locationId) return false; }
+    else if (filterType !== "all" && e.type !== filterType) return false;
     if (filterStatus !== "all") {
       if (filterStatus === "confirmed" && e.status !== "Confirmed" && e.status !== "Completed" && e.type !== "Entertainment") return false;
       if (filterStatus === "requested" && e.status !== "Requested" && e.status !== "Waiting on you" && e.status !== "Waiting on the customer") return false;
@@ -356,7 +358,9 @@ export default function MasterCalendar() {
             <SelectItem value="StoreEvent">Store Events</SelectItem>
             <SelectItem value="LargeReservation">Large Reservations</SelectItem>
             <SelectItem value="KidsClass">Kids Pizza Classes</SelectItem>
-            <SelectItem value="Marketing">Marketing</SelectItem>
+            <SelectItem value="Marketing">Marketing (all)</SelectItem>
+            <SelectItem value="MarketingStore">Store Promotions</SelectItem>
+            <SelectItem value="MarketingGlobal">Global Campaigns</SelectItem>
             <SelectItem value="Catering">Catering</SelectItem>
           </SelectContent>
         </Select>
