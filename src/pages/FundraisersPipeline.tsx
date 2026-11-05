@@ -3,6 +3,8 @@ import { useState, useEffect } from "react";
 import { useLocationContext } from "@/lib/LocationContext";
 import { locations } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
+import { IntakeBySelect } from "@/components/IntakeBySelect";
+import { currentUserEmail } from "@/lib/currentUser";
 import { emailToStore } from "@/lib/leadEmail";
 import { EmailStoreButton } from "@/components/EmailStoreButton";
 import { Button } from "@/components/ui/button";
@@ -338,7 +340,9 @@ export default function FundraisersPipeline() {
     const loc = addFormData.locationId || selectedLocationId || locations[0].id;
     const formattedDate = format(addFormDate, 'yyyy-MM-dd');
 
+    const intakeBy = await currentUserEmail();
     const { data, error } = await supabase.from('fundraisers').insert([{
+      intake_by: intakeBy,
       name: addFormData.name,
       email: addFormData.email,
       phone: addFormData.phone,
@@ -1071,6 +1075,8 @@ export default function FundraisersPipeline() {
                   </h3>
                   <EmailLogs eventId={viewingOrder.id} eventType="Tuesday Fundraiser" />
                 </div>
+
+                <IntakeBySelect key={`intake-${viewingOrder.id}`} table="fundraisers" id={viewingOrder.id} />
 
                 {/* Email Confirmation Action */}
                 <div className="bg-muted/30 p-4 rounded-lg border">

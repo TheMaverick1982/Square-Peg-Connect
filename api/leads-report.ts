@@ -36,7 +36,7 @@ const KINDS: { key: Kind; table: string; label: string; softDelete: boolean }[] 
   { key: 'kids', table: 'kids_classes', label: 'Kids Pizza Classes', softDelete: true },
 ];
 
-type Lead = { kind: Kind; store: string; created: string; who: string; eventDate: string; source: string; said: string; status: string };
+type Lead = { kind: Kind; store: string; created: string; who: string; eventDate: string; source: string; said: string; status: string; intake: string };
 type Sale = { kind: Kind; store: string; amount: number; who: string; eventDate: string };
 // Other things happening that week (no leads/revenue): marketing campaigns and entertainment. store '' = all stores.
 type Happening = { kind: 'marketing' | 'entertainment'; store: string; who: string; eventDate: string; endDate?: string };
@@ -72,6 +72,14 @@ function revenueOf(kind: Kind, r: any) {
 }
 
 async function loadData(admin: any, w: ReturnType<typeof weeks>) {
+  // Team names, for "Intake by" (blank = came in through the website).
+  const { data: team } = await admin.from('employee_profiles').select('name,email');
+  const names = new Map<string, string>();
+  for (const t of team || []) {
+    const e = String(t.email || '').trim().toLowerCase();
+    if (e && !names.has(e)) names.set(e, t.name && !/@/.test(t.name) ? String(t.name) : e);
+  }
+  const intakeOf = (v: unknown) => { const e = String(v || '').trim().toLowerCase(); return e ? names.get(e) || e : 'Web lead'; };
   // A little slack on created_at so store-time days near midnight are covered; exact filtering happens below.
   const fromTs = new Date(`${addDays(w.prevStart, -1)}T00:00:00Z`).toISOString();
   const toTs = new Date(`${addDays(w.end, 2)}T00:00:00Z`).toISOString();
@@ -86,7 +94,7 @@ async function loadData(admin: any, w: ReturnType<typeof weeks>) {
       const day = nyYmd(new Date(r.created_at));
       const lead: Lead = {
         kind: k.key, store: r.location || '', created: day, who: whoOf(k.key, r), eventDate: r.event_date || '',
-        source: r.lead_source || '', said: r.heard_about_us || '', status: r.status || '',
+        source: r.lead_source || '', said: r.heard_about_us || '', status: r.status || '', intake: intakeOf(r.intake_by),
       };
       if (day >= w.start && day <= w.end) leads.push(lead);
       else if (day >= w.prevStart && day <= w.prevEnd) prevLeads.push(lead);
@@ -158,6 +166,16 @@ function render(w: ReturnType<typeof weeks>, data: Awaited<ReturnType<typeof loa
   const summary = `<table style="width:100%;border-collapse:collapse;margin:0 0 6px"><tr>${th('', 'left')}${th('Leads in this week')}${th('Last week')}${th('Change')}${th('Events held this week')}${th('Revenue')}</tr>${summaryRows}${totalRow}</table>
     <div style="font-size:11px;color:#6b7280;margin:0 0 24px">Leads = requests submitted that week (by the date they came in). Events held / Revenue = by the event date: catering orders, fundraisers, reservations and classes that happened that week, with the sales entered for them (catering counts confirmed/completed orders).</div>`;
 
+  // 1b) Who brought the leads in: Web lead or the team member who entered it.
+  const intakeNames = Array.from(new Set(leads.map((l) => l.intake))).sort((a, b) => (a === 'Web lead' ? -1 : b === 'Web lead' ? 1 : a.localeCompare(b)));
+  const intakeRows = intakeNames.map((n) => {
+    const mine = leads.filter((l) => l.intake === n);
+    return `<tr>${td(n === 'Web lead' ? '🌐 Web lead' : esc(n), 'left', true)}${KINDS.map((k) => td(String(count(mine, k.key)))).join('')}${td(`<b>${mine.length}</b>`)}</tr>`;
+  }).join('');
+  const intake = leads.length ? `<h3 style="font-size:16px;margin:0 0 8px">Intake by</h3>
+    <table style="width:100%;border-collapse:collapse;margin:0 0 6px"><tr>${th('Entered by', 'left')}${th('Catering')}${th('Fundraisers')}${th('Large res.')}${th('Kids classes')}${th('Total')}</tr>${intakeRows}</table>
+    <div style="font-size:11px;color:#6b7280;margin:0 0 24px">Web lead = submitted through a form on the website. A name = entered in Connect by that team member (or set under "Intake by" on the request).</div>` : '';
+
   // 2) By store (all-stores report only)
   let byStore = '';
   if (!storeId) {
@@ -184,10 +202,10 @@ function render(w: ReturnType<typeof weeks>, data: Awaited<ReturnType<typeof loa
 
   // 4) Every lead this week, grouped by type with a tally, showing both dates
   const kindLabel = (k: Kind) => KINDS.find((x) => x.key === k)!.label;
-  const cols = storeId ? 5 : 6;
+  const cols = storeId ? 6 : 7;
   const leadRow = (l: Lead) => `<tr>
       ${td(esc(short(l.created)), 'left')}${td(l.eventDate ? esc(short(String(l.eventDate).slice(0, 10))) : '—', 'left')}${storeId ? '' : td(esc(storeName(l.store)), 'left')}
-      ${td(esc(l.who), 'left')}${td(esc(l.status || '—'), 'left')}
+      ${td(esc(l.who), 'left')}${td(esc(l.intake), 'left')}${td(esc(l.status || '—'), 'left')}
       ${td(`${esc(l.source || '—')}${l.said ? `<div style="font-size:12px;color:#6b7280">Told us: ${esc(l.said)}</div>` : ''}`, 'left')}</tr>`;
   const groups = KINDS.map((k) => {
     const list = leads.filter((l) => l.kind === k.key).sort((a, b) => a.created.localeCompare(b.created));
@@ -195,7 +213,7 @@ function render(w: ReturnType<typeof weeks>, data: Awaited<ReturnType<typeof loa
     return `<tr><td colspan="${cols + 1}" style="padding:14px 10px 6px;font-size:14px;font-weight:bold;background:#f3f4f6">${esc(k.label)} · ${list.length} lead${list.length === 1 ? '' : 's'}</td></tr>${list.map(leadRow).join('')}`;
   }).join('');
   const leadList = leads.length ? `<h3 style="font-size:16px;margin:0 0 8px">This week's leads (${leads.length})</h3>
-    <table style="width:100%;border-collapse:collapse;margin:0 0 24px"><tr>${th('Came in', 'left')}${th('Event date', 'left')}${storeId ? '' : th('Store', 'left')}${th('Who', 'left')}${th('Status', 'left')}${th('Source', 'left')}</tr>${groups}
+    <table style="width:100%;border-collapse:collapse;margin:0 0 24px"><tr>${th('Came in', 'left')}${th('Event date', 'left')}${storeId ? '' : th('Store', 'left')}${th('Who', 'left')}${th('Intake by', 'left')}${th('Status', 'left')}${th('Source', 'left')}</tr>${groups}
     <tr style="background:#f9fafb"><td colspan="${cols + 1}" style="padding:8px 10px;font-size:14px;font-weight:bold">Total: ${leads.length} lead${leads.length === 1 ? '' : 's'}</td></tr></table>` : '';
 
   // 5) Events held this week (by event date), with sales
@@ -219,7 +237,7 @@ function render(w: ReturnType<typeof weeks>, data: Awaited<ReturnType<typeof loa
   const html = `<div style="font-family:Arial,Helvetica,sans-serif;max-width:820px;margin:0 auto;padding:24px;color:#111827">
     <div style="font-size:26px;font-weight:bold;margin:0 0 2px">${esc(title)}</div>
     <div style="color:#6b7280;margin:0 0 20px">Week of ${esc(weekLabel)} · compared with ${esc(short(w.prevStart))} – ${esc(short(w.prevEnd))}</div>
-    ${summary}${byStore}${sources}${leadList}${heldList}${storeId ? photoReminder(storeId) : ''}
+    ${summary}${intake}${byStore}${sources}${leadList}${heldList}${storeId ? photoReminder(storeId) : ''}
     <p style="margin:8px 0 0"><a href="${APP_URL}" style="background:#1f2937;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none;display:inline-block;font-weight:bold">Open Square Peg Connect</a></p>
   </div>`;
   const subject = storeId ? `Weekly Leads & Events Report — ${storeName(storeId)} — ${weekLabel}` : `Weekly Leads & Events Report — All Stores — ${weekLabel}`;

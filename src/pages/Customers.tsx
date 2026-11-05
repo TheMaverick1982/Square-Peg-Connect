@@ -345,6 +345,7 @@ function InboxCard({ item }: { item: any }) {
     const row: Record<string, unknown> = {
       name: who, email: ai.email || item.from_email, phone: ai.phone || null, [p.org]: ai.organization || null,
       event_date: date, location: store, notes, status: "Requested", lead_source: "Email (catering inbox)",
+      intake_by: (profile?.email || "").trim().toLowerCase() || null,
     };
     if (p.guests && ai.guest_count) row.guest_count = Number(ai.guest_count) || null;
     let { error } = await supabase.from(p.table).insert(row);

@@ -3,6 +3,8 @@ import { useState, useEffect } from "react";
 import { useLocationContext } from "@/lib/LocationContext";
 import { locations } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
+import { IntakeBySelect } from "@/components/IntakeBySelect";
+import { currentUserEmail } from "@/lib/currentUser";
 import { emailToStore } from "@/lib/leadEmail";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -408,7 +410,9 @@ export default function KidsClassesPipeline() {
     const loc = addFormData.locationId || selectedLocationId || locations[0].id;
     const formattedDate = format(addFormDate, 'yyyy-MM-dd');
 
+    const intakeBy = await currentUserEmail();
     const { data, error } = await supabase.from('kids_classes').insert([{
+      intake_by: intakeBy,
       name: addFormData.name,
       email: addFormData.email,
       phone: addFormData.phone,
@@ -1279,6 +1283,8 @@ export default function KidsClassesPipeline() {
                           </div>
                         </div>
                       )}
+
+                      <IntakeBySelect key={`intake-${viewingOrder.id}`} table="kids_classes" id={viewingOrder.id} />
 
                       {viewingOrder.heardAboutUs && (
                         <div className="space-y-4">

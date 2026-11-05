@@ -3,6 +3,8 @@ import { useState, useEffect } from "react";
 import { useLocationContext } from "@/lib/LocationContext";
 import { locations, type CateringStatus, type CateringOrder } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
+import { IntakeBySelect } from "@/components/IntakeBySelect";
+import { currentUserEmail } from "@/lib/currentUser";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -138,6 +140,7 @@ export default function CateringPipeline() {
     e.preventDefault();
     
     // Insert into Supabase
+    const intakeBy = await currentUserEmail();
     const { data, error } = await supabase.from('catering_requests').insert([
       {
         name: formData.contactName,
@@ -151,7 +154,8 @@ export default function CateringPipeline() {
         pickup_time: formData.pickupTime || null,
         notes: formData.notes,
         status: 'Confirmed',
-        alert_sent_at: new Date().toISOString()
+        alert_sent_at: new Date().toISOString(),
+        intake_by: intakeBy
       }
     ]).select();
 
@@ -785,6 +789,8 @@ export default function CateringPipeline() {
                     <MessageSquare className="w-4 h-4 ml-1 opacity-70" />
                   </Button>
                 </div>
+
+                <IntakeBySelect key={`intake-${viewingOrder.id}`} table="catering_requests" id={viewingOrder.id} />
 
                 {/* Status & Location */}
                 <div className="grid grid-cols-2 gap-4">

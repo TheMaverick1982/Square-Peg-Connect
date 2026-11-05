@@ -3,6 +3,8 @@ import { useState, useEffect } from "react";
 import { useLocationContext } from "@/lib/LocationContext";
 import { locations } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
+import { IntakeBySelect } from "@/components/IntakeBySelect";
+import { currentUserEmail } from "@/lib/currentUser";
 import { emailToStore } from "@/lib/leadEmail";
 import { OrderExtras } from "@/components/OrderExtras";
 import { EventTypeBadge } from "@/lib/eventTypes";
@@ -412,7 +414,9 @@ export default function LargeReservationsPipeline() {
     const loc = addFormData.locationId || selectedLocationId || locations[0].id;
     const formattedDate = format(addFormDate, 'yyyy-MM-dd');
 
+    const intakeBy = await currentUserEmail();
     const { data, error } = await supabase.from('large_reservations').insert([{
+      intake_by: intakeBy,
       name: addFormData.name,
       email: addFormData.email,
       phone: addFormData.phone,
@@ -1284,6 +1288,8 @@ export default function LargeReservationsPipeline() {
                           </div>
                         </div>
                       )}
+
+                      <IntakeBySelect key={`intake-${viewingOrder.id}`} table="large_reservations" id={viewingOrder.id} />
 
                       <OrderExtras
                         key={viewingOrder.id}
