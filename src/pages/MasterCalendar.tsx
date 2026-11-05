@@ -258,7 +258,7 @@ export default function MasterCalendar() {
     const days = eachDayOfInterval({ start: startDate, end: endDate });
 
     return (
-      <div className="flex flex-col h-full bg-card border rounded-lg overflow-hidden flex-1">
+      <div className="flex flex-col bg-card border rounded-lg overflow-hidden">
         <div className="grid grid-cols-7 border-b bg-muted/30">
           {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(day => (
             <div key={day} className="py-2 text-center text-sm font-semibold text-muted-foreground uppercase tracking-wider">
@@ -267,7 +267,7 @@ export default function MasterCalendar() {
           ))}
         </div>
 
-        <div className="grid grid-cols-7 flex-1 auto-rows-fr">
+        <div className="grid grid-cols-7 auto-rows-[minmax(120px,auto)]">
           {days.map((day) => {
             const dayEvents = filteredEvents.filter(e => isSameDay(e.date, day));
             const isCurrentMonth = isSameMonth(day, monthStart);
@@ -287,7 +287,7 @@ export default function MasterCalendar() {
                   </span>
                 </div>
 
-                <div className="flex flex-col gap-1 mt-1 overflow-y-auto max-h-[100px] no-scrollbar">
+                <div className="flex flex-col gap-1 mt-1">
                   {dayEvents.map(e => (
                     <div 
                       key={e.id}
@@ -309,7 +309,7 @@ export default function MasterCalendar() {
   };
 
   return (
-    <div className="flex flex-col h-full space-y-6">
+    <div className="flex flex-col space-y-6 pb-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Master Calendar</h1>
