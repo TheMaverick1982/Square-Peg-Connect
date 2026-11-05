@@ -74,19 +74,32 @@ export async function POST(request: Request): Promise<Response> {
 
   try {
     // a) Add or update them on the team list (only when profile details were sent).
+    let applyProfile: (() => Promise<void>) | null = null;
     if (body.role || body.name || body.locations) {
       const role: Role = ROLES.includes(body.role as Role) ? (body.role as Role) : 'manager';
       const name = (body.name || '').trim() || email;
       const locs = role === 'admin' ? [] : (Array.isArray(body.locations) ? body.locations.map(String) : []);
       const fields = { name, role, status: 'approved', assigned_locations: locs, assigned_location: locs[0] ?? null };
-      const { data: profile } = await admin.from('employee_profiles').select('id').ilike('email', email).maybeSingle();
-      const { error } = profile
-        ? await admin.from('employee_profiles').update(fields).eq('id', profile.id)
-        : await admin.from('employee_profiles').insert([{ email, ...fields }]);
-      if (error) throw error;
+      applyProfile = async () => {
+        // One team entry per person: keep the oldest, give it the chosen role/stores, remove any extras
+        // (creating a login can add a second "Staff" entry for the same email).
+        const { data: rows } = await admin.from('employee_profiles').select('*').ilike('email', `%${email}%`);
+        const mine = (rows || []).filter((r: any) => String(r.email || '').trim().toLowerCase() === email)
+          .sort((x: any, y: any) => String(x.created_at || '').localeCompare(String(y.created_at || '')));
+        if (!mine.length) {
+          const { error } = await admin.from('employee_profiles').insert([{ email, ...fields }]);
+          if (error) throw error;
+          return;
+        }
+        const { error } = await admin.from('employee_profiles').update({ ...fields, email }).eq('id', mine[0].id);
+        if (error) throw error;
+        const extras = mine.slice(1).map((r: any) => r.id);
+        if (extras.length) await admin.from('employee_profiles').delete().in('id', extras);
+      };
+      await applyProfile();
     } else {
-      const { data: profile } = await admin.from('employee_profiles').select('id').ilike('email', email).maybeSingle();
-      if (!profile) return json(404, { error: 'That email is not on the team list.' });
+      const { data: found } = await admin.from('employee_profiles').select('id').ilike('email', email).limit(1);
+      if (!found?.length) return json(404, { error: 'That email is not on the team list.' });
     }
 
     // b) Email them: an invite if they have no login yet, otherwise a set-password link.
@@ -96,6 +109,8 @@ export async function POST(request: Request): Promise<Response> {
         redirectTo, data: { name: (body.name || '').trim() || undefined },
       });
       if (error) throw error;
+      // Creating the login can set up a default profile (e.g. "employee"); put back the role we chose.
+      if (applyProfile) await applyProfile();
       return json(200, { ok: true, sent: 'invite' });
     }
     const { error } = await admin.auth.resetPasswordForEmail(email, { redirectTo });

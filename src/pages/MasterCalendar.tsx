@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { useLocationContext } from "@/lib/LocationContext";
 import { locations } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
-import { format, startOfWeek, endOfWeek, eachDayOfInterval, startOfMonth, endOfMonth, isSameMonth, isSameDay, addMonths, subMonths, isToday, parseISO } from "date-fns";
+import { addDays, format, startOfWeek, endOfWeek, eachDayOfInterval, startOfMonth, endOfMonth, isSameMonth, isSameDay, addMonths, subMonths, isToday, parseISO } from "date-fns";
 import { ChevronLeft, ChevronRight, Pencil, LayoutList, CalendarDays, Loader2, Filter, MapPin, Users, Mail, Phone, Building, FileText, DollarSign, CalendarIcon, Clock, CheckCircle2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -32,7 +32,7 @@ function entertainmentDates(row: any): Date[] {
   return out;
 }
 
-type EventType = "Entertainment" | "Fundraiser" | "StoreEvent" | "LargeReservation" | "KidsClass" | "Catering";
+type EventType = "Entertainment" | "Fundraiser" | "StoreEvent" | "LargeReservation" | "KidsClass" | "Catering" | "Marketing";
 
 interface UnifiedEvent {
   id: string;
@@ -86,14 +86,16 @@ export default function MasterCalendar() {
         { data: storeEventsData },
         { data: largeResData },
         { data: kidsData },
-        { data: cateringData }
+        { data: cateringData },
+        { data: marketingData }
       ] = await Promise.all([
         supabase.from('events').select('*'),
         supabase.from('fundraisers').select('*').is('deleted_at', null),
         supabase.from('store_events').select('*').is('deleted_at', null),
         supabase.from('large_reservations').select('*').is('deleted_at', null),
         supabase.from('kids_classes').select('*').is('deleted_at', null),
-        supabase.from('catering_requests').select('*')
+        supabase.from('catering_requests').select('*'),
+        supabase.from('marketing_campaigns').select('*').is('archived_at', null)
       ]);
 
       const unified: UnifiedEvent[] = [];
@@ -185,6 +187,30 @@ export default function MasterCalendar() {
         });
       }
 
+      // Marketing Planner: global campaigns (all stores) and store promotions, on every day they run.
+      if (marketingData) {
+        marketingData.forEach((row: any) => {
+          if (!row.target_date) return;
+          const start = String(row.target_date).slice(0, 10);
+          const end = row.end_date && String(row.end_date).slice(0, 10) > start ? String(row.end_date).slice(0, 10) : start;
+          const days = new Set<string>();
+          for (let d = parseISO(start), i = 0; format(d, "yyyy-MM-dd") <= end && i < 62; d = addDays(d, 1), i++) days.add(format(d, "yyyy-MM-dd"));
+          (Array.isArray(row.event_dates) ? row.event_dates : []).forEach((d: string) => d && days.add(String(d).slice(0, 10)));
+          Array.from(days).forEach((d) => {
+            unified.push({
+              id: `mk-${row.id}-${d}`,
+              title: row.title,
+              date: parseISO(d),
+              locationId: row.location_id || "",
+              type: "Marketing",
+              status: row.plan_status || undefined,
+              details: row.description,
+              originalData: row
+            });
+          });
+        });
+      }
+
       setEvents(unified);
       setIsLoading(false);
     };
@@ -217,6 +243,7 @@ export default function MasterCalendar() {
       case "StoreEvent": return "bg-orange-100 text-orange-800 border-orange-200";
       case "LargeReservation": return "bg-blue-100 text-blue-800 border-blue-200";
       case "KidsClass": return "bg-yellow-100 text-yellow-800 border-yellow-200";
+      case "Marketing": return "bg-violet-100 text-violet-800 border-violet-300";
       case "Catering": return "bg-green-100 text-green-800 border-green-200";
       default: return "bg-gray-100 text-gray-800 border-gray-200";
     }
@@ -268,7 +295,7 @@ export default function MasterCalendar() {
                       className={`text-xs px-1.5 py-1 rounded border font-medium truncate cursor-pointer hover:opacity-80 transition-opacity ${getEventStyle(e.type, e.originalData)}`}
                       title={`${e.title} (${e.type})`}
                     >
-                      {filterLocation === "all" && <span className="font-bold mr-1">{locations.find(l => l.id === e.locationId)?.name?.substring(0,3)}</span>}
+                      {filterLocation === "all" && <span className="font-bold mr-1">{locations.find(l => l.id === e.locationId)?.name?.substring(0,3) ?? (e.locationId ? "" : "All")}</span>}
                       {e.title}
                     </div>
                   ))}
@@ -329,6 +356,7 @@ export default function MasterCalendar() {
             <SelectItem value="StoreEvent">Store Events</SelectItem>
             <SelectItem value="LargeReservation">Large Reservations</SelectItem>
             <SelectItem value="KidsClass">Kids Pizza Classes</SelectItem>
+            <SelectItem value="Marketing">Marketing</SelectItem>
             <SelectItem value="Catering">Catering</SelectItem>
           </SelectContent>
         </Select>
@@ -351,6 +379,7 @@ export default function MasterCalendar() {
           <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-blue-100 border border-blue-200"></div> Reservations</div>
           <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-green-100 border border-green-200"></div> Catering</div>
           <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-yellow-100 border border-yellow-200"></div> Kids Classes</div>
+          <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-violet-100 border border-violet-300"></div> Marketing</div>
           <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-red-100 border border-red-300"></div> Pizza Class</div>
           <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-orange-200 border border-orange-400"></div> EZ Cater</div>
         </div>
@@ -382,7 +411,12 @@ export default function MasterCalendar() {
                     <strong className="text-foreground">{format(viewingEvent.date, "EEEE, MMMM do, yyyy")}</strong>
                   </SheetDescription>
                 </div>
-                {!isEditing && (
+                {!isEditing && viewingEvent.type === "Marketing" && (
+                  <Button variant="outline" size="sm" className="shrink-0 mr-6" asChild>
+                    <a href="/campaigns"><Pencil className="w-4 h-4 mr-1.5" /> Open in Planner</a>
+                  </Button>
+                )}
+                {!isEditing && viewingEvent.type !== "Marketing" && (
                   <Button variant="outline" size="sm" className="shrink-0 mr-6" onClick={() => setIsEditing(true)}>
                     <Pencil className="w-4 h-4 mr-1.5" /> Edit
                   </Button>
@@ -392,7 +426,7 @@ export default function MasterCalendar() {
               {isEditing ? (
                 <CalendarEventEditor
                   key={viewingEvent.id}
-                  type={viewingEvent.type}
+                  type={viewingEvent.type as Exclude<EventType, "Marketing">}
                   row={viewingEvent.originalData}
                   onCancel={() => setIsEditing(false)}
                   onSaved={() => { setIsEditing(false); setViewingEvent(null); setReloadKey((k) => k + 1); }}
@@ -417,12 +451,28 @@ export default function MasterCalendar() {
                   <div>
                     <span className="text-xs text-muted-foreground mb-1 block">Location</span>
                     <div className="font-medium text-sm flex items-center h-8">
-                      {locations.find(l => l.id === viewingEvent.locationId)?.name || "Unknown"}
+                      {locations.find(l => l.id === viewingEvent.locationId)?.name || (viewingEvent.locationId ? "Unknown" : "All locations")}
                     </div>
                   </div>
                 </div>
 
                 {/* Common fields based on type */}
+                {viewingEvent.type === "Marketing" && (
+                  <div className="space-y-3">
+                    <h3 className="text-sm font-semibold border-b pb-2 flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-muted-foreground" />
+                      {viewingEvent.locationId ? "Store promotion" : "Global campaign (all stores)"}
+                    </h3>
+                    <div className="text-sm text-muted-foreground">
+                      {format(parseISO(String(viewingEvent.originalData.target_date).slice(0, 10)), "MMM d, yyyy")}
+                      {viewingEvent.originalData.end_date && viewingEvent.originalData.end_date > viewingEvent.originalData.target_date ? ` – ${format(parseISO(String(viewingEvent.originalData.end_date).slice(0, 10)), "MMM d, yyyy")}` : ""}
+                    </div>
+                    {viewingEvent.details && (
+                      <div className="bg-violet-50/50 p-4 rounded-lg border border-violet-100 text-sm text-foreground/80 whitespace-pre-wrap">{viewingEvent.details}</div>
+                    )}
+                  </div>
+                )}
+
                 {viewingEvent.type === "Entertainment" && (
                   <>
                     <div className="space-y-4">
