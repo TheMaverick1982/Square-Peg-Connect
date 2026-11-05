@@ -95,7 +95,8 @@ export default function MasterCalendar() {
         supabase.from('large_reservations').select('*').is('deleted_at', null),
         supabase.from('kids_classes').select('*').is('deleted_at', null),
         supabase.from('catering_requests').select('*'),
-        supabase.from('marketing_campaigns').select('*').is('archived_at', null)
+        // Only campaigns ticked "On calendar" in the Marketing Planner go on the calendar.
+        supabase.from('marketing_campaigns').select('*').is('archived_at', null).eq('show_on_calendar', true)
       ]);
 
       const unified: UnifiedEvent[] = [];

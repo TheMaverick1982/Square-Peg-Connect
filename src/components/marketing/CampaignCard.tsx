@@ -152,6 +152,13 @@ export function CampaignCard({ campaign, status, tasks, progress, createTask, to
               </SelectContent>
             </Select>
           )}
+          {!archived && (
+            <label className="flex items-center gap-1.5 text-xs cursor-pointer select-none h-8 px-2 rounded-md border bg-background" title="Show this on the Master Calendar">
+              <Checkbox checked={!!campaign.show_on_calendar}
+                onCheckedChange={(c) => updateCampaignDetails.mutate({ id: campaign.id, updates: { show_on_calendar: !!c } })} />
+              <CalendarDays className="w-3.5 h-3.5 text-muted-foreground" /> On calendar
+            </label>
+          )}
           <Button variant="outline" size="sm" onClick={() => setDetailsOpen(true)}>Open Details</Button>
           <CampaignDetailsSheet hideTrigger campaign={campaign} tasks={tasks} updateCampaignDetails={updateCampaignDetails} open={detailsOpen} onOpenChange={setDetailsOpen} />
           {archived ? (
