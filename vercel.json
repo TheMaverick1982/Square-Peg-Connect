@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/api/google-callback",
+      "destination": "/api/google-connect"
+    },
+    {
       "source": "/((?!assets/).*)",
       "destination": "/index.html"
     }
