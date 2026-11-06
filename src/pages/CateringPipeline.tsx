@@ -3,6 +3,8 @@ import { useState, useEffect } from "react";
 import { useLocationContext } from "@/lib/LocationContext";
 import { locations, type CateringStatus, type CateringOrder } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
+import { NewOrderExtras, blankNewOrderExtras } from "@/components/NewOrderExtras";
+import { uploadOrderFiles } from "@/lib/orderFiles";
 import { IntakeBySelect, IntakeByField } from "@/components/IntakeBySelect";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,6 +52,7 @@ export default function CateringPipeline() {
   // Sheet states
   const [isNewSheetOpen, setIsNewSheetOpen] = useState(false);
   const [newIntakeBy, setNewIntakeBy] = useState("");
+  const [newExtras, setNewExtras] = useState(blankNewOrderExtras());
   const [viewingOrder, setViewingOrder] = useState<CateringOrder | null>(null);
   
   // Financial tracking state
@@ -155,7 +158,11 @@ export default function CateringPipeline() {
         notes: formData.notes,
         status: 'Confirmed',
         alert_sent_at: new Date().toISOString(),
-        intake_by: intakeBy
+        intake_by: intakeBy,
+        event_type: newExtras.eventType || null,
+        paid_by_invoice: newExtras.paidByInvoice,
+        deposit_amount: newExtras.depositAmount === "" ? null : Number(newExtras.depositAmount),
+        deposit_paid: newExtras.depositPaid
       }
     ]).select();
 
@@ -211,8 +218,18 @@ export default function CateringPipeline() {
 
     const locationName = locations.find(l => l.id === formData.locationId)?.name || "Location";
 
-    // Email the assigned store.
+    // Attach any files, then email the assigned store (files included).
     const saved = data?.[0];
+    const filesToUpload = newExtras.files;
+    setNewExtras(blankNewOrderExtras());
+    if (saved && filesToUpload.length) {
+      try {
+        const attachments = await uploadOrderFiles("catering_requests", saved.id, filesToUpload);
+        await supabase.from("catering_requests").update({ attachments }).eq("id", saved.id);
+      } catch (err) {
+        toast({ title: "Saved, but a file didn't upload", description: (err as Error).message, variant: "destructive" });
+      }
+    }
     if (saved) {
       emailToStore("catering", saved.id)
         .then((r) => toast({ title: "Catering Request Added", description: `Assigned to ${locationName}. Details emailed to ${r.to}.` }))
@@ -561,6 +578,7 @@ export default function CateringPipeline() {
                     <Label htmlFor="pickupTime">Pickup / ready time</Label>
                     <Input id="pickupTime" type="time" name="pickupTime" value={formData.pickupTime} onChange={handleFormChange} />
                   </div>
+                  <NewOrderExtras value={newExtras} onChange={setNewExtras} showDeposit />
                   <IntakeByField value={newIntakeBy} onChange={setNewIntakeBy} />
                   <div className="grid gap-2">
                     <Label htmlFor="notes">Order Details / Notes</Label>

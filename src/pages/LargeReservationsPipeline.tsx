@@ -3,6 +3,8 @@ import { useState, useEffect } from "react";
 import { useLocationContext } from "@/lib/LocationContext";
 import { locations } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
+import { NewOrderExtras, blankNewOrderExtras } from "@/components/NewOrderExtras";
+import { uploadOrderFiles } from "@/lib/orderFiles";
 import { IntakeBySelect, IntakeByField } from "@/components/IntakeBySelect";
 import { emailToStore } from "@/lib/leadEmail";
 import { OrderExtras } from "@/components/OrderExtras";
@@ -104,6 +106,7 @@ export default function LargeReservationsPipeline() {
   const [isAddSheetOpen, setIsAddSheetOpen] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
   const [newIntakeBy, setNewIntakeBy] = useState("");
+  const [newExtras, setNewExtras] = useState(blankNewOrderExtras());
   
   const [addFormData, setAddFormData] = useState({
     name: "", email: "", phone: "", organization: "", notes: "", locationId: "",
@@ -432,8 +435,24 @@ export default function LargeReservationsPipeline() {
       requires_room: addFormData.requiresRoom,
       deposit_paid: addFormData.depositPaid,
       deposit_amount: addFormData.depositAmount,
+      event_type: newExtras.eventType || null,
+      paid_by_invoice: newExtras.paidByInvoice,
       status: 'Confirmed'
     }]).select().single();
+
+    // Attach any files before the store is emailed (so they're included).
+    const filesToUpload = newExtras.files;
+    if (data && !error) {
+      setNewExtras(blankNewOrderExtras());
+      if (filesToUpload.length) {
+        try {
+          const attachments = await uploadOrderFiles("large_reservations", data.id, filesToUpload);
+          await supabase.from("large_reservations").update({ attachments }).eq("id", data.id);
+        } catch (err) {
+          toast({ title: "Saved, but a file didn't upload", description: (err as Error).message, variant: "destructive" });
+        }
+      }
+    }
 
     
     // Sync to CRM
@@ -473,6 +492,7 @@ export default function LargeReservationsPipeline() {
         requiresRoom: data.requires_room || false,
         depositPaid: data.deposit_paid || false,
         depositAmount: parseFloat(data.deposit_amount || 0),
+        eventType: data.event_type || undefined,
         heardAboutUs: data.heard_about_us || "",
         leadSource: data.lead_source || "",
         status: data.status,
@@ -1624,6 +1644,7 @@ export default function LargeReservationsPipeline() {
               </div>
             )}
 
+            <NewOrderExtras value={newExtras} onChange={setNewExtras} />
             <IntakeByField value={newIntakeBy} onChange={setNewIntakeBy} />
 
             <div className="space-y-2">
