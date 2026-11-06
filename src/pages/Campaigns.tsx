@@ -1074,6 +1074,7 @@ export default function MarketingPlanner() {
             description="Who gets each kind of email. One email per line."
             groups={[
               { key: "marketing_requests", label: "Marketing support requests", description: "Gets an email when a store submits a support request (public form or Request Support)." },
+              { key: "store_events", label: "Store event submissions", description: "Gets an email when a store submits an event to promote (Store Event form)." },
               { key: "social_approvals", label: "Social post approvers", description: "Gets an email when a post is uploaded or sent for approval." },
               { key: "social_team", label: "Social / creative team", description: "Gets creative requests, plus approvals and change requests when a post has no named owner." },
             ]}

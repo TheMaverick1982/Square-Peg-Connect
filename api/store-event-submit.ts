@@ -76,15 +76,18 @@ export async function POST(request: Request): Promise<Response> {
   const row: Record<string, unknown> = {
     title, description, target_date: startDate, location_id: store, status: 'planning',
     attachments, submitted_by: contactEmail ? `${contactName} <${contactEmail}>` : contactName, source: 'store_form',
+    show_on_calendar: true,
   };
   if (endDate && endDate > startDate) row.end_date = endDate;
   const { error } = await admin.from('marketing_campaigns').insert(row);
   if (error) return json(500, { error: 'Could not save your event. Please try again.' });
 
-  // Alert the marketing team (same people as Marketing Support Requests).
+  // Alert the marketing team.
   if (RESEND_API_KEY) {
-    const { data: setting } = await admin.from('notification_settings').select('recipients').eq('key', 'marketing_requests').maybeSingle();
-    const to = ((setting?.recipients as string[] | undefined) || []).filter((e) => /@/.test(e));
+    // "Store event submissions" list (Marketing Planner → Email alerts); falls back to the marketing request list.
+    const { data: settings } = await admin.from('notification_settings').select('key,recipients').in('key', ['store_events', 'marketing_requests']);
+    const listFor = (k: string) => (((settings || []).find((x: any) => x.key === k)?.recipients as string[] | undefined) || []).filter((e) => /@/.test(e));
+    const to = listFor('store_events').length ? listFor('store_events') : listFor('marketing_requests');
     if (to.length) {
       const block = (label: string, text: string) => text
         ? `<div style="font-size:13px;color:#6b7280;margin:12px 0 4px">${label}</div><div style="background:#f3f4f6;border-radius:6px;padding:10px 12px;font-size:14px;white-space:pre-wrap">${esc(text)}</div>` : '';
