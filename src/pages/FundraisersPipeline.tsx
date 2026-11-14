@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { useLocationContext } from "@/lib/LocationContext";
 import { locations } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
+import { EditRequestButton } from "@/components/EditRequestButton";
 import { IntakeBySelect, IntakeByField } from "@/components/IntakeBySelect";
 import { emailToStore } from "@/lib/leadEmail";
 import { EmailStoreButton } from "@/components/EmailStoreButton";
@@ -948,6 +949,8 @@ export default function FundraisersPipeline() {
                 </form>
               ) : (
                 <div className="space-y-8">
+                <EditRequestButton key={`edit-${viewingOrder.id}`} type="Fundraiser" id={viewingOrder.id} onSaved={() => { setViewingOrder(null); fetchOrders(); }} />
+
                 <IntakeBySelect key={`intake-${viewingOrder.id}`} table="fundraisers" id={viewingOrder.id} />
 
                 {/* Status & Location */}

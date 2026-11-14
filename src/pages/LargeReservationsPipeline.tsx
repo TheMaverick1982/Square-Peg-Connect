@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { useLocationContext } from "@/lib/LocationContext";
 import { locations } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
+import { EditRequestButton } from "@/components/EditRequestButton";
 import { NewOrderExtras, blankNewOrderExtras } from "@/components/NewOrderExtras";
 import { uploadOrderFiles } from "@/lib/orderFiles";
 import { IntakeBySelect, IntakeByField } from "@/components/IntakeBySelect";
@@ -1223,6 +1224,8 @@ export default function LargeReservationsPipeline() {
                   // READ-ONLY VIEW
                   <>
                     <div className="space-y-6">
+                      <EditRequestButton key={`edit-${viewingOrder.id}`} type="LargeReservation" id={viewingOrder.id} onSaved={() => { setViewingOrder(null); fetchOrders(); }} />
+
                       <IntakeBySelect key={`intake-${viewingOrder.id}`} table="large_reservations" id={viewingOrder.id} />
                       <div className="grid grid-cols-2 gap-6 bg-muted/10 p-5 rounded-xl border border-border/50">
                         <div>

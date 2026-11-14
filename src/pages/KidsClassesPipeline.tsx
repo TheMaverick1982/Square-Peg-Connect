@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { useLocationContext } from "@/lib/LocationContext";
 import { locations } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
+import { EditRequestButton } from "@/components/EditRequestButton";
 import { IntakeBySelect, IntakeByField } from "@/components/IntakeBySelect";
 import { emailToStore } from "@/lib/leadEmail";
 import { Button } from "@/components/ui/button";
@@ -1198,6 +1199,8 @@ export default function KidsClassesPipeline() {
                   // READ-ONLY VIEW
                   <>
                     <div className="space-y-6">
+                      <EditRequestButton key={`edit-${viewingOrder.id}`} type="KidsClass" id={viewingOrder.id} onSaved={() => { setViewingOrder(null); fetchOrders(); }} />
+
                       <IntakeBySelect key={`intake-${viewingOrder.id}`} table="kids_classes" id={viewingOrder.id} />
                       <div className="grid grid-cols-2 gap-6 bg-muted/10 p-5 rounded-xl border border-border/50">
                         <div>

@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { useLocationContext } from "@/lib/LocationContext";
 import { locations, type CateringStatus, type CateringOrder } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
+import { EditRequestButton } from "@/components/EditRequestButton";
 import { NewOrderExtras, blankNewOrderExtras } from "@/components/NewOrderExtras";
 import { uploadOrderFiles } from "@/lib/orderFiles";
 import { IntakeBySelect, IntakeByField } from "@/components/IntakeBySelect";
@@ -808,6 +809,8 @@ export default function CateringPipeline() {
                     <MessageSquare className="w-4 h-4 ml-1 opacity-70" />
                   </Button>
                 </div>
+
+                <EditRequestButton key={`edit-${viewingOrder.id}`} type="Catering" id={viewingOrder.id} onSaved={() => { setViewingOrder(null); fetchOrders(); }} />
 
                 <IntakeBySelect key={`intake-${viewingOrder.id}`} table="catering_requests" id={viewingOrder.id} />
 
