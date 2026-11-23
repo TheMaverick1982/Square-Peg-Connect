@@ -5,7 +5,7 @@ import { locations } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
 import { EditRequestButton } from "@/components/EditRequestButton";
 import { IntakeBySelect, IntakeByField } from "@/components/IntakeBySelect";
-import { emailToStore } from "@/lib/leadEmail";
+import { emailToStore, askToEmailGuest } from "@/lib/leadEmail";
 import { EmailStoreButton } from "@/components/EmailStoreButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -155,6 +155,17 @@ export default function FundraisersPipeline() {
       console.error("Error updating status:", error);
       toast({ title: "Error", description: "Could not update status.", variant: "destructive" });
       return;
+    }
+
+    // Ask whether to email the guest that it's confirmed.
+    if (newStatus === "Confirmed") {
+      const o = orders.find(x => x.id === orderId);
+      if (o) askToEmailGuest({ kind: "fundraiser", id: orderId, name: o.name, email: o.email,
+        send: async () => {
+          const location = locations.find(l => l.id === o.locationId) || locations[0];
+          const { data, error } = await supabase.functions.invoke('send-fundraiser-email', { body: { order: o, location } });
+          if (error || data?.error) throw new Error(data?.error || error?.message || "Email failed");
+        } });
     }
 
     const updatedOrder = orders.find(o => o.id === orderId);

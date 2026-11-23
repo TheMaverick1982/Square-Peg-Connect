@@ -5,7 +5,7 @@ import { locations } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
 import { EditRequestButton } from "@/components/EditRequestButton";
 import { IntakeBySelect, IntakeByField } from "@/components/IntakeBySelect";
-import { emailToStore } from "@/lib/leadEmail";
+import { emailToStore, askToEmailGuest } from "@/lib/leadEmail";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -263,6 +263,12 @@ export default function KidsClassesPipeline() {
       console.error("Error updating status:", error);
       toast({ title: "Error", description: "Could not update status.", variant: "destructive" });
       return;
+    }
+
+    // Ask whether to email the guest that it's confirmed.
+    if (newStatus === "Confirmed") {
+      const o = orders.find(x => x.id === orderId);
+      if (o) askToEmailGuest({ kind: "kids_class", id: orderId, name: o.name, email: o.email });
     }
 
     setOrders(orders.map(o => o.id === orderId ? { ...o, status: newStatus as any } : o));

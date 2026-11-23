@@ -7,6 +7,7 @@ import { queryClient } from "@/lib/queryClient";
 import NotFound from "./pages/NotFound";
 import { LocationProvider } from "./lib/LocationContext";
 import { routes } from "./routes";
+import { GuestConfirmPrompt } from "@/components/GuestConfirmPrompt";
 
 import { EmployeeProvider } from "./lib/EmployeeContext";
 
@@ -17,6 +18,7 @@ const App = () => (
         <LocationProvider>
           <Toaster />
           <Sonner />
+          <GuestConfirmPrompt />
           <BrowserRouter basename={import.meta.env.BASE_URL}>
             <Routes>
               {routes.map((route, i) => (

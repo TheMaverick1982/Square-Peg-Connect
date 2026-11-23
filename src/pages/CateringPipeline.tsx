@@ -36,7 +36,7 @@ import { EmailLogs } from "@/components/EmailLogs";
 import { ShareFormDialog } from "@/components/ShareFormDialog";
 import { OrderExtras } from "@/components/OrderExtras";
 import { EventTypeBadge } from "@/lib/eventTypes";
-import { emailToStore } from "@/lib/leadEmail";
+import { emailToStore, askToEmailGuest } from "@/lib/leadEmail";
 
 type TabState = "all" | "upcoming" | "unopened" | "past";
 
@@ -401,6 +401,12 @@ export default function CateringPipeline() {
       console.error("Error updating status:", error);
       toast({ title: "Error", description: "Could not update status.", variant: "destructive" });
       return;
+    }
+
+    // Ask whether to email the guest that it's confirmed.
+    if (newStatus === "Confirmed") {
+      const o = orders.find(x => x.id === orderId);
+      if (o) askToEmailGuest({ kind: "catering", id: orderId, name: o.contactName, email: o.email });
     }
 
     const updatedOrder = orders.find(o => o.id === orderId);

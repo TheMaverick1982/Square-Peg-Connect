@@ -7,7 +7,7 @@ import { EditRequestButton } from "@/components/EditRequestButton";
 import { NewOrderExtras, blankNewOrderExtras } from "@/components/NewOrderExtras";
 import { uploadOrderFiles } from "@/lib/orderFiles";
 import { IntakeBySelect, IntakeByField } from "@/components/IntakeBySelect";
-import { emailToStore } from "@/lib/leadEmail";
+import { emailToStore, askToEmailGuest } from "@/lib/leadEmail";
 import { OrderExtras } from "@/components/OrderExtras";
 import { EventTypeBadge } from "@/lib/eventTypes";
 import { Button } from "@/components/ui/button";
@@ -270,6 +270,12 @@ export default function LargeReservationsPipeline() {
       console.error("Error updating status:", error);
       toast({ title: "Error", description: "Could not update status.", variant: "destructive" });
       return;
+    }
+
+    // Ask whether to email the guest that it's confirmed.
+    if (newStatus === "Confirmed") {
+      const o = orders.find(x => x.id === orderId);
+      if (o) askToEmailGuest({ kind: "large_reservation", id: orderId, name: o.name, email: o.email });
     }
 
     setOrders(orders.map(o => o.id === orderId ? { ...o, status: newStatus as any } : o));
