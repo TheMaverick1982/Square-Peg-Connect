@@ -209,24 +209,16 @@ async function syncExplee(admin: any) {
       const campaignName = names.get(Number(l.campaign_id)) || '';
       const ai: any = await extractOutreach(l, campaignName);
       const phone = l.phone || ai.phone || null;
-      const { data: cid } = await admin.rpc('find_or_create_customer', {
-        p_email: l.email || null, p_phone: phone, p_name: l.name || null, p_org: l.company_name || null,
-        p_source: `Explee${campaignName ? `: ${campaignName}` : ''}`, p_when: l.replied_at || l.became_hot_at || new Date().toISOString(),
-      });
+      // Explee leads stay in the Explee list until they book; the customer record is made when they do.
       const days = Math.max(0, Math.min(14, Number(ai.follow_up_days ?? 1) || 1));
       const followUp = new Date(Date.now() + days * 86400000).toISOString().slice(0, 10);
       const { error } = await admin.from('outreach_leads').insert({
         source: 'explee', external_id: String(l.person_id), campaign_id: l.campaign_id ?? null, campaign_name: campaignName || null,
         name: l.name, email: l.email ? String(l.email).toLowerCase() : null, phone, job_title: l.job_title, company: l.company_name,
         company_domain: l.company_domain, linkedin_url: l.linkedin_url, reply: l.why_hot, replied_at: l.replied_at || l.became_hot_at,
-        ai, customer_id: cid || null, status: 'new', follow_up_on: followUp,
+        ai, customer_id: null, status: 'new', follow_up_on: followUp,
       });
       if (error) continue;
-      if (cid) await admin.from('customer_activities').insert({
-        customer_id: cid, kind: 'outreach', title: `Explee: positive reply${campaignName ? ` (${campaignName})` : ''}`,
-        body: [ai.summary, l.why_hot ? `“${String(l.why_hot).slice(0, 600)}”` : ''].filter(Boolean).join('\n'),
-        ref_table: 'outreach_leads', ref_id: String(l.person_id), created_at: l.replied_at || new Date().toISOString(),
-      });
       added++;
     }
     if (!res.has_more) break;

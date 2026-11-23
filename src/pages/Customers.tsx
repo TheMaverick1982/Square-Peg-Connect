@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Loader2, Search, Users, Inbox, RefreshCw, Mail, Phone, Building, StickyNote, ChevronDown, ChevronUp, Send, Linkedin } from "lucide-react";
+import { Loader2, Search, Users, Inbox, RefreshCw, Mail, Phone, Building, StickyNote, ChevronDown, ChevronUp, Send, Linkedin, Download } from "lucide-react";
 
 type Customer = {
   id: string; name: string | null; email: string | null; phone: string | null; organization: string | null;
@@ -452,6 +452,26 @@ function ExpleeFollowUps() {
   const list = leads.filter((l: any) => show === "all" ? true : show === "open" ? ["new", "contacted"].includes(l.status) : l.status === show)
     .sort((a: any, b: any) => show === "open" ? String(a.follow_up_on || "9").localeCompare(String(b.follow_up_on || "9")) : 0);
 
+  const exportCsv = () => {
+    const rows = list.map((l: any) => {
+      const ai = l.ai || {};
+      return [
+        l.name, l.company, l.job_title, l.email, l.phone, l.linkedin_url, l.campaign_name,
+        l.replied_at ? format(parseISO(l.replied_at), "yyyy-MM-dd") : "", OUTREACH_STATUSES.find((x) => x.id === l.status)?.label || l.status,
+        l.follow_up_on || "", ai.summary, ai.event_type, ai.event_date || ai.timeframe, ai.guest_count, ai.store, ai.budget, ai.next_step,
+        l.notes, l.booked_at ? format(parseISO(l.booked_at), "yyyy-MM-dd") : "", l.reply,
+      ];
+    });
+    const headers = ["Name", "Company", "Title", "Email", "Phone", "LinkedIn", "Explee campaign", "Replied", "Status", "Follow up on",
+      "Summary", "Event type", "When", "Guests", "Store", "Budget", "Next step", "Notes", "Booked on", "Their reply"];
+    const cell = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const csv = [headers.map(cell).join(","), ...rows.map((r) => r.map(cell).join(","))].join("\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
+    const a = document.createElement("a");
+    a.href = url; a.download = `explee-leads-${show}-${format(new Date(), "yyyy-MM-dd")}.csv`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+  };
+
   const sync = async () => {
     setSyncing(true);
     try {
@@ -478,7 +498,7 @@ function ExpleeFollowUps() {
         <Stat label="Follow-ups due" value={String(due)} />
       </div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="text-xs text-muted-foreground">Positive replies from Explee arrive here automatically. When one of them books anything, they move to <b>Booked</b> on their own.</div>
+        <div className="text-xs text-muted-foreground">Positive replies from Explee wait here until they book. When they do, they move to <b>Booked</b> and become a customer automatically.</div>
         <div className="flex gap-2 shrink-0">
           <Select value={show} onValueChange={setShow}>
             <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
@@ -488,6 +508,7 @@ function ExpleeFollowUps() {
               <SelectItem value="all">All</SelectItem>
             </SelectContent>
           </Select>
+          <Button variant="outline" onClick={exportCsv} disabled={!list.length}><Download className="w-4 h-4 mr-2" />Export CSV</Button>
           <Button variant="outline" onClick={sync} disabled={syncing}>{syncing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}Sync now</Button>
         </div>
       </div>
