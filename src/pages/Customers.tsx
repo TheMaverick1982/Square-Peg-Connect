@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Loader2, Search, Users, Inbox, RefreshCw, Mail, Phone, Building, StickyNote, ChevronDown, ChevronUp } from "lucide-react";
+import { Loader2, Search, Users, Inbox, RefreshCw, Mail, Phone, Building, StickyNote, ChevronDown, ChevronUp, Send, Linkedin } from "lucide-react";
 
 type Customer = {
   id: string; name: string | null; email: string | null; phone: string | null; organization: string | null;
@@ -25,12 +25,12 @@ type Customer = {
 const money = (n: number) => "$" + Number(n || 0).toLocaleString("en-US", { maximumFractionDigits: 0 });
 const KIND_LABEL: Record<string, string> = {
   catering: "Catering", fundraiser: "Fundraiser", large_reservation: "Large reservation", kids_class: "Kids class",
-  email: "Email", note: "Note", existing_customer: "Existing customer", other: "Other",
+  email: "Email", note: "Note", existing_customer: "Existing customer", other: "Other", outreach: "Explee",
 };
 const KIND_COLOR: Record<string, string> = {
   catering: "bg-green-100 text-green-800", fundraiser: "bg-pink-100 text-pink-800", large_reservation: "bg-blue-100 text-blue-800",
   kids_class: "bg-yellow-100 text-yellow-800", email: "bg-slate-100 text-slate-800", note: "bg-amber-100 text-amber-800",
-  existing_customer: "bg-purple-100 text-purple-800", other: "bg-gray-100 text-gray-700",
+  existing_customer: "bg-purple-100 text-purple-800", other: "bg-gray-100 text-gray-700", outreach: "bg-indigo-100 text-indigo-800",
 };
 // Where an inbox lead becomes a request.
 const PIPELINE: Record<string, { table: string; org: string; guests: boolean; label: string }> = {
@@ -58,13 +58,15 @@ export default function Customers() {
         <h1 className="text-3xl font-bold tracking-tight">Customers</h1>
         <p className="text-muted-foreground mt-1">Everyone who has asked about catering, fundraisers, reservations or kids classes, with their history and totals.</p>
       </div>
-      <Tabs defaultValue={new URLSearchParams(window.location.search).get("tab") === "inbox" ? "inbox" : "customers"}>
+      <Tabs defaultValue={["inbox", "explee"].includes(new URLSearchParams(window.location.search).get("tab") || "") ? new URLSearchParams(window.location.search).get("tab")! : "customers"}>
         <TabsList>
           <TabsTrigger value="customers" className="gap-2"><Users className="w-4 h-4" /> Customers</TabsTrigger>
           <TabsTrigger value="inbox" className="gap-2"><Inbox className="w-4 h-4" /> Inbox review{newCount ? <Badge className="ml-1 h-5 px-1.5">{newCount}</Badge> : null}</TabsTrigger>
+          <TabsTrigger value="explee" className="gap-2"><Send className="w-4 h-4" /> Explee follow-ups</TabsTrigger>
         </TabsList>
         <TabsContent value="customers" className="mt-4"><CustomerList /></TabsContent>
         <TabsContent value="inbox" className="mt-4"><InboxReview /></TabsContent>
+        <TabsContent value="explee" className="mt-4"><ExpleeFollowUps /></TabsContent>
       </Tabs>
     </div>
   );
@@ -405,6 +407,185 @@ function InboxCard({ item }: { item: any }) {
           <Button size="sm" onClick={createRequest} disabled={busy}>Create request</Button>
           <Button size="sm" variant="outline" onClick={addNote} disabled={busy}>Just add to customer history</Button>
           {item.status === "new" && <Button size="sm" variant="ghost" onClick={ignore} disabled={busy}>Ignore</Button>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+// ---------- Explee follow-ups: positive replies from cold outreach ----------
+const OUTREACH_STATUSES = [
+  { id: "new", label: "New", cls: "bg-sky-100 text-sky-800" },
+  { id: "contacted", label: "Contacted", cls: "bg-amber-100 text-amber-800" },
+  { id: "booked", label: "Booked", cls: "bg-green-100 text-green-800" },
+  { id: "not_interested", label: "Not interested", cls: "bg-gray-100 text-gray-600" },
+];
+
+function ExpleeFollowUps() {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const [show, setShow] = useState<string>("open");
+  const [syncing, setSyncing] = useState(false);
+  const { data: leads = [], isLoading, error } = useQuery({
+    queryKey: ["outreach_leads"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("outreach_leads").select("*").eq("source", "explee").order("replied_at", { ascending: false }).limit(1000);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+  const customerIds = Array.from(new Set(leads.map((l: any) => l.customer_id).filter(Boolean)));
+  const { data: revenue = 0 } = useQuery({
+    queryKey: ["outreach_revenue", customerIds.length],
+    enabled: customerIds.length > 0,
+    queryFn: async () => {
+      const booked = leads.filter((l: any) => l.status === "booked" && l.customer_id).map((l: any) => l.customer_id);
+      if (!booked.length) return 0;
+      const { data } = await supabase.from("customer_summary").select("id,lifetime_revenue").in("id", booked);
+      return (data || []).reduce((s: number, r: any) => s + Number(r.lifetime_revenue || 0), 0);
+    },
+  });
+  const today = format(new Date(), "yyyy-MM-dd");
+  const booked = leads.filter((l: any) => l.status === "booked").length;
+  const due = leads.filter((l: any) => ["new", "contacted"].includes(l.status) && l.follow_up_on && l.follow_up_on <= today).length;
+  const list = leads.filter((l: any) => show === "all" ? true : show === "open" ? ["new", "contacted"].includes(l.status) : l.status === show)
+    .sort((a: any, b: any) => show === "open" ? String(a.follow_up_on || "9").localeCompare(String(b.follow_up_on || "9")) : 0);
+
+  const sync = async () => {
+    setSyncing(true);
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      const res = await fetch("/api/inbox-sync", { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${sess.session?.access_token || ""}` }, body: JSON.stringify({ mode: "explee" }) });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok || d.error) throw new Error(d.error || `Request failed (${res.status})`);
+      if (d.skipped) toast({ title: "Explee isn't connected yet", description: "Add EXPLEE_API_KEY in Vercel, then try again.", variant: "destructive" });
+      else toast({ title: "Synced with Explee", description: `${d.added || 0} new positive repl${d.added === 1 ? "y" : "ies"} added.` });
+      qc.invalidateQueries({ queryKey: ["outreach_leads"] }); qc.invalidateQueries({ queryKey: ["customer_summary"] });
+    } catch (e) {
+      toast({ title: "Couldn't sync with Explee", description: (e as Error).message, variant: "destructive" });
+    } finally { setSyncing(false); }
+  };
+
+  if (error) return <div className="text-sm text-destructive">Couldn't load Explee leads: {(error as Error).message}. (Has the Explee SQL been run in Supabase?)</div>;
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <Stat label="Positive replies" value={String(leads.length)} />
+        <Stat label="Booked" value={String(booked)} />
+        <Stat label="Conversion" value={leads.length ? `${Math.round((booked / leads.length) * 100)}%` : "—"} />
+        <Stat label="Revenue from booked" value={money(revenue)} />
+        <Stat label="Follow-ups due" value={String(due)} />
+      </div>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="text-xs text-muted-foreground">Positive replies from Explee arrive here automatically. When one of them books anything, they move to <b>Booked</b> on their own.</div>
+        <div className="flex gap-2 shrink-0">
+          <Select value={show} onValueChange={setShow}>
+            <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="open">To follow up</SelectItem>
+              {OUTREACH_STATUSES.map((st) => <SelectItem key={st.id} value={st.id}>{st.label}</SelectItem>)}
+              <SelectItem value="all">All</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button variant="outline" onClick={sync} disabled={syncing}>{syncing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}Sync now</Button>
+        </div>
+      </div>
+      {isLoading ? <div className="p-6 text-center text-muted-foreground"><Loader2 className="w-5 h-5 animate-spin inline" /></div>
+        : list.length === 0 ? <div className="p-10 text-center text-muted-foreground border-2 border-dashed rounded-lg">Nothing here yet.</div>
+        : list.map((l: any) => <OutreachCard key={l.id} lead={l} today={today} />)}
+    </div>
+  );
+}
+
+function OutreachCard({ lead, today }: { lead: any; today: string }) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const { profile } = useEmployee();
+  const ai = lead.ai || {};
+  const [open, setOpen] = useState(false);
+  const [notes, setNotes] = useState<string>(lead.notes || "");
+  const [kind, setKind] = useState<string>(PIPELINE[ai.interest] ? ai.interest : "catering");
+  const [store, setStore] = useState<string>(storeFromText(ai.store));
+  const [date, setDate] = useState<string>(ai.event_date || "");
+  const [busy, setBusy] = useState(false);
+  const st = OUTREACH_STATUSES.find((x) => x.id === lead.status) || OUTREACH_STATUSES[0];
+  const overdue = ["new", "contacted"].includes(lead.status) && lead.follow_up_on && lead.follow_up_on <= today;
+  const save = async (changes: Record<string, unknown>) => {
+    const { error } = await supabase.from("outreach_leads").update({ ...changes, updated_by: profile?.email || null }).eq("id", lead.id);
+    if (error) toast({ title: "Couldn't save", description: error.message, variant: "destructive" });
+    qc.invalidateQueries({ queryKey: ["outreach_leads"] });
+  };
+  const createRequest = async () => {
+    const p = PIPELINE[kind];
+    if (!store || !date) { toast({ title: "Pick the store and date first", variant: "destructive" }); return; }
+    setBusy(true);
+    try {
+      const row: Record<string, unknown> = {
+        name: lead.name, email: lead.email, phone: lead.phone, [p.org]: lead.company, event_date: date, location: store, status: "Requested",
+        notes: [ai.summary, ai.event_type && `Event: ${ai.event_type}`, ai.budget && `Budget: ${ai.budget}`, `From Explee${lead.campaign_name ? ` (${lead.campaign_name})` : ""}`].filter(Boolean).join("\n"),
+        lead_source: `Explee${lead.campaign_name ? `: ${lead.campaign_name}` : ""}`, intake_by: (profile?.email || "").toLowerCase() || null,
+      };
+      if (p.guests && ai.guest_count) row.guest_count = Number(ai.guest_count) || null;
+      const { error } = await supabase.from(p.table).insert(row);
+      if (error) throw error;
+      await save({ status: "booked", booked_at: new Date().toISOString() });
+      toast({ title: `Added to ${p.label}`, description: "Marked as Booked from Explee." });
+    } catch (e) {
+      toast({ title: "Couldn't create the request", description: (e as Error).message, variant: "destructive" });
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <div className={`bg-card border rounded-lg p-4 space-y-3 ${overdue ? "border-amber-400" : ""}`}>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className={`text-[11px] rounded px-1.5 py-0.5 font-medium ${st.cls}`}>{st.label}</span>
+            {lead.campaign_name && <span className="text-[11px] rounded px-1.5 py-0.5 font-medium bg-indigo-100 text-indigo-800">Explee · {lead.campaign_name}</span>}
+            {overdue && <span className="text-[11px] rounded px-1.5 py-0.5 font-semibold bg-amber-500 text-white">Follow-up due</span>}
+          </div>
+          <div className="font-semibold mt-1">{lead.name || lead.email}{lead.company ? <span className="font-normal text-muted-foreground"> · {lead.company}</span> : null}</div>
+          <div className="text-xs text-muted-foreground flex flex-wrap gap-x-3">
+            {lead.job_title && <span>{lead.job_title}</span>}
+            {lead.email && <a className="hover:underline" href={`mailto:${lead.email}`}>{lead.email}</a>}
+            {lead.phone && <a className="hover:underline" href={`tel:${lead.phone}`}>{lead.phone}</a>}
+            {lead.linkedin_url && <a className="hover:underline inline-flex items-center gap-1" href={lead.linkedin_url} target="_blank" rel="noreferrer"><Linkedin className="w-3 h-3" />LinkedIn</a>}
+            {lead.replied_at && <span>Replied {format(parseISO(lead.replied_at), "MMM d, yyyy")}</span>}
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Select value={lead.status} onValueChange={(v) => save({ status: v, ...(v === "booked" ? { booked_at: new Date().toISOString() } : {}) })}>
+            <SelectTrigger className="h-8 w-36 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>{OUTREACH_STATUSES.map((x) => <SelectItem key={x.id} value={x.id}>{x.label}</SelectItem>)}</SelectContent>
+          </Select>
+          <Input type="date" className="h-8 w-36 text-xs" value={lead.follow_up_on || ""} title="Follow up on" onChange={(e) => save({ follow_up_on: e.target.value || null })} />
+        </div>
+      </div>
+      {ai.summary && <div className="text-sm">{ai.summary}</div>}
+      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+        {ai.event_type && <span>Event: <b className="text-foreground">{ai.event_type}</b></span>}
+        {(ai.event_date || ai.timeframe) && <span>When: <b className="text-foreground">{ai.event_date ? format(parseISO(ai.event_date), "MMM d, yyyy") : ai.timeframe}</b></span>}
+        {ai.guest_count && <span>Guests: <b className="text-foreground">{ai.guest_count}</b></span>}
+        {ai.store && <span>Store: <b className="text-foreground">{ai.store}</b></span>}
+        {ai.budget && <span>Budget: <b className="text-foreground">{ai.budget}</b></span>}
+        {ai.next_step && <span className="basis-full">Next step: <b className="text-foreground">{ai.next_step}</b></span>}
+      </div>
+      {lead.reply && <>
+        <button className="text-xs text-primary flex items-center gap-1" onClick={() => setOpen((o) => !o)}>{open ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}{open ? "Hide their reply" : "Show their reply"}</button>
+        {open && <div className="text-sm bg-muted/40 rounded p-3 whitespace-pre-wrap max-h-72 overflow-y-auto">{lead.reply}</div>}
+      </>}
+      <Textarea rows={2} placeholder="Notes: called, left voicemail, sent menu…" value={notes} onChange={(e) => setNotes(e.target.value)} onBlur={() => notes !== (lead.notes || "") && save({ notes })} />
+      {lead.status !== "booked" && (
+        <div className="flex flex-wrap items-end gap-2 pt-2 border-t">
+          <div className="grid gap-1"><Label className="text-xs">Create</Label>
+            <Select value={kind} onValueChange={setKind}><SelectTrigger className="h-8 w-44"><SelectValue /></SelectTrigger>
+              <SelectContent>{Object.entries(PIPELINE).map(([k, p]) => <SelectItem key={k} value={k}>{p.label}</SelectItem>)}</SelectContent></Select></div>
+          <div className="grid gap-1"><Label className="text-xs">Store</Label>
+            <Select value={store} onValueChange={setStore}><SelectTrigger className="h-8 w-40"><SelectValue placeholder="Pick store" /></SelectTrigger>
+              <SelectContent>{locations.map((l) => <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>)}</SelectContent></Select></div>
+          <div className="grid gap-1"><Label className="text-xs">Event date</Label><Input type="date" className="h-8 w-40" value={date} onChange={(e) => setDate(e.target.value)} /></div>
+          <Button size="sm" onClick={createRequest} disabled={busy}>{busy && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}Create request</Button>
         </div>
       )}
     </div>
