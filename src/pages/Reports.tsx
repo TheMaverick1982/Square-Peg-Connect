@@ -12,6 +12,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { LeadsReportButtons } from "@/components/LeadsReportButtons";
+import { LeadsReportBuilder } from "@/components/LeadsReportBuilder";
 
 type DateRange = {
   from: Date | undefined;
@@ -298,6 +299,8 @@ export default function Reports() {
           </Popover>
         </div>
       </div>
+
+      <LeadsReportBuilder />
 
       {isLoading ? (
         <div className="flex-1 flex items-center justify-center">

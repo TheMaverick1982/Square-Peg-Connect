@@ -1,6 +1,8 @@
 // Vercel serverless function: Weekly Leads & Events Report (catering, fundraisers, large reservations, kids pizza classes).
 // GET  (Vercel Cron, Monday mornings): each store gets its own report; extra recipients (notification_settings
 //      key "leads_report") get the all-stores report. Covers last Monday–Sunday (store time) vs the week before.
+// GET ?period=month&key=INBOX_SYNC_SECRET (pg_cron, the 1st of each month): the same, for last calendar month
+//      vs the month before.
 // POST (signed-in admin): { mode: "test" } emails the all-stores report to the caller only, marked [TEST];
 //      { mode: "send" } runs the full send now.
 import { createClient } from '@supabase/supabase-js';
@@ -51,14 +53,21 @@ const money = (n: number) => '$' + n.toLocaleString('en-US', { minimumFractionDi
 const nyYmd = (d: Date) => new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
 const addDays = (ymd: string, n: number) => { const [y, m, d] = ymd.split('-').map(Number); return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10); };
 const short = (ymd: string) => { const [y, m, d] = ymd.split('-').map(Number); return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }); };
-function weeks(now = new Date()) {
+type Period = 'week' | 'month';
+function weeks(period: Period = 'week', now = new Date()) {
   const today = nyYmd(now);
   const [y, m, d] = today.split('-').map(Number);
+  if (period === 'month') {
+    const ymd = (yy: number, mm: number, dd: number) => new Date(Date.UTC(yy, mm, dd)).toISOString().slice(0, 10);
+    // last calendar month, compared with the month before it
+    return { period, start: ymd(y, m - 2, 1), end: ymd(y, m - 1, 0), prevStart: ymd(y, m - 3, 1), prevEnd: ymd(y, m - 2, 0) };
+  }
   const dow = new Date(Date.UTC(y, m - 1, d)).getUTCDay(); // 0 Sun … 6 Sat
   const thisMonday = addDays(today, -((dow + 6) % 7));
   const start = addDays(thisMonday, -7), end = addDays(thisMonday, -1);
-  return { start, end, prevStart: addDays(start, -7), prevEnd: addDays(start, -1) };
+  return { period, start, end, prevStart: addDays(start, -7), prevEnd: addDays(start, -1) };
 }
+const monthName = (ymd: string) => { const [y, m] = ymd.split('-').map(Number); return new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' }); };
 
 function whoOf(kind: Kind, r: any) {
   if (kind === 'catering') return r.company ? `${r.company} (${r.name || ''})` : r.name || '';
@@ -157,14 +166,16 @@ function render(w: ReturnType<typeof weeks>, data: Awaited<ReturnType<typeof loa
   const th = (t: string, align = 'right') => `<th style="text-align:${align};padding:8px 10px;font-size:12px;color:#374151;border-bottom:2px solid #e5e7eb;white-space:nowrap">${t}</th>`;
   const td = (t: string, align = 'right', bold = false) => `<td style="text-align:${align};padding:8px 10px;font-size:14px;border-bottom:1px solid #f3f4f6;${bold ? 'font-weight:bold;' : ''}">${t}</td>`;
 
-  const weekLabel = `${short(w.start)} – ${short(w.end)}`;
-  const title = storeId ? `${storeName(storeId)} · Weekly Leads & Events Report` : 'Weekly Leads & Events Report · All Stores';
+  const M = w.period === 'month';
+  const unit = M ? 'month' : 'week', Adj = M ? 'Monthly' : 'Weekly';
+  const weekLabel = M ? monthName(w.start) : `${short(w.start)} – ${short(w.end)}`;
+  const title = storeId ? `${storeName(storeId)} · ${Adj} Leads & Events Report` : `${Adj} Leads & Events Report · All Stores`;
 
   // 1) Summary by type
   const summaryRows = KINDS.map((k) => `<tr>${td(k.label, 'left', true)}${td(String(count(leads, k.key)))}${td(String(count(prev, k.key)))}${td(change(count(leads, k.key), count(prev, k.key)))}${td(String(heldCount(k.key)))}${td(rev(k.key) ? money(rev(k.key)) : '<span style="color:#9ca3af">—</span>')}</tr>`).join('');
   const totalRow = `<tr style="background:#f9fafb">${td('Total', 'left', true)}${td(String(leads.length), 'right', true)}${td(String(prev.length), 'right', true)}${td(change(leads.length, prev.length))}${td(String(heldCount()), 'right', true)}${td(money(rev()), 'right', true)}</tr>`;
-  const summary = `<table style="width:100%;border-collapse:collapse;margin:0 0 6px"><tr>${th('', 'left')}${th('Leads in this week')}${th('Last week')}${th('Change')}${th('Events held this week')}${th('Revenue')}</tr>${summaryRows}${totalRow}</table>
-    <div style="font-size:11px;color:#6b7280;margin:0 0 24px">Leads = requests submitted that week (by the date they came in). Events held / Revenue = by the event date: catering orders, fundraisers, reservations and classes that happened that week, with the sales entered for them (catering counts confirmed/completed orders).</div>`;
+  const summary = `<table style="width:100%;border-collapse:collapse;margin:0 0 6px"><tr>${th('', 'left')}${th(`Leads in this ${unit}`)}${th(`Last ${unit}`)}${th('Change')}${th(`Events held this ${unit}`)}${th('Revenue')}</tr>${summaryRows}${totalRow}</table>
+    <div style="font-size:11px;color:#6b7280;margin:0 0 24px">Leads = requests submitted that ${unit} (by the date they came in). Events held / Revenue = by the event date: catering orders, fundraisers, reservations and classes that happened that ${unit}, with the sales entered for them (catering counts confirmed/completed orders).</div>`;
 
   // 1b) Who brought the leads in: Web lead or the team member who entered it.
   const intakeNames = Array.from(new Set(leads.map((l) => l.intake))).sort((a, b) => (a === 'Web lead' ? -1 : b === 'Web lead' ? 1 : a.localeCompare(b)));
@@ -188,17 +199,17 @@ function render(w: ReturnType<typeof weeks>, data: Awaited<ReturnType<typeof loa
       return `<tr>${td(esc(storeName(id)), 'left', true)}${KINDS.map((k) => td(String(count(cur, k.key)))).join('')}${td(`<b>${cur.length}</b>`)}${td(String(was.length))}${td(change(cur.length, was.length))}${td(r ? money(r) : '<span style="color:#9ca3af">—</span>')}</tr>`;
     }).join('');
     byStore = `<h3 style="font-size:16px;margin:0 0 8px">By store</h3>
-      <table style="width:100%;border-collapse:collapse;margin:0 0 24px"><tr>${th('Store', 'left')}${th('Catering')}${th('Fundraisers')}${th('Large res.')}${th('Kids classes')}${th('Total')}${th('Last week')}${th('Change')}${th('Revenue')}</tr>
-      ${rows || `<tr>${td('<span style="color:#6b7280">No leads either week.</span>', 'left')}</tr>`}</table>`;
+      <table style="width:100%;border-collapse:collapse;margin:0 0 24px"><tr>${th('Store', 'left')}${th('Catering')}${th('Fundraisers')}${th('Large res.')}${th('Kids classes')}${th('Total')}${th(`Last ${unit}`)}${th('Change')}${th('Revenue')}</tr>
+      ${rows || `<tr>${td('<span style="color:#6b7280">No leads in either ${unit}.</span>', 'left')}</tr>`}</table>`;
   }
 
   // 3) Where leads came from
   const bySource = new Map<string, number>();
   for (const l of leads) bySource.set(sourceOf(l), (bySource.get(sourceOf(l)) || 0) + 1);
   const sourceRows = [...bySource.entries()].sort((a, b) => b[1] - a[1]).map(([s, n]) => `<tr>${td(esc(s), 'left')}${td(String(n), 'right', true)}</tr>`).join('');
-  const sources = `<h3 style="font-size:16px;margin:0 0 8px">Where this week's leads came from</h3>
+  const sources = `<h3 style="font-size:16px;margin:0 0 8px">Where this ${unit}'s leads came from</h3>
     ${sourceRows ? `<table style="width:100%;border-collapse:collapse;margin:0 0 6px"><tr>${th('Source', 'left')}${th('Leads')}</tr>${sourceRows}</table>
-    <div style="font-size:11px;color:#6b7280;margin:0 0 24px">Source comes from the link they used (ad, Google, email campaign tag). "Told us" is their answer to "How did you hear about us?" when no link source was recorded.</div>` : '<p style="color:#6b7280;margin:0 0 24px">No leads this week.</p>'}`;
+    <div style="font-size:11px;color:#6b7280;margin:0 0 24px">Source comes from the link they used (ad, Google, email campaign tag). "Told us" is their answer to "How did you hear about us?" when no link source was recorded.</div>` : `<p style="color:#6b7280;margin:0 0 24px">No leads this ${unit}.</p>`}`;
 
   // 4) Every lead this week, grouped by type with a tally, showing both dates
   const kindLabel = (k: Kind) => KINDS.find((x) => x.key === k)!.label;
@@ -212,7 +223,7 @@ function render(w: ReturnType<typeof weeks>, data: Awaited<ReturnType<typeof loa
     if (!list.length) return '';
     return `<tr><td colspan="${cols + 1}" style="padding:14px 10px 6px;font-size:14px;font-weight:bold;background:#f3f4f6">${esc(k.label)} · ${list.length} lead${list.length === 1 ? '' : 's'}</td></tr>${list.map(leadRow).join('')}`;
   }).join('');
-  const leadList = leads.length ? `<h3 style="font-size:16px;margin:0 0 8px">This week's leads (${leads.length})</h3>
+  const leadList = leads.length ? `<h3 style="font-size:16px;margin:0 0 8px">This ${unit}'s leads (${leads.length})</h3>
     <table style="width:100%;border-collapse:collapse;margin:0 0 24px"><tr>${th('Came in', 'left')}${th('Event date', 'left')}${storeId ? '' : th('Store', 'left')}${th('Who', 'left')}${th('Intake by', 'left')}${th('Status', 'left')}${th('Source', 'left')}</tr>${groups}
     <tr style="background:#f9fafb"><td colspan="${cols + 1}" style="padding:8px 10px;font-size:14px;font-weight:bold">Total: ${leads.length} lead${leads.length === 1 ? '' : 's'}</td></tr></table>` : '';
 
@@ -230,17 +241,17 @@ function render(w: ReturnType<typeof weeks>, data: Awaited<ReturnType<typeof loa
   const mk = happenings.filter((h) => h.kind === 'marketing').length, en = happenings.filter((h) => h.kind === 'entertainment').length;
   if (mk) tally.push(`${mk} marketing`);
   if (en) tally.push(`${en} entertainment`);
-  const heldList = rows.length ? `<h3 style="font-size:16px;margin:0 0 8px">Events held this week (${rows.length})</h3>
+  const heldList = rows.length ? `<h3 style="font-size:16px;margin:0 0 8px">Events held this ${unit} (${rows.length})</h3>
     <table style="width:100%;border-collapse:collapse;margin:0 0 24px"><tr>${th('Date', 'left')}${th('Type', 'left')}${storeId ? '' : th('Store', 'left')}${th('What / who', 'left')}${th('Sales')}</tr>${heldRows}
     <tr style="background:#f9fafb"><td colspan="${storeId ? 3 : 4}" style="padding:8px 10px;font-size:14px;font-weight:bold">Total: ${tally.join(' · ')}</td>${td(money(rev()), 'right', true)}</tr></table>` : '';
 
   const html = `<div style="font-family:Arial,Helvetica,sans-serif;max-width:820px;margin:0 auto;padding:24px;color:#111827">
     <div style="font-size:26px;font-weight:bold;margin:0 0 2px">${esc(title)}</div>
-    <div style="color:#6b7280;margin:0 0 20px">Week of ${esc(weekLabel)} · compared with ${esc(short(w.prevStart))} – ${esc(short(w.prevEnd))}</div>
+    <div style="color:#6b7280;margin:0 0 20px">${M ? '' : 'Week of '}${esc(weekLabel)} · compared with ${esc(M ? monthName(w.prevStart) : `${short(w.prevStart)} – ${short(w.prevEnd)}`)}</div>
     ${summary}${intake}${byStore}${sources}${leadList}${heldList}${storeId ? photoReminder(storeId) : ''}
     <p style="margin:8px 0 0"><a href="${APP_URL}" style="background:#1f2937;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none;display:inline-block;font-weight:bold">Open Square Peg Connect</a></p>
   </div>`;
-  const subject = storeId ? `Weekly Leads & Events Report — ${storeName(storeId)} — ${weekLabel}` : `Weekly Leads & Events Report — All Stores — ${weekLabel}`;
+  const subject = storeId ? `${Adj} Leads & Events Report — ${storeName(storeId)} — ${weekLabel}` : `${Adj} Leads & Events Report — All Stores — ${weekLabel}`;
   return { subject, html };
 }
 
@@ -252,7 +263,7 @@ function photoReminder(storeId: string) {
     <table style="width:100%;border-collapse:collapse"><tr>
       <td style="vertical-align:top;padding-right:14px">
         <div style="font-size:16px;font-weight:bold;margin:0 0 6px">📸 Don't forget the pictures!</div>
-        <div style="font-size:14px;color:#374151;margin:0 0 10px">Take photos at every event this week, or assign someone to take them, and upload them so we can use them in marketing.</div>
+        <div style="font-size:14px;color:#374151;margin:0 0 10px">Take photos at every event, or assign someone to take them, and upload them so we can use them in marketing.</div>
         <a href="${link}" style="background:#f59e0b;color:#111827;padding:9px 16px;border-radius:6px;text-decoration:none;display:inline-block;font-weight:bold;font-size:14px">Upload event photos</a>
         <div style="font-size:12px;color:#6b7280;margin-top:8px;word-break:break-all">${esc(link)}</div>
       </td>
@@ -274,8 +285,8 @@ async function send(to: string[], subject: string, html: string) {
   return res.ok;
 }
 
-async function sendAll(admin: any) {
-  const w = weeks();
+async function sendAll(admin: any, period: Period = 'week') {
+  const w = weeks(period);
   const data = await loadData(admin, w);
   let sent = 0;
   for (const s of STORES) {
@@ -291,16 +302,20 @@ async function sendAll(admin: any) {
   return sent;
 }
 
-// Weekly run (Vercel Cron).
+// Weekly run (Vercel Cron) and monthly run (pg_cron: ?period=month&key=INBOX_SYNC_SECRET).
 export async function GET(request: Request): Promise<Response> {
   if (!SECRET_KEY || !RESEND_API_KEY) return json(500, { error: 'Not configured.' });
+  const url = new URL(request.url);
   const secret = process.env.CRON_SECRET;
-  if (secret && request.headers.get('authorization') !== `Bearer ${secret}`) return json(401, { error: 'Unauthorized.' });
+  const keyOk = !!process.env.INBOX_SYNC_SECRET && url.searchParams.get('key') === process.env.INBOX_SYNC_SECRET;
+  if (!keyOk && secret && request.headers.get('authorization') !== `Bearer ${secret}`) return json(401, { error: 'Unauthorized.' });
+  const period: Period = url.searchParams.get('period') === 'month' ? 'month' : 'week';
   const admin = createClient(SUPABASE_URL, SECRET_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
-  const { data: state } = await admin.from('notification_settings').select('updated_at').eq('key', 'leads_report_last_run').maybeSingle();
+  const runKey = period === 'month' ? 'leads_report_month_last_run' : 'leads_report_last_run';
+  const { data: state } = await admin.from('notification_settings').select('updated_at').eq('key', runKey).maybeSingle();
   if (state?.updated_at && Date.now() - new Date(state.updated_at).getTime() < 20 * 3600 * 1000) return json(200, { ok: true, skipped: 'already ran recently' });
-  await admin.from('notification_settings').upsert({ key: 'leads_report_last_run', recipients: [], updated_at: new Date().toISOString() });
-  try { return json(200, { ok: true, sent: await sendAll(admin) }); }
+  await admin.from('notification_settings').upsert({ key: runKey, recipients: [], updated_at: new Date().toISOString() });
+  try { return json(200, { ok: true, period, sent: await sendAll(admin, period) }); }
   catch (e) { return json(500, { error: (e as Error).message }); }
 }
 
@@ -316,11 +331,12 @@ export async function POST(request: Request): Promise<Response> {
   const { data: profile } = await admin.from('employee_profiles').select('role,status').ilike('email', me).maybeSingle();
   if (!profile || profile.role !== 'admin' || profile.status === 'disabled') return json(403, { error: 'Only admins can send this report.' });
 
-  let body: { mode?: string; store?: string };
+  let body: { mode?: string; store?: string; period?: string };
   try { body = await request.json(); } catch { body = {}; }
   try {
-    if (body.mode === 'send') return json(200, { ok: true, sent: await sendAll(admin) });
-    const w = weeks();
+    const period: Period = body.period === 'month' ? 'month' : 'week';
+    if (body.mode === 'send') return json(200, { ok: true, sent: await sendAll(admin, period) });
+    const w = weeks(period);
     const data = await loadData(admin, w);
     const storeId = body.store && STORES.some((s) => s.id === body.store) ? body.store : null;
     const { subject, html } = render(w, data, storeId);
