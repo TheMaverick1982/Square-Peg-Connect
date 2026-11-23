@@ -426,8 +426,9 @@ function ExpleeFollowUps() {
   const qc = useQueryClient();
   const { toast } = useToast();
   const [show, setShow] = useState<string>("open");
+  const [type, setType] = useState<string>("all");
   const [syncing, setSyncing] = useState(false);
-  const { data: leads = [], isLoading, error } = useQuery({
+  const { data: allLeads = [], isLoading, error } = useQuery({
     queryKey: ["outreach_leads"],
     queryFn: async () => {
       const { data, error } = await supabase.from("outreach_leads").select("*").eq("source", "explee").order("replied_at", { ascending: false }).limit(1000);
@@ -435,9 +436,16 @@ function ExpleeFollowUps() {
       return data || [];
     },
   });
+  // What the lead is about: what they actually booked, otherwise what the AI read from their reply.
+  const leadType = (l: any) => {
+    const t = String(l.booked_ref || "").split(":")[0];
+    const fromBooking = Object.entries(PIPELINE).find(([, p]) => p.table === t)?.[0];
+    return fromBooking || (PIPELINE[l.ai?.interest] ? l.ai.interest : "other");
+  };
+  const leads = type === "all" ? allLeads : allLeads.filter((l: any) => leadType(l) === type);
   const customerIds = Array.from(new Set(leads.map((l: any) => l.customer_id).filter(Boolean)));
   const { data: revenue = 0 } = useQuery({
-    queryKey: ["outreach_revenue", customerIds.length],
+    queryKey: ["outreach_revenue", type, customerIds.length],
     enabled: customerIds.length > 0,
     queryFn: async () => {
       const booked = leads.filter((l: any) => l.status === "booked" && l.customer_id).map((l: any) => l.customer_id);
@@ -458,17 +466,18 @@ function ExpleeFollowUps() {
       return [
         l.name, l.company, l.job_title, l.email, l.phone, l.linkedin_url, l.campaign_name,
         l.replied_at ? format(parseISO(l.replied_at), "yyyy-MM-dd") : "", OUTREACH_STATUSES.find((x) => x.id === l.status)?.label || l.status,
+        PIPELINE[leadType(l)]?.label || "Not sure yet",
         l.follow_up_on || "", ai.summary, ai.event_type, ai.event_date || ai.timeframe, ai.guest_count, ai.store, ai.budget, ai.next_step,
         l.notes, l.booked_at ? format(parseISO(l.booked_at), "yyyy-MM-dd") : "", l.reply,
       ];
     });
-    const headers = ["Name", "Company", "Title", "Email", "Phone", "LinkedIn", "Explee campaign", "Replied", "Status", "Follow up on",
+    const headers = ["Name", "Company", "Title", "Email", "Phone", "LinkedIn", "Explee campaign", "Replied", "Status", "Type", "Follow up on",
       "Summary", "Event type", "When", "Guests", "Store", "Budget", "Next step", "Notes", "Booked on", "Their reply"];
     const cell = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
     const csv = [headers.map(cell).join(","), ...rows.map((r) => r.map(cell).join(","))].join("\n");
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
     const a = document.createElement("a");
-    a.href = url; a.download = `explee-leads-${show}-${format(new Date(), "yyyy-MM-dd")}.csv`;
+    a.href = url; a.download = `explee-leads-${type === "all" ? "" : type + "-"}${show}-${format(new Date(), "yyyy-MM-dd")}.csv`;
     document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
   };
 
@@ -499,7 +508,15 @@ function ExpleeFollowUps() {
       </div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="text-xs text-muted-foreground">Positive replies from Explee wait here until they book. When they do, they move to <b>Booked</b> and become a customer automatically.</div>
-        <div className="flex gap-2 shrink-0">
+        <div className="flex flex-wrap gap-2 shrink-0">
+          <Select value={type} onValueChange={setType}>
+            <SelectTrigger className="w-52"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All types</SelectItem>
+              {Object.entries(PIPELINE).map(([k, p]) => <SelectItem key={k} value={k}>{p.label} ({allLeads.filter((l: any) => leadType(l) === k).length})</SelectItem>)}
+              <SelectItem value="other">Not sure yet ({allLeads.filter((l: any) => leadType(l) === "other").length})</SelectItem>
+            </SelectContent>
+          </Select>
           <Select value={show} onValueChange={setShow}>
             <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
             <SelectContent>
