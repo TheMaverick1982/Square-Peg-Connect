@@ -467,9 +467,9 @@ function ExpleeFollowUps() {
     } finally { setSyncing(false); }
   };
 
-  if (error) return <div className="text-sm text-destructive">Couldn't load Explee leads: {(error as Error).message}. (Has the Explee SQL been run in Supabase?)</div>;
   return (
     <div className="space-y-4">
+      {error && <div className="text-sm text-destructive">Couldn't load Explee leads: {(error as Error).message}. (Has the Explee SQL been run in Supabase?)</div>}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <Stat label="Positive replies" value={String(leads.length)} />
         <Stat label="Booked" value={String(booked)} />
